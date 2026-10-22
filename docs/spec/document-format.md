@@ -1,6 +1,6 @@
 # Annotation document format (`document.json`)
 
-Version: **1** · Status: stable for Phase 1
+Version: **2** · Status: stable for Phase 1 (version 1 documents are migrated on load)
 
 Each library item may have a `document.json` next to its `original.png`. It describes all
 annotations as vector objects, so they stay editable and the original stays untouched.
@@ -24,16 +24,34 @@ The TypeScript source of truth is
 
 | Field | Type | Description |
 |---|---|---|
-| `schemaVersion` | `1` | Format version |
+| `schemaVersion` | `2` | Format version |
 | `canvas` | `{ width, height }` | Size of `original.png` |
 | `erased` | `Rect[]` | Deleted areas of the image (transparent); shapes are not affected |
+| `layers` | `Layer[]` | Layers above the screenshot, bottom to top; at least one |
 | `objects` | `Shape[]` | Annotations |
+| `groups` | `Group[]` | Blocks (optional, default `[]`) |
+
+`Group` = `{ id, name, frame }` with `frame` = `{ stroke, strokeWidth, padding }` or `null`.
+A shape with `group` set is a member of that block; members are selected, moved and scaled
+together. A block has at least two members (otherwise it is dissolved on load). A frame is
+drawn as a rounded rectangle around the members' extent plus `padding`, above the layer's
+shapes, and counts for the output area.
+
+`Layer` = `{ id, name, visible, locked }`. The first layer is the **base layer** ("Original"):
+it holds the screenshot, cannot be deleted and always stays at the bottom; hiding it hides
+the screenshot. Paint order: the screenshot, then layer by layer from bottom to top; within
+a layer, shapes in `objects` order (later is on top). Shapes of hidden layers are not
+rendered and do not count for the output area.
+
+**Migration from version 1:** all shapes go into the base layer "Original". A base layer
+named "Ebene 1" (early version 2 documents) is renamed to "Original".
 
 `Rect` = `{ x, y, width, height }`.
 
 ## Shapes
 
-Every shape has a unique `id` (string, UUID) and a `type`.
+Every shape has a unique `id` (string, UUID), a `type`, the `layer` id it belongs to and
+optionally the `group` id of its block.
 
 | `type` | Fields | Rendering |
 |---|---|---|
@@ -52,16 +70,20 @@ other shapes are copied as they are.
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "canvas": { "width": 1920, "height": 1080 },
   "erased": [{ "x": 0, "y": 800, "width": 1920, "height": 280 }],
+  "layers": [
+    { "id": "L1", "name": "Original", "visible": true, "locked": false },
+    { "id": "L2", "name": "Privat", "visible": true, "locked": true }
+  ],
   "objects": [
-    { "id": "5c0e…", "type": "highlight", "x": 90, "y": 60, "width": 300, "height": 40, "fill": "#f2c94c" },
-    { "id": "8a1f…", "type": "arrow", "points": [500, 400, 320, 260], "stroke": "#e5322d", "strokeWidth": 5 },
-    { "id": "d2b7…", "type": "text", "x": 510, "y": 390, "width": 240, "text": "Click here to sign in", "fontSize": 26, "fill": "#e5322d" },
-    { "id": "3e9d…", "type": "arrow", "points": [-120, -60, 20, 20], "stroke": "#e5322d", "strokeWidth": 5 },
-    { "id": "0f3c…", "type": "rect", "x": 80, "y": 50, "width": 320, "height": 60, "stroke": "#e5322d", "strokeWidth": 5 },
-    { "id": "77aa…", "type": "blur", "x": 900, "y": 20, "width": 200, "height": 40, "pixelSize": 10 }
+    { "id": "5c0e…", "layer": "L1", "type": "highlight", "x": 90, "y": 60, "width": 300, "height": 40, "fill": "#f2c94c" },
+    { "id": "8a1f…", "layer": "L1", "type": "arrow", "points": [500, 400, 320, 260], "stroke": "#e5322d", "strokeWidth": 5 },
+    { "id": "d2b7…", "layer": "L1", "type": "text", "x": 510, "y": 390, "width": 240, "text": "Click here to sign in", "fontSize": 26, "fill": "#e5322d" },
+    { "id": "3e9d…", "layer": "L1", "type": "arrow", "points": [-120, -60, 20, 20], "stroke": "#e5322d", "strokeWidth": 5 },
+    { "id": "0f3c…", "layer": "L1", "type": "rect", "x": 80, "y": 50, "width": 320, "height": 60, "stroke": "#e5322d", "strokeWidth": 5 },
+    { "id": "77aa…", "layer": "L2", "type": "blur", "x": 900, "y": 20, "width": 200, "height": 40, "pixelSize": 10 }
   ]
 }
 ```

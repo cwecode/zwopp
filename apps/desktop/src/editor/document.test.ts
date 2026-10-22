@@ -18,6 +18,7 @@ import {
 
 const rect: RectShape = {
   id: "r1",
+  layer: "l1",
   type: "rect",
   x: 1,
   y: 2,
@@ -29,6 +30,7 @@ const rect: RectShape = {
 
 const arrow: ArrowShape = {
   id: "a1",
+  layer: "l1",
   type: "arrow",
   points: [-50, -20, 10, 10],
   stroke: "#000",
@@ -46,12 +48,25 @@ describe("document", () => {
     expect(removeShapes(moved, ["r1"]).objects).toHaveLength(0);
   });
 
-  it("loads stored documents and rejects unknown versions", () => {
-    const stored = { schemaVersion: 1, erased: [{ x: 1, y: 1, width: 5, height: 5 }], objects: [rect] };
+  it("migrates version 1 documents into one layer", () => {
+    const { layer: _, ...v1Rect } = rect;
+    const stored = { schemaVersion: 1, erased: [{ x: 1, y: 1, width: 5, height: 5 }], objects: [v1Rect] };
     const doc = loadDocument(stored, 100, 50);
-    expect(doc.objects).toEqual([rect]);
+    expect(doc.schemaVersion).toBe(2);
+    expect(doc.layers.map((l) => l.name)).toEqual(["Original"]);
+    expect(doc.objects).toEqual([{ ...rect, layer: doc.layers[0].id }]);
+    // Early version 2 documents named the base layer "Ebene 1".
+    const early = loadDocument({ schemaVersion: 2, layers: [{ id: "l1", name: "Ebene 1", visible: true, locked: false }], objects: [] }, 100, 50);
+    expect(early.layers[0].name).toBe("Original");
     expect(doc.erased).toHaveLength(1);
     expect(doc.canvas).toEqual({ width: 100, height: 50 });
+  });
+
+  it("loads version 2 documents and rejects unknown versions", () => {
+    const layers = [{ id: "l1", name: "A", visible: false, locked: true }];
+    const doc = loadDocument({ schemaVersion: 2, layers, objects: [rect, { ...arrow, layer: "gone" }] }, 100, 50);
+    expect(doc.layers).toEqual(layers);
+    expect(doc.objects.map((s) => s.layer)).toEqual(["l1", "l1"]);
     expect(loadDocument({ schemaVersion: 1, objects: [] }, 100, 50).erased).toEqual([]);
     expect(loadDocument({ schemaVersion: 99, objects: [rect] }, 100, 50).objects).toEqual([]);
     expect(loadDocument(null, 100, 50).objects).toEqual([]);

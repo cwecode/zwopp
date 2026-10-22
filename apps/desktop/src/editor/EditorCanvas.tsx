@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import {
@@ -16,12 +16,14 @@ import {
   LINE_HEIGHT,
   addShape,
   contentBounds,
+  visibleShapes,
   imageBounds,
   newId,
   rectFromPoints,
   removeShapes,
   unionRect,
   updateShape,
+  expandToGroups,
   type BlurShape,
   type EditorDocument,
   type Rect,
@@ -29,6 +31,7 @@ import {
   type TextShape,
 } from "./document";
 import { MipImage } from "./MipImage";
+import { pixelBlocks } from "./render";
 import { SIZES, type Tool, type ToolStyle } from "./tools";
 
 export interface CanvasHandle {
@@ -36,7 +39,7 @@ export interface CanvasHandle {
   exportPng(): Promise<Uint8Array>;
   /** Zooms by `factor` around the centre of the view. */
   zoomBy(factor: number): void;
-  /** Back to "fit to window". */
+  /** Fits the content to the window, enlarging it to fill the available space. */
   fit(): void;
   /** One image pixel per screen pixel. */
   actualSize(): void;
@@ -59,6 +62,8 @@ interface Props {
   tool: Tool;
   styles: Record<Tool, ToolStyle>;
   selectedIds: string[];
+  /** Layer that receives new shapes. */
+  activeLayer: string;
   /** Area marked with the selection tool, in image px. */
   marquee: Rect | null;
   /** Size of the stage, in CSS px. */
@@ -107,24 +112,30 @@ const CORNER_ANCHORS = ["top-left", "top-right", "bottom-left", "bottom-right"];
 const MIN_ZOOM = 0.02;
 const MAX_ZOOM = 16;
 
-function makeShape(tool: Tool, id: string, a: Point, b: Point, style: ToolStyle): Shape | null {
+function makeShape(
+  tool: Tool,
+  base: { id: string; layer: string },
+  a: Point,
+  b: Point,
+  style: ToolStyle,
+): Shape | null {
   const size = SIZES[style.size];
   const rect = rectFromPoints(a.x, a.y, b.x, b.y);
   switch (tool) {
     case "arrow":
       return {
-        id,
+        ...base,
         type: "arrow",
         points: [a.x, a.y, b.x, b.y],
         stroke: style.color,
         strokeWidth: size.strokeWidth,
       };
     case "rect":
-      return { id, type: "rect", ...rect, stroke: style.color, strokeWidth: size.strokeWidth };
+      return { ...base, type: "rect", ...rect, stroke: style.color, strokeWidth: size.strokeWidth };
     case "highlight":
-      return { id, type: "highlight", ...rect, fill: style.color };
+      return { ...base, type: "highlight", ...rect, fill: style.color };
     case "blur":
-      return { id, type: "blur", ...rect, pixelSize: size.pixelSize };
+      return { ...base, type: "blur", ...rect, pixelSize: size.pixelSize };
     default:
       return null;
   }
@@ -156,7 +167,7 @@ function inside(outer: Rect, inner: Rect) {
 }
 
 export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanvas(props, ref) {
-  const { image, assets, doc, layoutDoc, tool, styles, selectedIds, marquee, width, height } = props;
+  const { image, assets, doc, layoutDoc, tool, styles, selectedIds, activeLayer, marquee, width, height } = props;
   const { onSelect, onMarquee, onPreview, onCommit, onCancelPreview, onZoom } = props;
 
   const stageRef = useRef<Konva.Stage>(null);
@@ -173,8 +184,13 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
   const [textDraft, setTextDraft] = useState<Rect | null>(null);
   const [editing, setEditing] = useState<{ id: string; isNew: boolean } | null>(null);
   const [draggingArrow, setDraggingArrow] = useState(false);
-  /** Manual zoom/pan; null = fit to window. */
-  const [view, setView] = useState<View | null>(null);
+  /** Block opened by double-click; its elements are then picked one by one. */
+  const [enteredGroup, setEnteredGroup] = useState<string | null>(null);
+  /**
+   * Manual zoom/pan. null = fit, but never above 100 % (sharp default);
+   * "fill" = fit and enlarge so the content fills the available space.
+   */
+  const [view, setView] = useState<View | "fill" | null>(null);
   const spaceDown = useRef(false);
   const [panning, setPanning] = useState(false);
 
@@ -186,21 +202,24 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
   // Fit the content (image + shapes) into the stage, centred, with a margin
   // around it so there is room to draw outside the current image.
   const layout = contentBounds(layoutDoc) ?? { x: 0, y: 0, ...doc.canvas };
-  const fitScale = Math.max(
-    MIN_ZOOM * actual,
-    Math.min(actual, (width - MARGIN * 2) / layout.width, (height - MARGIN * 2) / layout.height),
-  );
-  const fitView: View = {
-    scale: fitScale,
-    x: Math.round(width / 2 - (layout.x + layout.width / 2) * fitScale),
-    y: Math.round(height / 2 - (layout.y + layout.height / 2) * fitScale),
+  const fitTo = (limit: number): View => {
+    const fitScale = Math.max(
+      MIN_ZOOM * actual,
+      Math.min(limit, (width - MARGIN * 2) / layout.width, (height - MARGIN * 2) / layout.height),
+    );
+    return {
+      scale: fitScale,
+      x: Math.round(width / 2 - (layout.x + layout.width / 2) * fitScale),
+      y: Math.round(height / 2 - (layout.y + layout.height / 2) * fitScale),
+    };
   };
-  const current = view ?? fitView;
+  const current =
+    view === "fill" ? fitTo(MAX_ZOOM * actual) : (view ?? fitTo(actual));
   const { scale } = current;
   const offsetX = current.x;
   const offsetY = current.y;
 
-  useEffect(() => onZoom({ zoom: scale / actual, fit: view === null }), [scale, actual, view, onZoom]);
+  useEffect(() => onZoom({ zoom: scale / actual, fit: view === "fill" }), [scale, actual, view, onZoom]);
 
   /** Zooms to `nextScale` keeping the screen point (px, py) fixed. */
   const zoomTo = (nextScale: number, px = width / 2, py = height / 2) => {
@@ -258,8 +277,36 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
   }, []);
   const selected = doc.objects.filter((s) => selectedIds.includes(s.id));
   const single = selected.length === 1 ? selected[0] : null;
+  const locked = new Set(doc.layers.filter((l) => l.locked).map((l) => l.id));
 
   const findNode = (id: string) => stageRef.current?.findOne((n: Konva.Node) => n.id() === id);
+
+  /**
+   * Positions block frames around their members' current extent. Done on the
+   * Konva nodes directly so frames follow while a block is being dragged.
+   */
+  const updateFrames = () => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    for (const group of doc.groups) {
+      const frame = findNode(`frame:${group.id}`);
+      if (!frame || !group.frame) continue;
+      const members = doc.objects
+        .filter((s) => s.group === group.id)
+        .map((s) => findNode(s.id))
+        .filter((n): n is Konva.Node => !!n && n.isVisible());
+      const box = members.reduce<Rect | null>(
+        (acc, n) => unionRect(acc, n.getClientRect({ relativeTo: stage })),
+        null,
+      );
+      frame.visible(!!box);
+      if (box) {
+        const pad = group.frame.padding;
+        frame.setAttrs({ x: box.x - pad, y: box.y - pad, width: box.width + pad * 2, height: box.height + pad * 2 });
+      }
+    }
+    contentRef.current?.batchDraw();
+  };
 
   /** Exact bounds of the output: what is left of the image plus all shapes. */
   const outputBounds = (): Rect | null => {
@@ -306,7 +353,7 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
       }
     },
     zoomBy: (factor) => zoomTo(scale * factor),
-    fit: () => setView(null),
+    fit: () => setView("fill"),
     actualSize: () => {
       const center = { x: (width / 2 - offsetX) / scale, y: (height / 2 - offsetY) / scale };
       setView({ scale: actual, x: width / 2 - center.x * actual, y: height / 2 - center.y * actual });
@@ -316,6 +363,7 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
   // Outline and checkerboard behind the output area, so it is clear what will
   // be saved and which parts are transparent.
   useLayoutEffect(() => {
+    updateFrames();
     const bounds = outputBounds();
     for (const node of [boundsRef.current, checkerRef.current]) {
       if (!node) continue;
@@ -406,6 +454,7 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
         const shape: TextShape = {
           id: newId(),
           type: "text",
+          layer: activeLayer,
           x: isBox ? box.x : start.x,
           y: isBox ? box.y : start.y - (size.fontSize * LINE_HEIGHT) / 2,
           ...(isBox && { width: box.width }),
@@ -461,14 +510,19 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
             return;
           }
           onMarquee(area);
-          // Shapes completely inside the area become the selection.
+          // Shapes completely inside the area become the selection (whole blocks).
+          setEnteredGroup(null);
           onSelect(
-            doc.objects
-              .filter((s) => {
-                const node = findNode(s.id);
-                return node && inside(area, node.getClientRect({ relativeTo: stage }));
-              })
-              .map((s) => s.id),
+            expandToGroups(
+              doc,
+              visibleShapes(doc)
+                .filter((s) => {
+                  if (locked.has(s.layer)) return false;
+                  const node = findNode(s.id);
+                  return node && inside(area, node.getClientRect({ relativeTo: stage }));
+                })
+                .map((s) => s.id),
+            ),
           );
         },
       );
@@ -477,13 +531,13 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
 
     const id = newId();
     const style = styles[tool];
-    setDraft(makeShape(tool, id, start, start, style));
+    setDraft(makeShape(tool, { id, layer: activeLayer }, start, start, style));
     trackDrag(
       stage,
-      (p) => setDraft(makeShape(tool, id, start, p, style)),
+      (p) => setDraft(makeShape(tool, { id, layer: activeLayer }, start, p, style)),
       (p) => {
         setDraft(null);
-        const shape = makeShape(tool, id, start, p, style);
+        const shape = makeShape(tool, { id, layer: activeLayer }, start, p, style);
         const dx = Math.abs(p.x - start.x) * scale;
         const dy = Math.abs(p.y - start.y) * scale;
         const big = tool === "arrow" ? Math.hypot(dx, dy) >= MIN_DRAG : dx >= MIN_DRAG && dy >= MIN_DRAG;
@@ -522,11 +576,26 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
     draggable: !editing,
     onMouseDown: (e: KonvaEventObject<MouseEvent>) => {
       onMarquee(null);
-      const isSelected = selectedIds.includes(shape.id);
+      // A block is picked as a whole, unless it was entered by double-click.
+      const unit =
+        shape.group && shape.group !== enteredGroup
+          ? doc.objects.filter((s) => s.group === shape.group).map((s) => s.id)
+          : [shape.id];
+      if (shape.group !== enteredGroup) setEnteredGroup(null);
+      const isSelected = unit.every((id) => selectedIds.includes(id));
       if (e.evt.shiftKey) {
-        onSelect(isSelected ? selectedIds.filter((id) => id !== shape.id) : [...selectedIds, shape.id]);
+        onSelect(isSelected ? selectedIds.filter((id) => !unit.includes(id)) : [...selectedIds, ...unit]);
       } else if (!isSelected) {
+        onSelect(unit);
+      }
+    },
+    onDblClick: () => {
+      if (shape.group && shape.group !== enteredGroup) {
+        // Enter the block to edit a single element.
+        setEnteredGroup(shape.group);
         onSelect([shape.id]);
+      } else if (shape.type === "text") {
+        setEditing({ id: shape.id, isNew: false });
       }
     },
     onDragStart: () => shape.type === "arrow" && setDraggingArrow(true),
@@ -535,6 +604,7 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
       if (shape.type !== "arrow" && selectedIds.length <= 1) {
         onPreview(updateShape(doc, shape.id, { x: e.target.x(), y: e.target.y() }));
       }
+      updateFrames();
     },
     onDragEnd: () => commitNodes(selectedIds.includes(shape.id) ? selectedIds : [shape.id]),
     onTransform: (e: KonvaEventObject<Event>) => {
@@ -547,7 +617,7 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
   });
 
   const renderShape = (shape: Shape, isDraft = false) => {
-    const common = isDraft ? { listening: false } : shapeProps(shape);
+    const common = isDraft || locked.has(shape.layer) ? { listening: false } : shapeProps(shape);
     switch (shape.type) {
       case "arrow":
         return (
@@ -600,7 +670,6 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
           <KonvaText
             key={shape.id}
             {...common}
-            onDblClick={() => setEditing({ id: shape.id, isNew: false })}
             visible={editing?.id !== shape.id}
             x={shape.x}
             y={shape.y}
@@ -682,12 +751,41 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
           />
         </Layer>
         <Layer ref={contentRef}>
-          <MipImage name="background" source={image} displayScale={scale * dpr} />
-          {/* Deleted areas punch holes into the image only: shapes come later. */}
-          {doc.erased.map((r, i) => (
-            <KonvaRect key={i} {...r} fill="#000" globalCompositeOperation="destination-out" listening={false} />
-          ))}
-          <Group ref={shapesRef}>{doc.objects.map((shape) => renderShape(shape))}</Group>
+          {/* The screenshot belongs to the base layer and is hidden with it. */}
+          {doc.layers[0].visible && (
+            <>
+              <MipImage name="background" source={image} displayScale={scale * dpr} />
+              {/* Deleted areas punch holes into the image only: shapes come later. */}
+              {doc.erased.map((r, i) => (
+                <KonvaRect key={i} {...r} fill="#000" globalCompositeOperation="destination-out" listening={false} />
+              ))}
+            </>
+          )}
+          <Group ref={shapesRef}>
+            {visibleShapes(doc).map((shape) => renderShape(shape))}
+            {doc.groups.map(
+              (group) =>
+                group.frame && (
+                  <KonvaRect
+                    key={group.id}
+                    id={`frame:${group.id}`}
+                    name="frame"
+                    stroke={group.frame.stroke}
+                    strokeWidth={group.frame.strokeWidth}
+                    cornerRadius={4}
+                    fillEnabled={false}
+                    hitStrokeWidth={Math.max(16, group.frame.strokeWidth * 3)}
+                    onMouseDown={(e) => {
+                      // Clicking the frame picks the whole block.
+                      e.cancelBubble = true;
+                      setEnteredGroup(null);
+                      onMarquee(null);
+                      onSelect(doc.objects.filter((s) => s.group === group.id).map((s) => s.id));
+                    }}
+                  />
+                ),
+            )}
+          </Group>
           {draft && renderShape(draft, true)}
         </Layer>
         <Layer>
@@ -718,6 +816,8 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
             borderStroke={SELECTION}
             anchorStroke={SELECTION}
             anchorSize={8}
+            onDragMove={updateFrames}
+            onTransform={updateFrames}
             onDragEnd={() => commitNodes(selectedIds)}
             onTransformEnd={() => commitNodes(selectedIds)}
           />
@@ -775,7 +875,11 @@ function autosize(textarea: HTMLTextAreaElement) {
   textarea.style.height = `${textarea.scrollHeight}px`;
 }
 
-/** Pixelates the part of the original image underneath the shape. */
+/**
+ * Pixelates the part of the original image underneath the shape. Uses a plain
+ * pre-computed bitmap (no Konva filter cache), so it can be clicked like any
+ * other shape.
+ */
 function BlurNode({
   shape,
   image,
@@ -785,29 +889,21 @@ function BlurNode({
   image: HTMLImageElement;
   common: object;
 }) {
-  const node = useRef<Konva.Image>(null);
   const width = Math.max(1, shape.width);
   const height = Math.max(1, shape.height);
-
-  useEffect(() => {
-    const current = node.current;
-    if (!current) return;
-    current.cache();
-    current.getLayer()?.batchDraw();
-  }, [shape.x, shape.y, width, height, shape.pixelSize, image]);
-
+  const blocks = useMemo(
+    () => pixelBlocks(image, { x: shape.x, y: shape.y, width, height }, shape.pixelSize),
+    [image, shape.x, shape.y, width, height, shape.pixelSize],
+  );
   return (
     <KonvaImage
-      ref={node}
       {...common}
-      image={image}
+      image={blocks}
       x={shape.x}
       y={shape.y}
       width={width}
       height={height}
-      crop={{ x: shape.x, y: shape.y, width, height }}
-      filters={[Konva.Filters.Pixelate]}
-      pixelSize={shape.pixelSize}
+      imageSmoothingEnabled={false}
     />
   );
 }

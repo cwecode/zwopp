@@ -1,11 +1,13 @@
 // In-app clipboard for annotations. It lives outside React so it survives
 // switching between library items in the editor.
-import type { Shape } from "./document";
+import type { Group, Shape } from "./document";
 
 export interface ClipboardContent {
   /** Item the content was copied from. */
   sourceId: string;
   shapes: Shape[];
+  /** Blocks whose members are all in `shapes`. */
+  groups: Group[];
   /** PNG bytes for image shapes, keyed by their `asset` value. */
   assets: Record<string, Uint8Array>;
 }

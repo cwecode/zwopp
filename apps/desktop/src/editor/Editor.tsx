@@ -4,13 +4,22 @@ import type { LibraryItem } from "../api";
 import { getClipboard, nextPasteOffset, setClipboard } from "./clipboard";
 import { EditorCanvas, type CanvasHandle, type ZoomState } from "./EditorCanvas";
 import { Filmstrip } from "./Filmstrip";
+import { LayersPanel } from "./LayersPanel";
 import {
   eraseArea,
   loadDocument,
+  moveShapes,
   newId,
   removeShapes,
+  visibleShapes,
   translateShape,
   updateShape,
+  groupMembers,
+  groupShapes,
+  pruneGroups,
+  selectedGroup,
+  setGroupFrame,
+  ungroup,
   type EditorDocument,
   type ImageShape,
   type Rect,
@@ -79,6 +88,8 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
   const [area, setArea] = useState({ width: 0, height: 0 });
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [zoom, setZoom] = useState<ZoomState>({ zoom: 1, fit: true });
+  const [activeLayerId, setActiveLayerId] = useState<string>();
+  const [showLayers, setShowLayers] = useState(true);
 
   const canvas = useRef<CanvasHandle>(null);
   const areaRef = useRef<HTMLDivElement>(null);
@@ -188,14 +199,55 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
 
   const doc = live ?? present;
   const selected = doc?.objects.filter((s) => selectedIds.includes(s.id)) ?? [];
-  const styleKey: Tool = (selected[0]?.type as Tool | undefined) ?? tool;
+  // New shapes go into the active layer; fall back to the top layer.
+  const activeLayer =
+    doc?.layers.find((l) => l.id === activeLayerId)?.id ?? doc?.layers[doc.layers.length - 1].id ?? "";
+
+  /** Selects shapes and makes the layer of the first one active. */
+  const select = useCallback(
+    (ids: string[]) => {
+      setSelectedIds(ids);
+      const first = doc?.objects.find((s) => s.id === ids[0]);
+      if (first) setActiveLayerId(first.layer);
+    },
+    [doc],
+  );
+  /** The block, if exactly one block is selected. */
+  const block = doc ? selectedGroup(doc, selectedIds) : null;
+  const canGroup = selected.length >= 2 && !block;
+  // A framed block's colour and size controls style the frame (like a rectangle).
+  const styleKey: Tool = block?.frame ? "rect" : ((selected[0]?.type as Tool | undefined) ?? tool);
   const style = styles[styleKey] ?? styles.arrow;
+
+  const frameStyle = (s: ToolStyle) => {
+    const width = SIZES[s.size].strokeWidth;
+    return { stroke: s.color, strokeWidth: width, padding: 8 + width * 2 };
+  };
 
   const changeStyle = (patch: Partial<ToolStyle>) => {
     setStyles((s) => ({ ...s, [styleKey]: { ...s[styleKey], ...patch } }));
-    if (selected.length && doc) {
+    if (!doc) return;
+    if (block?.frame) {
+      commit(setGroupFrame(doc, block.id, frameStyle({ ...styles.rect, ...patch })));
+    } else if (selected.length) {
       commit(selected.reduce((d, shape) => updateShape(d, shape.id, stylePatch(shape, patch)), doc));
     }
+  };
+
+  const makeBlock = () => {
+    if (!doc || !canGroup) return;
+    const result = groupShapes(doc, selectedIds);
+    if (!result) return;
+    commit(result.doc);
+    setSelectedIds(groupMembers(result.doc, result.id).map((s) => s.id));
+  };
+
+  const dissolveBlock = () => {
+    if (doc && block) commit(ungroup(doc, block.id));
+  };
+
+  const toggleFrame = () => {
+    if (doc && block) commit(setGroupFrame(doc, block.id, block.frame ? null : frameStyle(styles.rect)));
   };
 
   const chooseTool = (next: Tool) => {
@@ -249,9 +301,20 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
       Object.fromEntries(
         shapes.flatMap((s) => (s.type === "image" && assets[s.asset] ? [[s.asset, assets[s.asset].bytes]] : [])),
       );
+    // Blocks travel along if all their members are copied.
+    const groupsOf = (shapes: Shape[]) =>
+      doc.groups.filter((g) => {
+        const members = doc.objects.filter((s) => s.group === g.id);
+        return members.every((m) => shapes.some((s) => s.id === m.id));
+      });
     try {
       if (selected.length) {
-        setClipboard({ sourceId: item.id, shapes: selected, assets: assetBytes(selected) });
+        setClipboard({
+          sourceId: item.id,
+          shapes: selected,
+          groups: groupsOf(selected),
+          assets: assetBytes(selected),
+        });
         setMessage(
           `${selected.length} ${selected.length === 1 ? "Element" : "Elemente"} kopiert – mit Strg+V einfügen, auch in einem anderen Screenshot`,
         );
@@ -260,9 +323,10 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
       // Blur shapes are baked into the base image so hidden pixels never travel.
       const base = await renderBase(image, doc);
       const shapes = doc.objects.filter((s) => s.type !== "blur");
-      const content = { sourceId: item.id, shapes, assets: assetBytes(shapes) };
+      const content = { sourceId: item.id, shapes, groups: groupsOf(shapes), assets: assetBytes(shapes) };
       if (base) {
-        const baseShape: ImageShape = { id: newId(), type: "image", ...base.rect, asset: BASE_ASSET };
+        // The layer is assigned on paste.
+        const baseShape: ImageShape = { id: newId(), layer: "", type: "image", ...base.rect, asset: BASE_ASSET };
         content.shapes = [baseShape, ...shapes];
         content.assets[BASE_ASSET] = base.png;
       }
@@ -287,15 +351,25 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
         added[name] = { image: await loadImage(bytes), bytes };
       }
       const offset = nextPasteOffset(item.id);
+      const groupIds = new Map(content.groups.map((g) => [g.id, newId()]));
       const shapes = content.shapes.map((s) => {
-        const copy = translateShape({ ...s, id: newId() }, offset, offset);
+        const copy = translateShape(
+          { ...s, id: newId(), layer: activeLayer, group: s.group && groupIds.get(s.group) },
+          offset,
+          offset,
+        );
         return copy.type === "image" ? { ...copy, asset: names[copy.asset] ?? copy.asset } : copy;
       });
+      const groups = content.groups.map((g) => ({ ...g, id: groupIds.get(g.id)! }));
+      const ids = shapes.map((s) => s.id);
+      let next = pruneGroups({ ...doc, objects: [...doc.objects, ...shapes], groups: [...doc.groups, ...groups] });
+      // Pasted content lands as one block in the active layer (a copied block stays as it is).
+      if (ids.length >= 2 && !selectedGroup(next, ids)) next = groupShapes(next, ids)?.doc ?? next;
       setAssets((a) => ({ ...a, ...added }));
-      commit({ ...doc, objects: [...doc.objects, ...shapes] });
+      commit(next);
       setTool("select");
       setMarquee(null);
-      setSelectedIds(shapes.map((s) => s.id));
+      setSelectedIds(ids);
     } catch (e) {
       setMessage(String(e));
     }
@@ -327,13 +401,20 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
       else if (mod && key === "c" && e.shiftKey) void copyImage();
       else if (mod && key === "c") void copy();
       else if (mod && key === "v") void paste();
+      else if (mod && key === "g" && e.shiftKey) dissolveBlock();
+      else if (mod && key === "g") makeBlock();
       else if (mod && key === "0") canvas.current?.fit();
       else if (mod && key === "1") canvas.current?.actualSize();
       else if (mod && (key === "+" || key === "=")) canvas.current?.zoomBy(1.25);
       else if (mod && key === "-") canvas.current?.zoomBy(0.8);
       else if (mod && key === "a") {
         setTool("select");
-        setSelectedIds(doc?.objects.map((s) => s.id) ?? []);
+        const locked = new Set(doc?.layers.filter((l) => l.locked).map((l) => l.id));
+        setSelectedIds(doc ? visibleShapes(doc).filter((s) => !locked.has(s.layer)).map((s) => s.id) : []);
+      } else if (mod && (e.key === "ArrowUp" || e.key === "ArrowDown" || e.code === "BracketRight" || e.code === "BracketLeft")) {
+        if (!doc || !selectedIds.length) return;
+        const up = e.key === "ArrowUp" || e.code === "BracketRight";
+        commit(moveShapes(doc, selectedIds, e.shiftKey ? (up ? "front" : "back") : up ? "forward" : "backward"));
       } else if (e.altKey && e.key === "ArrowLeft") step(-1);
       else if (e.altKey && e.key === "ArrowRight") step(1);
       else if (e.key === "Delete" || e.key === "Backspace") deleteSelected();
@@ -377,6 +458,31 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
             </button>
           ))}
         </div>
+
+        {(canGroup || block) && (
+          <div className="tool-group" aria-label="Block">
+            {canGroup && (
+              <button className="primary" onClick={makeBlock} title="Auswahl zu einem Block zusammenfassen (Strg+G)">
+                Block bilden
+              </button>
+            )}
+            {block && (
+              <>
+                <button
+                  className={block.frame ? "tool active" : "tool"}
+                  aria-pressed={!!block.frame}
+                  onClick={toggleFrame}
+                  title="Rahmen um den Block (Farbe und Stärke über die Palette)"
+                >
+                  ▢ Rahmen
+                </button>
+                <button onClick={dissolveBlock} title="Block auflösen (Strg+Umschalt+G)">
+                  Auflösen
+                </button>
+              </>
+            )}
+          </div>
+        )}
 
         {showColor && (
           <div className="tool-group" aria-label="Farbe">
@@ -441,19 +547,32 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
             −
           </button>
           <button
-            className={zoom.fit ? "zoom-level active" : "zoom-level"}
-            onClick={() => canvas.current?.fit()}
-            title="Einpassen (Strg+0)"
+            className="zoom-level"
+            onClick={() => canvas.current?.actualSize()}
+            title="Auf 100 % (Originalgröße, Strg+1)"
           >
             {Math.round(zoom.zoom * 100)} %
           </button>
           <button onClick={() => canvas.current?.zoomBy(1.25)} title="Vergrößern (Strg++, Strg+Mausrad)">
             +
           </button>
-          <button onClick={() => canvas.current?.actualSize()} title="Originalgröße 1:1 (Strg+1)">
-            1:1
+          <button
+            className={zoom.fit ? "tool active" : "tool"}
+            onClick={() => canvas.current?.fit()}
+            title="Einpassen: so groß wie möglich (Strg+0)"
+          >
+            Einpassen
           </button>
         </div>
+
+        <button
+          className={showLayers ? "tool active" : "tool"}
+          aria-pressed={showLayers}
+          onClick={() => setShowLayers((v) => !v)}
+          title="Ebenen-Panel ein-/ausblenden"
+        >
+          Ebenen
+        </button>
 
         <span className={`save-status ${status}`}>{STATUS_LABEL[status]}</span>
         <button className="primary" onClick={copyImage} title="Bild in die Zwischenablage (Strg+Umschalt+C)">
@@ -468,29 +587,42 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
         </div>
       )}
 
-      <main className="editor-area" ref={areaRef}>
-        {image && doc && present && area.width > 0 && (
-          <EditorCanvas
-            ref={canvas}
-            image={image}
-            assets={images}
+      <div className="editor-body">
+        <main className="editor-area" ref={areaRef}>
+          {image && doc && present && area.width > 0 && (
+            <EditorCanvas
+              ref={canvas}
+              image={image}
+              assets={images}
+              doc={doc}
+              layoutDoc={present}
+              tool={tool}
+              styles={styles}
+              selectedIds={selectedIds}
+              activeLayer={activeLayer}
+              marquee={marquee}
+              width={area.width}
+              height={area.height}
+              onSelect={select}
+              onMarquee={setMarquee}
+              onPreview={setLive}
+              onCommit={commit}
+              onCancelPreview={() => setLive(null)}
+              onZoom={setZoom}
+            />
+          )}
+        </main>
+        {showLayers && doc && (
+          <LayersPanel
             doc={doc}
-            layoutDoc={present}
-            tool={tool}
-            styles={styles}
             selectedIds={selectedIds}
-            marquee={marquee}
-            width={area.width}
-            height={area.height}
-            onSelect={setSelectedIds}
-            onMarquee={setMarquee}
-            onPreview={setLive}
+            activeLayer={activeLayer}
+            onSelect={select}
+            onActivate={setActiveLayerId}
             onCommit={commit}
-            onCancelPreview={() => setLive(null)}
-            onZoom={setZoom}
           />
         )}
-      </main>
+      </div>
 
       <Filmstrip items={items} currentId={item.id} onOpen={open} />
     </div>
