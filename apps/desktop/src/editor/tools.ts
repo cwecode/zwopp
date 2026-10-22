@@ -48,5 +48,7 @@ export function stylePatch(shape: Shape, style: Partial<ToolStyle>): Partial<Sha
       return style.color ? { fill: style.color } : {};
     case "blur":
       return size ? { pixelSize: size.pixelSize } : {};
+    case "image":
+      return {};
   }
 }

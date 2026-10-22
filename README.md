@@ -19,6 +19,8 @@ highlights, step numbers, emojis and more.
 - **Editor:** arrow, rectangle, text box, highlighter, pixelate; colors and sizes;
   move/resize; undo/redo; autosave; copy the annotated image. Draw outside the screenshot
   and the canvas grows (transparent background); mark an area and press Del to delete it.
+  A filmstrip shows the library; copy a whole edit or a selection and paste it into another
+  screenshot as a movable block.
   Annotations stay editable ([format](docs/spec/document-format.md)), the original is never changed
 - Runs in the system tray; closing the window keeps it running
 
@@ -29,8 +31,15 @@ highlights, step numbers, emojis and more.
 | V / A / R / T / H / B | Select / Arrow / Rectangle / Text / Highlighter / Pixelate |
 | Ctrl+Z, Ctrl+Y | Undo, redo |
 | Drag on empty area (V) | Mark an area |
-| Del | Delete marked area, or the selected shape |
-| Ctrl+C | Copy annotated image |
+| Del | Delete marked area, or the selected shapes |
+| Shift+click, Ctrl+A | Add to selection, select all |
+| Ctrl+C | Copy selection – or, with nothing selected, the whole edit (screenshot + annotations) |
+| Ctrl+V | Paste as a block (also into another screenshot) |
+| Ctrl+Shift+C | Copy the finished image to the system clipboard |
+| Alt+← / Alt+→ | Previous / next screenshot from the filmstrip |
+| Ctrl+wheel, Ctrl++ / Ctrl+− | Zoom (at the cursor) |
+| Ctrl+0 / Ctrl+1 | Fit to window / actual pixels (1:1) |
+| Wheel, Space+drag, middle mouse | Pan |
 | Double-click text | Edit text (Esc or Ctrl+Enter to finish) |
 
 ## Install

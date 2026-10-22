@@ -34,6 +34,9 @@ pub enum Error {
 
     #[error("invalid annotation document: {0}")]
     InvalidDocument(String),
+
+    #[error("invalid asset name: {0}")]
+    InvalidAsset(String),
 }
 
 pub(crate) trait IoContext<T> {

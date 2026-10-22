@@ -29,6 +29,7 @@ export function App() {
       ref={editor}
       item={editing}
       onClose={() => setEditing(null)}
+      onOpen={setEditing}
       onSaved={onSaved}
     />
   ) : (

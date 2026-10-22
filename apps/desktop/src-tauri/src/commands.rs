@@ -111,16 +111,38 @@ pub async fn save_render(
     state: State<'_, AppState>,
     request: Request<'_>,
 ) -> CmdResult<LibraryItem> {
+    let (id, png) = raw_png(&request)?;
+    state.library.save_render(id, png).map_err(err)
+}
+
+/// Splits a raw-body request into the `item-id` header and the PNG bytes.
+fn raw_png<'a>(request: &'a Request<'_>) -> CmdResult<(Uuid, &'a [u8])> {
     let InvokeBody::Raw(png) = request.body() else {
         return Err("expected raw PNG body".into());
     };
-    let id: Uuid = request
+    let id = request
         .headers()
         .get("item-id")
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.parse().ok())
         .ok_or("missing item-id header")?;
-    state.library.save_render(id, png).map_err(err)
+    Ok((id, png))
+}
+
+/// Stores an extra image for the item's document; raw PNG body, `item-id` header.
+#[tauri::command]
+pub async fn save_asset(state: State<'_, AppState>, request: Request<'_>) -> CmdResult<String> {
+    let (id, png) = raw_png(&request)?;
+    state.library.save_asset(id, png).map_err(err)
+}
+
+#[tauri::command]
+pub async fn read_asset(state: State<'_, AppState>, id: Uuid, name: String) -> CmdResult<Response> {
+    state
+        .library
+        .read_asset(id, &name)
+        .map(Response::new)
+        .map_err(err)
 }
 
 /// Copies the item (with annotations, if any) to the clipboard.

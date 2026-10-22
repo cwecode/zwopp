@@ -19,7 +19,7 @@ import {
   imageBounds,
   newId,
   rectFromPoints,
-  removeShape,
+  removeShapes,
   unionRect,
   updateShape,
   type BlurShape,
@@ -28,34 +28,56 @@ import {
   type Shape,
   type TextShape,
 } from "./document";
+import { MipImage } from "./MipImage";
 import { SIZES, type Tool, type ToolStyle } from "./tools";
 
 export interface CanvasHandle {
   /** Renders image and shapes at full resolution, transparent where empty. */
   exportPng(): Promise<Uint8Array>;
+  /** Zooms by `factor` around the centre of the view. */
+  zoomBy(factor: number): void;
+  /** Back to "fit to window". */
+  fit(): void;
+  /** One image pixel per screen pixel. */
+  actualSize(): void;
+}
+
+/** Current zoom, where 1 means one image pixel per screen pixel. */
+export interface ZoomState {
+  zoom: number;
+  fit: boolean;
 }
 
 interface Props {
   image: HTMLImageElement;
+  /** Decoded images for `image` shapes, keyed by asset name. */
+  assets: Record<string, HTMLImageElement>;
   /** What to draw (may contain a transient change). */
   doc: EditorDocument;
   /** Committed document; the zoom follows it so the view does not jump mid-drag. */
   layoutDoc: EditorDocument;
   tool: Tool;
   styles: Record<Tool, ToolStyle>;
-  selectedId: string | null;
+  selectedIds: string[];
   /** Area marked with the selection tool, in image px. */
   marquee: Rect | null;
   /** Size of the stage, in CSS px. */
   width: number;
   height: number;
-  onSelect(id: string | null): void;
+  onSelect(ids: string[]): void;
   onMarquee(area: Rect | null): void;
   /** Transient change (while dragging/typing); not an undo step. */
   onPreview(doc: EditorDocument): void;
   /** Finished change; becomes an undo step. */
   onCommit(doc: EditorDocument): void;
   onCancelPreview(): void;
+  onZoom(state: ZoomState): void;
+}
+
+interface View {
+  scale: number;
+  x: number;
+  y: number;
 }
 
 interface Point {
@@ -80,6 +102,10 @@ const RECT_ANCHORS = [
   "middle-left",
 ];
 const TEXT_ANCHORS = ["top-left", "top-right", "bottom-left", "bottom-right", "middle-left", "middle-right"];
+const CORNER_ANCHORS = ["top-left", "top-right", "bottom-left", "bottom-right"];
+/** Zoom limits relative to actual pixels. */
+const MIN_ZOOM = 0.02;
+const MAX_ZOOM = 16;
 
 function makeShape(tool: Tool, id: string, a: Point, b: Point, style: ToolStyle): Shape | null {
   const size = SIZES[style.size];
@@ -120,9 +146,18 @@ function trackDrag(stage: Konva.Stage, onMove: (p: Point) => void, onUp: (p: Poi
   window.addEventListener("mouseup", up);
 }
 
+function inside(outer: Rect, inner: Rect) {
+  return (
+    inner.x >= outer.x &&
+    inner.y >= outer.y &&
+    inner.x + inner.width <= outer.x + outer.width &&
+    inner.y + inner.height <= outer.y + outer.height
+  );
+}
+
 export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanvas(props, ref) {
-  const { image, doc, layoutDoc, tool, styles, selectedId, marquee, width, height } = props;
-  const { onSelect, onMarquee, onPreview, onCommit, onCancelPreview } = props;
+  const { image, assets, doc, layoutDoc, tool, styles, selectedIds, marquee, width, height } = props;
+  const { onSelect, onMarquee, onPreview, onCommit, onCancelPreview, onZoom } = props;
 
   const stageRef = useRef<Konva.Stage>(null);
   const contentRef = useRef<Konva.Layer>(null);
@@ -131,22 +166,100 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
   const checkerRef = useRef<Konva.Rect>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const textInput = useRef<HTMLTextAreaElement>(null);
+  /** Set while a node commit is pending, so one gesture commits only once. */
+  const committing = useRef(false);
 
   const [draft, setDraft] = useState<Shape | null>(null);
   const [textDraft, setTextDraft] = useState<Rect | null>(null);
   const [editing, setEditing] = useState<{ id: string; isNew: boolean } | null>(null);
   const [draggingArrow, setDraggingArrow] = useState(false);
+  /** Manual zoom/pan; null = fit to window. */
+  const [view, setView] = useState<View | null>(null);
+  const spaceDown = useRef(false);
+  const [panning, setPanning] = useState(false);
+
+  // Screenshots are captured in physical pixels; on a 150 % display one image
+  // pixel at CSS scale 1 would be upscaled and blurry. Scale 1/dpr is 1:1.
+  const dpr = window.devicePixelRatio || 1;
+  const actual = 1 / dpr;
 
   // Fit the content (image + shapes) into the stage, centred, with a margin
   // around it so there is room to draw outside the current image.
   const layout = contentBounds(layoutDoc) ?? { x: 0, y: 0, ...doc.canvas };
-  const scale = Math.max(
-    0.05,
-    Math.min(1, (width - MARGIN * 2) / layout.width, (height - MARGIN * 2) / layout.height),
+  const fitScale = Math.max(
+    MIN_ZOOM * actual,
+    Math.min(actual, (width - MARGIN * 2) / layout.width, (height - MARGIN * 2) / layout.height),
   );
-  const offsetX = Math.round(width / 2 - (layout.x + layout.width / 2) * scale);
-  const offsetY = Math.round(height / 2 - (layout.y + layout.height / 2) * scale);
-  const selected = doc.objects.find((s) => s.id === selectedId) ?? null;
+  const fitView: View = {
+    scale: fitScale,
+    x: Math.round(width / 2 - (layout.x + layout.width / 2) * fitScale),
+    y: Math.round(height / 2 - (layout.y + layout.height / 2) * fitScale),
+  };
+  const current = view ?? fitView;
+  const { scale } = current;
+  const offsetX = current.x;
+  const offsetY = current.y;
+
+  useEffect(() => onZoom({ zoom: scale / actual, fit: view === null }), [scale, actual, view, onZoom]);
+
+  /** Zooms to `nextScale` keeping the screen point (px, py) fixed. */
+  const zoomTo = (nextScale: number, px = width / 2, py = height / 2) => {
+    const clamped = Math.min(MAX_ZOOM * actual, Math.max(MIN_ZOOM * actual, nextScale));
+    const ratio = clamped / scale;
+    setView({ scale: clamped, x: px - (px - offsetX) * ratio, y: py - (py - offsetY) * ratio });
+  };
+
+  const onWheel = (event: KonvaEventObject<WheelEvent>) => {
+    const e = event.evt;
+    e.preventDefault();
+    if (e.ctrlKey || e.metaKey) {
+      const pointer = stageRef.current?.getPointerPosition();
+      zoomTo(scale * Math.pow(1.0015, -e.deltaY), pointer?.x, pointer?.y);
+    } else {
+      // Plain wheel pans; Shift turns vertical wheels into horizontal panning.
+      const dx = e.shiftKey ? e.deltaY : e.deltaX;
+      const dy = e.shiftKey ? 0 : e.deltaY;
+      setView({ scale, x: offsetX - dx, y: offsetY - dy });
+    }
+  };
+
+  const startPan = (e: MouseEvent) => {
+    const base = { ...current, cx: e.clientX, cy: e.clientY };
+    setPanning(true);
+    const move = (ev: MouseEvent) =>
+      setView({ scale: base.scale, x: base.x + ev.clientX - base.cx, y: base.y + ev.clientY - base.cy });
+    const up = () => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+      setPanning(false);
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  };
+
+  // Hold Space to pan with the left mouse button.
+  useEffect(() => {
+    const typing = (e: KeyboardEvent) => (e.target as HTMLElement | null)?.tagName === "TEXTAREA";
+    const down = (e: KeyboardEvent) => {
+      if (e.key === " " && !typing(e)) {
+        spaceDown.current = true;
+        e.preventDefault();
+      }
+    };
+    const up = (e: KeyboardEvent) => {
+      if (e.key === " ") spaceDown.current = false;
+    };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+    };
+  }, []);
+  const selected = doc.objects.filter((s) => selectedIds.includes(s.id));
+  const single = selected.length === 1 ? selected[0] : null;
+
+  const findNode = (id: string) => stageRef.current?.findOne((n: Konva.Node) => n.id() === id);
 
   /** Exact bounds of the output: what is left of the image plus all shapes. */
   const outputBounds = (): Rect | null => {
@@ -172,16 +285,31 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
       const layer = contentRef.current;
       if (!layer) throw new Error("editor not ready");
       const area = outputBounds() ?? { x: 0, y: 0, width: 1, height: 1 };
-      const blob = (await layer.toBlob({
-        x: area.x * scale + offsetX,
-        y: area.y * scale + offsetY,
-        width: area.width * scale,
-        height: area.height * scale,
-        pixelRatio: 1 / scale,
-        mimeType: "image/png",
-      })) as Blob | null;
-      if (!blob) throw new Error("export failed");
-      return new Uint8Array(await blob.arrayBuffer());
+      // Draw full-resolution sources instead of the screen-sized copies.
+      const images = layer.find((n: Konva.Node) => !!n.getAttr("source")) as Konva.Image[];
+      const shown = images.map((n) => n.image());
+      images.forEach((n) => n.image(n.getAttr("source")));
+      try {
+        const blob = (await layer.toBlob({
+          x: area.x * scale + offsetX,
+          y: area.y * scale + offsetY,
+          width: area.width * scale,
+          height: area.height * scale,
+          pixelRatio: 1 / scale,
+          mimeType: "image/png",
+        })) as Blob | null;
+        if (!blob) throw new Error("export failed");
+        return new Uint8Array(await blob.arrayBuffer());
+      } finally {
+        images.forEach((n, i) => n.image(shown[i]));
+        layer.batchDraw();
+      }
+    },
+    zoomBy: (factor) => zoomTo(scale * factor),
+    fit: () => setView(null),
+    actualSize: () => {
+      const center = { x: (width / 2 - offsetX) / scale, y: (height / 2 - offsetY) / scale };
+      setView({ scale: actual, x: width / 2 - center.x * actual, y: height / 2 - center.y * actual });
     },
   }));
 
@@ -197,21 +325,21 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
     }
   });
 
-  // Attach the transformer to the selected shape (arrows use end-point handles).
+  // Attach the transformer to the selection. A single arrow uses its
+  // end-point handles instead.
   useEffect(() => {
-    const stage = stageRef.current;
     const transformer = transformerRef.current;
-    if (!stage || !transformer) return;
-    const node =
-      selected && selected.type !== "arrow" && !editing
-        ? stage.findOne((n: Konva.Node) => n.id() === selected.id)
-        : undefined;
-    transformer.nodes(node ? [node] : []);
-    const isText = selected?.type === "text";
-    transformer.keepRatio(isText);
-    transformer.enabledAnchors(isText ? TEXT_ANCHORS : RECT_ANCHORS);
+    if (!transformer) return;
+    const nodes =
+      editing || single?.type === "arrow"
+        ? []
+        : selected.map((s) => findNode(s.id)).filter((n): n is Konva.Node => !!n);
+    transformer.nodes(nodes);
+    const isText = single?.type === "text";
+    transformer.keepRatio(isText || selected.length > 1);
+    transformer.enabledAnchors(isText ? TEXT_ANCHORS : selected.length > 1 ? CORNER_ANCHORS : RECT_ANCHORS);
     transformer.getLayer()?.batchDraw();
-  }, [selected, editing, doc]);
+  });
 
   // Focus the text box once it is on screen.
   useEffect(() => {
@@ -225,6 +353,44 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
     });
     return () => cancelAnimationFrame(frame);
   }, [editing]);
+
+  /**
+   * Reads position and scale of the given shapes' nodes back into the
+   * document as one undo step (after a drag or transform of the selection).
+   */
+  const commitNodes = (ids: string[]) => {
+    if (committing.current) return;
+    committing.current = true;
+    setTimeout(() => (committing.current = false));
+    let next = doc;
+    for (const id of ids) {
+      const shape = doc.objects.find((s) => s.id === id);
+      const node = findNode(id);
+      if (!shape || !node) continue;
+      const [x, y, sx, sy] = [node.x(), node.y(), node.scaleX(), node.scaleY()];
+      node.scale({ x: 1, y: 1 });
+      let patch: Partial<Shape>;
+      if (shape.type === "arrow") {
+        // Arrows keep their geometry in `points`; fold the node transform in.
+        node.position({ x: 0, y: 0 });
+        const [x1, y1, x2, y2] = shape.points;
+        patch = { points: [x + x1 * sx, y + y1 * sy, x + x2 * sx, y + y2 * sy] };
+      } else if (shape.type === "text") {
+        const boxed = node.getAttr("width") !== undefined;
+        patch = {
+          x,
+          y,
+          fontSize: Math.max(6, shape.fontSize * sy),
+          width: boxed ? node.width() * sx : undefined,
+        };
+      } else {
+        patch = { x, y, width: Math.max(2, shape.width * sx), height: Math.max(2, shape.height * sy) };
+      }
+      next = updateShape(next, id, patch);
+    }
+    setDraggingArrow(false);
+    onCommit(next);
+  };
 
   const startText = (start: Point) => {
     const stage = stageRef.current!;
@@ -248,7 +414,7 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
           fill: styles.text.color,
         };
         onPreview(addShape(doc, shape));
-        onSelect(shape.id);
+        onSelect([shape.id]);
         setEditing({ id: shape.id, isNew: true });
       },
     );
@@ -256,9 +422,16 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
 
   const onStageMouseDown = (event: KonvaEventObject<MouseEvent>) => {
     const stage = stageRef.current;
-    if (!stage || editing || event.evt.button !== 0) return;
+    if (!stage) return;
+    // Middle mouse or Space + left mouse pans the view.
+    if (event.evt.button === 1 || (event.evt.button === 0 && spaceDown.current)) {
+      event.evt.preventDefault();
+      startPan(event.evt);
+      return;
+    }
+    if (editing || event.evt.button !== 0) return;
     const target = event.target;
-    // Transformer and arrow handles drag themselves.
+    // Transformer (including its drag area) and arrow handles drag themselves.
     if (target.getParent() instanceof Konva.Transformer || target.name() === "anchor") return;
     const start = stage.getRelativePointerPosition();
     if (!start) return;
@@ -274,7 +447,7 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
 
     // Clicking a shape selects it (in every tool); the shape drags itself.
     if (onShape) return;
-    onSelect(null);
+    onSelect([]);
     onMarquee(null);
 
     if (tool === "select") {
@@ -283,8 +456,20 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
         (p) => onMarquee(rectFromPoints(start.x, start.y, p.x, p.y)),
         (p) => {
           const area = rectFromPoints(start.x, start.y, p.x, p.y);
-          const big = area.width * scale >= MIN_DRAG && area.height * scale >= MIN_DRAG;
-          onMarquee(big ? area : null);
+          if (area.width * scale < MIN_DRAG || area.height * scale < MIN_DRAG) {
+            onMarquee(null);
+            return;
+          }
+          onMarquee(area);
+          // Shapes completely inside the area become the selection.
+          onSelect(
+            doc.objects
+              .filter((s) => {
+                const node = findNode(s.id);
+                return node && inside(area, node.getClientRect({ relativeTo: stage }));
+              })
+              .map((s) => s.id),
+          );
         },
       );
       return;
@@ -305,7 +490,7 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
         if (shape && big) {
           onCommit(addShape(doc, shape));
           // Keep the new shape selected so its handles show it can be adjusted.
-          onSelect(id);
+          onSelect([id]);
         }
       },
     );
@@ -321,11 +506,11 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
       if (text) onCommit(updateShape(doc, shape.id, { text }));
       else {
         onCancelPreview();
-        onSelect(null);
+        onSelect([]);
       }
     } else if (!text) {
-      onCommit(removeShape(doc, shape.id));
-      onSelect(null);
+      onCommit(removeShapes(doc, [shape.id]));
+      onSelect([]);
     } else if (text !== shape.text) {
       onCommit(updateShape(doc, shape.id, { text }));
     }
@@ -335,54 +520,28 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
     id: shape.id,
     name: "shape",
     draggable: !editing,
-    onMouseDown: () => {
-      onSelect(shape.id);
+    onMouseDown: (e: KonvaEventObject<MouseEvent>) => {
       onMarquee(null);
-    },
-    onDragMove: (e: KonvaEventObject<DragEvent>) => {
-      if (shape.type !== "arrow") onPreview(updateShape(doc, shape.id, { x: e.target.x(), y: e.target.y() }));
-    },
-    onDragEnd: (e: KonvaEventObject<DragEvent>) => {
-      const node = e.target;
-      if (shape.type === "arrow") {
-        const [x1, y1, x2, y2] = shape.points;
-        const [dx, dy] = [node.x(), node.y()];
-        node.position({ x: 0, y: 0 });
-        setDraggingArrow(false);
-        onCommit(updateShape(doc, shape.id, { points: [x1 + dx, y1 + dy, x2 + dx, y2 + dy] }));
-      } else {
-        onCommit(updateShape(doc, shape.id, { x: node.x(), y: node.y() }));
+      const isSelected = selectedIds.includes(shape.id);
+      if (e.evt.shiftKey) {
+        onSelect(isSelected ? selectedIds.filter((id) => id !== shape.id) : [...selectedIds, shape.id]);
+      } else if (!isSelected) {
+        onSelect([shape.id]);
       }
     },
+    onDragStart: () => shape.type === "arrow" && setDraggingArrow(true),
+    onDragMove: (e: KonvaEventObject<DragEvent>) => {
+      // Live update for a single shape (keeps blur sampling under the shape).
+      if (shape.type !== "arrow" && selectedIds.length <= 1) {
+        onPreview(updateShape(doc, shape.id, { x: e.target.x(), y: e.target.y() }));
+      }
+    },
+    onDragEnd: () => commitNodes(selectedIds.includes(shape.id) ? selectedIds : [shape.id]),
     onTransform: (e: KonvaEventObject<Event>) => {
       // Side handles on text change the box width live instead of stretching glyphs.
       const node = e.target;
       if (shape.type === "text" && Math.abs(node.scaleY() - 1) < 1e-3) {
         node.setAttrs({ width: Math.max(20, node.width() * node.scaleX()), scaleX: 1 });
-      }
-    },
-    onTransformEnd: (e: KonvaEventObject<Event>) => {
-      const node = e.target;
-      const [sx, sy] = [node.scaleX(), node.scaleY()];
-      node.scale({ x: 1, y: 1 });
-      if (shape.type === "text") {
-        const resized =
-          Math.abs(sy - 1) < 1e-3
-            ? { width: node.width() * sx }
-            : {
-                fontSize: Math.max(6, shape.fontSize * sy),
-                width: shape.width === undefined ? undefined : shape.width * sx,
-              };
-        onCommit(updateShape(doc, shape.id, { x: node.x(), y: node.y(), ...resized }));
-      } else {
-        onCommit(
-          updateShape(doc, shape.id, {
-            x: node.x(),
-            y: node.y(),
-            width: Math.max(2, node.width() * sx),
-            height: Math.max(2, node.height() * sy),
-          }),
-        );
       }
     },
   });
@@ -395,7 +554,6 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
           <Arrow
             key={shape.id}
             {...common}
-            onDragStart={() => setDraggingArrow(true)}
             points={shape.points}
             stroke={shape.stroke}
             fill={shape.stroke}
@@ -458,35 +616,50 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
         );
       case "blur":
         return <BlurNode key={shape.id} common={common} shape={shape} image={image} />;
+      case "image": {
+        const source = assets[shape.asset];
+        return (
+          <MipImage
+            key={shape.id}
+            {...common}
+            source={source}
+            displayScale={source ? (scale * dpr * shape.width) / source.naturalWidth : 1}
+            x={shape.x}
+            y={shape.y}
+            width={shape.width}
+            height={shape.height}
+          />
+        );
+      }
     }
   };
 
   const editingShape = editing ? (doc.objects.find((s) => s.id === editing.id) as TextShape | undefined) : undefined;
   const anchors =
-    selected?.type === "arrow" && !draggingArrow
+    single?.type === "arrow" && !draggingArrow
       ? [0, 1].map((end) => (
           <Circle
             key={end}
             name="anchor"
-            x={selected.points[end * 2]}
-            y={selected.points[end * 2 + 1]}
+            x={single.points[end * 2]}
+            y={single.points[end * 2 + 1]}
             radius={6 / scale}
             fill="#fff"
             stroke={SELECTION}
             strokeWidth={1.5 / scale}
             draggable
             onDragMove={(e) => {
-              const points = [...selected.points] as typeof selected.points;
+              const points = [...single.points] as typeof single.points;
               points[end * 2] = e.target.x();
               points[end * 2 + 1] = e.target.y();
-              onPreview(updateShape(doc, selected.id, { points }));
+              onPreview(updateShape(doc, single.id, { points }));
             }}
             onDragEnd={() => onCommit(doc)}
           />
         ))
       : null;
 
-  const cursor = tool === "select" ? "default" : tool === "text" ? "text" : "crosshair";
+  const cursor = panning ? "grabbing" : tool === "select" ? "default" : tool === "text" ? "text" : "crosshair";
 
   return (
     <div className="editor-stage" style={{ cursor }}>
@@ -499,6 +672,7 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
         x={offsetX}
         y={offsetY}
         onMouseDown={onStageMouseDown}
+        onWheel={onWheel}
       >
         <Layer listening={false}>
           <KonvaRect
@@ -508,7 +682,7 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
           />
         </Layer>
         <Layer ref={contentRef}>
-          <KonvaImage name="background" image={image} />
+          <MipImage name="background" source={image} displayScale={scale * dpr} />
           {/* Deleted areas punch holes into the image only: shapes come later. */}
           {doc.erased.map((r, i) => (
             <KonvaRect key={i} {...r} fill="#000" globalCompositeOperation="destination-out" listening={false} />
@@ -539,9 +713,13 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
             rotateEnabled={false}
             flipEnabled={false}
             ignoreStroke
+            // With several shapes selected, drag the whole block from anywhere inside it.
+            shouldOverdrawWholeArea={selected.length > 1}
             borderStroke={SELECTION}
             anchorStroke={SELECTION}
             anchorSize={8}
+            onDragEnd={() => commitNodes(selectedIds)}
+            onTransformEnd={() => commitNodes(selectedIds)}
           />
           {anchors}
         </Layer>

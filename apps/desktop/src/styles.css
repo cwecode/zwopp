@@ -299,6 +299,11 @@ button.tool.active {
   box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--selection);
 }
 
+.zoom-level {
+  min-width: 64px;
+  font-variant-numeric: tabular-nums;
+}
+
 .save-status {
   margin-left: auto;
   font-size: 12px;
@@ -337,6 +342,47 @@ button.tool.active {
   overflow: hidden;
   resize: none;
   min-width: 3ch;
+}
+
+.filmstrip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.filmstrip ul {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 2px;
+  list-style: none;
+  overflow-x: auto;
+}
+
+.filmstrip-item {
+  padding: 2px;
+  height: 64px;
+  border-width: 2px;
+}
+
+.filmstrip-item.current {
+  border-color: var(--selection);
+}
+
+.filmstrip-item img {
+  display: block;
+  height: 100%;
+  max-width: 140px;
+  object-fit: contain;
+}
+
+.filmstrip-step {
+  align-self: stretch;
+  font-size: 18px;
 }
 
 .editor-text-input.boxed {

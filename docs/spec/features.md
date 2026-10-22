@@ -50,6 +50,10 @@ see [document-format.md](document-format.md). Changes are saved automatically.
 | Draw outside the image | Canvas grows automatically, new area is transparent | ✅ (1) |
 | Delete area | Mark an area with the select tool, press Del: image becomes transparent there, shapes inside are removed; edge strips shrink the image (replaces cropping) | ✅ (1) |
 | Undo / redo | Ctrl+Z / Ctrl+Y | ✅ (1) |
+| Multi-select | Shift+click, marking an area, Ctrl+A; move and scale as a block | ✅ (1) |
+| Copy / paste between screenshots | Ctrl+C copies the selection, or with nothing selected the whole edit (screenshot + annotations); Ctrl+V pastes it as a selected block, every element stays editable | ✅ (1) |
+| Filmstrip | Library along the bottom of the editor, Alt+←/→ to switch | ✅ (1) |
+| Zoom & pan | Ctrl+wheel / Ctrl+± zoom at the cursor, Ctrl+0 fit, Ctrl+1 actual pixels; wheel, middle mouse or Space+drag to pan; sharp at every zoom level (HiDPI-aware, high-quality downscaling) | ✅ (1) |
 | Line, ellipse, filled shapes, arrowhead styles | | ⬜ (2) |
 | Text background, fonts | | ⬜ (2) |
 | Callout / speech bubble | Text box with a pointer tail | ⬜ (2) |

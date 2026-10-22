@@ -1,16 +1,23 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import * as api from "../api";
 import type { LibraryItem } from "../api";
-import { EditorCanvas, type CanvasHandle } from "./EditorCanvas";
+import { getClipboard, nextPasteOffset, setClipboard } from "./clipboard";
+import { EditorCanvas, type CanvasHandle, type ZoomState } from "./EditorCanvas";
+import { Filmstrip } from "./Filmstrip";
 import {
   eraseArea,
   loadDocument,
-  removeShape,
+  newId,
+  removeShapes,
+  translateShape,
   updateShape,
   type EditorDocument,
+  type ImageShape,
   type Rect,
+  type Shape,
 } from "./document";
 import { initHistory, push, redo, undo, type History } from "./history";
+import { loadImage, renderBase } from "./render";
 import { COLORS, HIGHLIGHT_COLOR, SIZES, TOOLS, stylePatch, type Tool, type ToolStyle } from "./tools";
 
 export interface EditorHandle {
@@ -21,12 +28,21 @@ export interface EditorHandle {
 interface Props {
   item: LibraryItem;
   onClose(): void;
+  /** Switch the editor to another library item. */
+  onOpen(item: LibraryItem): void;
   onSaved(item: LibraryItem): void;
 }
 
 type SaveStatus = "saved" | "pending" | "saving" | "error";
 
+interface Asset {
+  image: HTMLImageElement;
+  bytes: Uint8Array;
+}
+
 const AUTOSAVE_DELAY = 700;
+/** Clipboard key of the base screenshot in a "copy everything" block. */
+const BASE_ASSET = "base";
 
 const DEFAULT_STYLES: Record<Tool, ToolStyle> = {
   select: { color: COLORS[0], size: 1 },
@@ -49,17 +65,20 @@ function isTyping(event: KeyboardEvent) {
   return target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
 }
 
-export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, onClose, onSaved }, ref) {
+export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, onClose, onOpen, onSaved }, ref) {
   const [image, setImage] = useState<HTMLImageElement>();
+  const [assets, setAssets] = useState<Record<string, Asset>>({});
   const [history, setHistory] = useState<History<EditorDocument>>();
   const [live, setLive] = useState<EditorDocument | null>(null);
   const [tool, setTool] = useState<Tool>("arrow");
   const [styles, setStyles] = useState(DEFAULT_STYLES);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [marquee, setMarquee] = useState<Rect | null>(null);
   const [status, setStatus] = useState<SaveStatus>("saved");
   const [message, setMessage] = useState<string>();
   const [area, setArea] = useState({ width: 0, height: 0 });
+  const [items, setItems] = useState<LibraryItem[]>([]);
+  const [zoom, setZoom] = useState<ZoomState>({ zoom: 1, fit: true });
 
   const canvas = useRef<CanvasHandle>(null);
   const areaRef = useRef<HTMLDivElement>(null);
@@ -72,29 +91,40 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
   const saving = useRef<Promise<void>>(undefined);
   const timer = useRef<number>(undefined);
 
-  // Load the original image and the stored annotations.
+  // Load the original image, the stored annotations and their assets.
   useEffect(() => {
-    let url: string | undefined;
     let cancelled = false;
-    Promise.all([api.readOriginal(item.id), api.loadDocument(item.id)])
-      .then(([bytes, stored]) => {
-        url = URL.createObjectURL(new Blob([bytes], { type: "image/png" }));
-        const img = new Image();
-        img.onload = () => {
-          if (cancelled) return;
-          const doc = loadDocument(stored, img.naturalWidth, img.naturalHeight);
-          savedDoc.current = doc;
-          setHistory(initHistory(doc));
-          setImage(img);
-        };
-        img.src = url;
-      })
-      .catch((e) => setMessage(String(e)));
+    (async () => {
+      const [bytes, stored] = await Promise.all([api.readOriginal(item.id), api.loadDocument(item.id)]);
+      const img = await loadImage(bytes);
+      const doc = loadDocument(stored, img.naturalWidth, img.naturalHeight);
+      const names = [...new Set(doc.objects.flatMap((s) => (s.type === "image" ? [s.asset] : [])))];
+      const loaded: Record<string, Asset> = {};
+      await Promise.all(
+        names.map(async (name) => {
+          try {
+            const data = new Uint8Array(await api.readAsset(item.id, name));
+            loaded[name] = { image: await loadImage(data), bytes: data };
+          } catch {
+            // A missing asset only leaves that one shape empty.
+          }
+        }),
+      );
+      if (cancelled) return;
+      savedDoc.current = doc;
+      setAssets(loaded);
+      setHistory(initHistory(doc));
+      setImage(img);
+    })().catch((e) => setMessage(String(e)));
     return () => {
       cancelled = true;
-      if (url) URL.revokeObjectURL(url);
     };
   }, [item.id]);
+
+  // Library items for the filmstrip; refreshed when this item was saved.
+  useEffect(() => {
+    api.listItems().then(setItems).catch(() => {});
+  }, [item.updatedAt]);
 
   useEffect(() => {
     const element = areaRef.current;
@@ -157,31 +187,33 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
   }, []);
 
   const doc = live ?? present;
-  const selected = doc?.objects.find((s) => s.id === selectedId) ?? null;
-  const styleKey: Tool = selected?.type ?? tool;
-  const style = styles[styleKey];
+  const selected = doc?.objects.filter((s) => selectedIds.includes(s.id)) ?? [];
+  const styleKey: Tool = (selected[0]?.type as Tool | undefined) ?? tool;
+  const style = styles[styleKey] ?? styles.arrow;
 
   const changeStyle = (patch: Partial<ToolStyle>) => {
     setStyles((s) => ({ ...s, [styleKey]: { ...s[styleKey], ...patch } }));
-    if (selected && doc) commit(updateShape(doc, selected.id, stylePatch(selected, patch)));
+    if (selected.length && doc) {
+      commit(selected.reduce((d, shape) => updateShape(d, shape.id, stylePatch(shape, patch)), doc));
+    }
   };
 
   const chooseTool = (next: Tool) => {
     setTool(next);
     setMarquee(null);
-    if (next !== "select") setSelectedId(null);
+    if (next !== "select") setSelectedIds([]);
   };
 
-  /** Deletes the marked area, or else the selected shape. */
+  /** Deletes the marked area, or else the selected shapes. */
   const deleteSelected = () => {
     if (!doc) return;
     if (marquee) {
       commit(eraseArea(doc, marquee));
       setMarquee(null);
-    } else if (selected) {
-      commit(removeShape(doc, selected.id));
-      setSelectedId(null);
+    } else if (selectedIds.length) {
+      commit(removeShapes(doc, selectedIds));
     }
+    setSelectedIds([]);
   };
 
   const close = async () => {
@@ -189,11 +221,81 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
     onClose();
   };
 
-  const copy = async () => {
+  const open = async (target: LibraryItem) => {
+    if (target.id === item.id) return;
+    await flush();
+    onOpen(target);
+  };
+
+  /** Copies the annotated image to the system clipboard (for other apps). */
+  const copyImage = async () => {
     try {
       await flush();
       await api.copyItem(item.id);
-      setMessage("In die Zwischenablage kopiert");
+      setMessage("Bild in die Zwischenablage kopiert");
+    } catch (e) {
+      setMessage(String(e));
+    }
+  };
+
+  /**
+   * Copies the selected shapes, or — with nothing selected — the whole edit
+   * (screenshot as an image shape plus all annotations), for pasting into
+   * another screenshot. The whole edit also goes to the system clipboard.
+   */
+  const copy = async () => {
+    if (!doc || !image) return;
+    const assetBytes = (shapes: Shape[]) =>
+      Object.fromEntries(
+        shapes.flatMap((s) => (s.type === "image" && assets[s.asset] ? [[s.asset, assets[s.asset].bytes]] : [])),
+      );
+    try {
+      if (selected.length) {
+        setClipboard({ sourceId: item.id, shapes: selected, assets: assetBytes(selected) });
+        setMessage(
+          `${selected.length} ${selected.length === 1 ? "Element" : "Elemente"} kopiert – mit Strg+V einfügen, auch in einem anderen Screenshot`,
+        );
+        return;
+      }
+      // Blur shapes are baked into the base image so hidden pixels never travel.
+      const base = await renderBase(image, doc);
+      const shapes = doc.objects.filter((s) => s.type !== "blur");
+      const content = { sourceId: item.id, shapes, assets: assetBytes(shapes) };
+      if (base) {
+        const baseShape: ImageShape = { id: newId(), type: "image", ...base.rect, asset: BASE_ASSET };
+        content.shapes = [baseShape, ...shapes];
+        content.assets[BASE_ASSET] = base.png;
+      }
+      setClipboard(content);
+      await copyImage();
+      setMessage("Alles kopiert – im Filmstreifen einen anderen Screenshot öffnen und mit Strg+V einfügen");
+    } catch (e) {
+      setMessage(String(e));
+    }
+  };
+
+  /** Pastes the clipboard as a selected block that can be moved as a whole. */
+  const paste = async () => {
+    const content = getClipboard();
+    if (!content || !doc) return;
+    try {
+      const names: Record<string, string> = {};
+      const added: Record<string, Asset> = {};
+      for (const [key, bytes] of Object.entries(content.assets)) {
+        const name = await api.saveAsset(item.id, bytes);
+        names[key] = name;
+        added[name] = { image: await loadImage(bytes), bytes };
+      }
+      const offset = nextPasteOffset(item.id);
+      const shapes = content.shapes.map((s) => {
+        const copy = translateShape({ ...s, id: newId() }, offset, offset);
+        return copy.type === "image" ? { ...copy, asset: names[copy.asset] ?? copy.asset } : copy;
+      });
+      setAssets((a) => ({ ...a, ...added }));
+      commit({ ...doc, objects: [...doc.objects, ...shapes] });
+      setTool("select");
+      setMarquee(null);
+      setSelectedIds(shapes.map((s) => s.id));
     } catch (e) {
       setMessage(String(e));
     }
@@ -208,6 +310,12 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
     setHistory((h) => h && redo(h));
   };
 
+  const step = (direction: 1 | -1) => {
+    const index = items.findIndex((i) => i.id === item.id);
+    const target = items[index + direction];
+    if (target) void open(target);
+  };
+
   // Keyboard shortcuts. Re-bound every render so handlers see current state.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -216,10 +324,21 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
       const key = e.key.toLowerCase();
       if (mod && key === "z" && !e.shiftKey) doUndo();
       else if (mod && (key === "y" || (key === "z" && e.shiftKey))) doRedo();
+      else if (mod && key === "c" && e.shiftKey) void copyImage();
       else if (mod && key === "c") void copy();
+      else if (mod && key === "v") void paste();
+      else if (mod && key === "0") canvas.current?.fit();
+      else if (mod && key === "1") canvas.current?.actualSize();
+      else if (mod && (key === "+" || key === "=")) canvas.current?.zoomBy(1.25);
+      else if (mod && key === "-") canvas.current?.zoomBy(0.8);
+      else if (mod && key === "a") {
+        setTool("select");
+        setSelectedIds(doc?.objects.map((s) => s.id) ?? []);
+      } else if (e.altKey && e.key === "ArrowLeft") step(-1);
+      else if (e.altKey && e.key === "ArrowRight") step(1);
       else if (e.key === "Delete" || e.key === "Backspace") deleteSelected();
       else if (e.key === "Escape") {
-        setSelectedId(null);
+        setSelectedIds([]);
         setMarquee(null);
         setTool("select");
       } else if (!mod && !e.altKey) {
@@ -233,8 +352,9 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  const showColor = styleKey !== "blur" && styleKey !== "select";
-  const showSize = styleKey !== "highlight" && styleKey !== "select";
+  const showColor = !["blur", "select", "image"].includes(styleKey);
+  const showSize = !["highlight", "select", "image"].includes(styleKey);
+  const images = Object.fromEntries(Object.entries(assets).map(([name, a]) => [name, a.image]));
 
   return (
     <div className="editor">
@@ -297,16 +417,47 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
           <button
             className={marquee ? "danger" : undefined}
             onClick={deleteSelected}
-            disabled={!selected && !marquee}
+            disabled={!selected.length && !marquee}
             title="Löschen (Entf)"
           >
             {marquee ? "Bereich löschen" : "Löschen"}
           </button>
         </div>
 
+        <div className="tool-group">
+          <button
+            onClick={copy}
+            title="Auswahl kopieren, ohne Auswahl alles (Strg+C)"
+          >
+            {selected.length ? "Auswahl kopieren" : "Alles kopieren"}
+          </button>
+          <button onClick={paste} disabled={!getClipboard()} title="Einfügen (Strg+V)">
+            Einfügen
+          </button>
+        </div>
+
+        <div className="tool-group" aria-label="Zoom">
+          <button onClick={() => canvas.current?.zoomBy(0.8)} title="Verkleinern (Strg+−, Strg+Mausrad)">
+            −
+          </button>
+          <button
+            className={zoom.fit ? "zoom-level active" : "zoom-level"}
+            onClick={() => canvas.current?.fit()}
+            title="Einpassen (Strg+0)"
+          >
+            {Math.round(zoom.zoom * 100)} %
+          </button>
+          <button onClick={() => canvas.current?.zoomBy(1.25)} title="Vergrößern (Strg++, Strg+Mausrad)">
+            +
+          </button>
+          <button onClick={() => canvas.current?.actualSize()} title="Originalgröße 1:1 (Strg+1)">
+            1:1
+          </button>
+        </div>
+
         <span className={`save-status ${status}`}>{STATUS_LABEL[status]}</span>
-        <button className="primary" onClick={copy} title="Kopieren (Strg+C)">
-          Kopieren
+        <button className="primary" onClick={copyImage} title="Bild in die Zwischenablage (Strg+Umschalt+C)">
+          Bild kopieren
         </button>
       </header>
 
@@ -322,22 +473,26 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
           <EditorCanvas
             ref={canvas}
             image={image}
+            assets={images}
             doc={doc}
             layoutDoc={present}
             tool={tool}
             styles={styles}
-            selectedId={selectedId}
+            selectedIds={selectedIds}
             marquee={marquee}
-            onMarquee={setMarquee}
             width={area.width}
             height={area.height}
-            onSelect={setSelectedId}
+            onSelect={setSelectedIds}
+            onMarquee={setMarquee}
             onPreview={setLive}
             onCommit={commit}
             onCancelPreview={() => setLive(null)}
+            onZoom={setZoom}
           />
         )}
       </main>
+
+      <Filmstrip items={items} currentId={item.id} onOpen={open} />
     </div>
   );
 });

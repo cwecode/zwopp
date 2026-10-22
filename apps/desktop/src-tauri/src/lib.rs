@@ -100,6 +100,8 @@ pub fn run() {
             commands::load_document,
             commands::save_document,
             commands::save_render,
+            commands::save_asset,
+            commands::read_asset,
             commands::copy_item,
         ])
         .run(tauri::generate_context!())

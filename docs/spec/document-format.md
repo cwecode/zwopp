@@ -42,6 +42,11 @@ Every shape has a unique `id` (string, UUID) and a `type`.
 | `text` | `x`, `y` (top-left), `text`, `fontSize`, `fill`, optional `width` | Bold sans-serif, line height 1.2, multi-line via `\n`; with `width` the text wraps at word boundaries |
 | `highlight` | `Rect`, `fill` | Filled rectangle, blend mode *multiply* |
 | `blur` | `Rect`, `pixelSize` | The original pixels under the rectangle, pixelated in blocks of `pixelSize` |
+| `image` | `Rect`, `asset` | The PNG `assets/<asset>` of the same item, scaled to the rectangle. Used for content pasted from another screenshot |
+
+When a whole edit is copied, its screenshot becomes an `image` shape (with deleted areas
+transparent and `blur` areas already pixelated, so hidden pixels are never copied) and its
+other shapes are copied as they are.
 
 ## Example
 

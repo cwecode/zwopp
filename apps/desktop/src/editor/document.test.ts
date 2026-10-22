@@ -8,7 +8,8 @@ import {
   imageBounds,
   loadDocument,
   rectFromPoints,
-  removeShape,
+  removeShapes,
+  translateShape,
   unionRect,
   updateShape,
   type ArrowShape,
@@ -42,7 +43,7 @@ describe("document", () => {
     const moved = updateShape(one, "r1", { x: 10 });
     expect(moved.objects[0]).toMatchObject({ x: 10, y: 2 });
     expect(one.objects[0]).toMatchObject({ x: 1 });
-    expect(removeShape(moved, "r1").objects).toHaveLength(0);
+    expect(removeShapes(moved, ["r1"]).objects).toHaveLength(0);
   });
 
   it("loads stored documents and rejects unknown versions", () => {
@@ -54,6 +55,11 @@ describe("document", () => {
     expect(loadDocument({ schemaVersion: 1, objects: [] }, 100, 50).erased).toEqual([]);
     expect(loadDocument({ schemaVersion: 99, objects: [rect] }, 100, 50).objects).toEqual([]);
     expect(loadDocument(null, 100, 50).objects).toEqual([]);
+  });
+
+  it("translates shapes", () => {
+    expect(translateShape(rect, 5, -2)).toMatchObject({ x: 6, y: 0, width: 3 });
+    expect(translateShape(arrow, 1, 1).points).toEqual([-49, -19, 11, 11]);
   });
 
   it("normalizes drag rectangles", () => {

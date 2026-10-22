@@ -252,11 +252,57 @@ eigenen Rechner gebaut wurde, gibt es weder unter Windows (SmartScreen) noch unt
 | Phase | Inhalt | Ergebnis |
 |---|---|---|
 | **0 – Setup & Spike** (≈1 Woche) | Repo, Lizenz, CI‑Gerüst; Tauri‑Skeleton; **Capture‑Spike auf allen 3 OS inkl. Wayland + Multi‑Monitor/HiDPI**; Feature‑Spec aus Nutzersicht | Technisches Risiko geklärt |
-| **1 – MVP** (≈3–4 Wochen) | Tray + Hotkey, Overlay‑Bereichsauswahl, Bibliothek (Grid, Suche, Tags), Editor‑Basis (Pfeil, Rechteck, Text, Marker, Blur, Crop), Undo/Redo, Export/Clipboard | Intern nutzbar |
+| **1 – MVP** ✅ | Tray + Hotkey, Overlay‑Bereichsauswahl, Bibliothek (Grid, Suche, Tags, Favoriten), Editor‑Basis (Pfeil, Rechteck, Textbox, Marker, Verpixeln, Bereich löschen, Zeichnen außerhalb), Undo/Redo, Mehrfachauswahl, Kopieren/Einfügen zwischen Screenshots, Filmstreifen, Zoom | Intern nutzbar |
+| **1.5 – Performance & Skalierung** (≈2 Wochen) | Siehe Abschnitt 5.1 | Bibliothek mit 100 000 Einträgen scrollt flüssig |
 | **2 – Editor komplett** (≈3 Wochen) | Callouts/Sprechblasen, Schritt‑Nummern, Emojis/Sticker, Lupe, Quick Styles, Fenster‑Capture, Einstellungen, i18n (DE/EN) | Vollständiger Editor |
 | **3 – v1.0 Release** (≈1–2 Wochen) | Release‑Workflow mit unsignierten Downloads, README (Download + erster Start + Build aus Quellcode), Nutzer‑Doku, Git‑Tag v1.0 | Öffentliches Release mit Downloads für alle OS |
 | *später, optional* | Signing (Windows kostenlos über SignPath, Apple 99 $/Jahr), Auto‑Update, winget/Scoop/Flathub | Sobald es Nutzer gibt |
 | **4 – v2** | CLI, HTTP‑API (OpenAPI), MCP‑Server, Rust‑Renderer, Scrolling‑Capture, OCR, GIF/Video | Automatisierbar |
+
+### 5.1 Phase 1.5 – Performance & Skalierung
+
+**Ziel:** Die Bibliothek öffnet sich sofort und scrollt bei 100 000 Screenshots so flüssig wie
+eine Datenbank‑Tabelle; nichts blockiert die Oberfläche.
+
+**Budgets (messbar, in CI geprüft):**
+
+| Messpunkt | Ziel |
+|---|---|
+| Bibliothek öffnen (erste Thumbnails sichtbar) | < 200 ms |
+| Scrollen im Grid | 60 fps, keine leeren Kacheln länger als 100 ms |
+| Suche tippen → Ergebnis | < 50 ms bei 100 000 Einträgen |
+| Screenshot → im Editor | < 500 ms |
+| Speicher der Bibliothek‑Ansicht | unabhängig von der Anzahl Einträge |
+
+**Maßnahmen:**
+
+1. **Nur laden, was sichtbar ist.**
+   - Grid und Filmstreifen *virtualisiert* (z. B. TanStack Virtual): es existieren nur die
+     ~50 DOM‑Elemente im sichtbaren Bereich, egal wie groß die Bibliothek ist.
+   - Daten seitenweise per *Keyset‑Pagination* (`WHERE (created_at, id) < (?, ?) ORDER BY … LIMIT 200`)
+     statt alles auf einmal; `OFFSET` vermeiden, weil es mit der Tiefe langsamer wird.
+   - Gesamtanzahl separat (`COUNT(*)` gecacht), damit die Scrollbar stimmt.
+2. **Kleine, schnelle Thumbnails.**
+   - Thumbnails als WebP (~10–20 KB statt PNG), in zwei Größen (Grid 320 px, Filmstreifen 160 px).
+   - Ausgeliefert über ein eigenes URI‑Protokoll (`thumb://<id>`) mit Cache‑Headern, damit der
+     Webview sie im Speicher‑/Disk‑Cache hält.
+   - Erzeugung im Hintergrund‑Thread (Rayon‑Pool), fehlende Thumbnails als Platzhalter, nie blockierend.
+3. **Datenbank richtig nutzen.**
+   - Indizes für Sortierung und Filter (`created_at, id`, `favorite`, `tags.tag`).
+   - Volltextsuche mit **SQLite FTS5** (Titel, Tags, später OCR‑Text) statt `LIKE '%…%'`.
+   - WAL‑Modus, vorbereitete Statements, Lese‑Verbindungspool (`r2d2`) getrennt vom Schreiben.
+4. **Rust‑Seite nie blockieren lassen.**
+   - Teure Arbeit (PNG/WebP kodieren, Thumbnails, Reindex) in `spawn_blocking` / Hintergrund‑Queue.
+   - Reindex beim Start inkrementell und im Hintergrund statt vor dem ersten Fenster.
+   - Schnellere PNG‑Kodierung (`zlib-rs`/`fdeflate`) für Speichern und Zwischenablage.
+5. **Editor.**
+   - Bereits umgesetzt: hochwertige verkleinerte Kopien (Mipmaps) für die Anzeige, Original nur beim Export.
+   - Bilder im Hintergrund dekodieren (`createImageBitmap`), Konva‑Ebenen cachen, Rendern
+     für die Bibliothek (render.png/Thumbnail) im Worker statt im UI‑Thread.
+6. **Messen statt raten.**
+   - Benchmark‑Datensatz: Skript erzeugt 10 000 / 100 000 synthetische Einträge.
+   - Rust‑Benchmarks mit `criterion` (Liste, Suche, Thumbnail), Frontend‑Profiling mit
+     Playwright + Performance‑API; Budgets aus der Tabelle als CI‑Checks.
 
 ---
 

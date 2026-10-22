@@ -51,7 +51,13 @@ export interface BlurShape extends ShapeBase, Rect {
   pixelSize: number;
 }
 
-export type Shape = ArrowShape | RectShape | TextShape | HighlightShape | BlurShape;
+export interface ImageShape extends ShapeBase, Rect {
+  type: "image";
+  /** File name in the item's `assets/` folder. */
+  asset: string;
+}
+
+export type Shape = ArrowShape | RectShape | TextShape | HighlightShape | BlurShape | ImageShape;
 export type ShapeType = Shape["type"];
 
 export interface EditorDocument {
@@ -100,8 +106,16 @@ export function updateShape(doc: EditorDocument, id: string, patch: Partial<Shap
   };
 }
 
-export function removeShape(doc: EditorDocument, id: string): EditorDocument {
-  return { ...doc, objects: doc.objects.filter((s) => s.id !== id) };
+export function removeShapes(doc: EditorDocument, ids: string[]): EditorDocument {
+  return { ...doc, objects: doc.objects.filter((s) => !ids.includes(s.id)) };
+}
+
+export function translateShape<T extends Shape>(shape: T, dx: number, dy: number): T {
+  if (shape.type === "arrow") {
+    const [x1, y1, x2, y2] = shape.points;
+    return { ...shape, points: [x1 + dx, y1 + dy, x2 + dx, y2 + dy] };
+  }
+  return { ...shape, x: shape.x + dx, y: shape.y + dy };
 }
 
 /**

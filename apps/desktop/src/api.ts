@@ -64,7 +64,10 @@ export const readOriginal = (id: string) => invoke<ArrayBuffer>("read_original",
 export const loadDocument = (id: string) => invoke<unknown>("load_document", { id });
 export const saveDocument = (id: string, document: unknown) =>
   invoke<void>("save_document", { id, document });
-export const saveRender = (id: string, png: Uint8Array) =>
+export const saveAsset = (id: string, png: Uint8Array) =>
+  invoke<string>("save_asset", png, { headers: { "item-id": id } });
+export const readAsset = (id: string, name: string) => invoke<ArrayBuffer>("read_asset", { id, name });
+export const saveRender =(id: string, png: Uint8Array) =>
   invoke<LibraryItem>("save_render", png, { headers: { "item-id": id } });
 
 /** URL for showing a library file in an <img>; `version` busts the cache after edits. */
