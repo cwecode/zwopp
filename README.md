@@ -4,17 +4,34 @@ A lean, open-source screenshot tool for **Windows, macOS and Linux**: select a r
 the screenshot lands in a **library**, and an **editor** lets you add arrows, callouts,
 highlights, step numbers, emojis and more.
 
-> **Status: Phase 0 (spike).** Region capture, library and tray work; the annotation
-> editor arrives in Phase 1. See the [project plan](docs/PLAN.md) (German).
+> **Status: Phase 1.** Capture, library and the basic editor work.
+> See the [project plan](docs/PLAN.md) (German) and the [feature list](docs/spec/features.md).
 
 ## Features (current)
 
-- Global hotkey **Ctrl+Shift+X** (macOS: **⌘⇧X**) or tray menu → region capture
+- Global hotkey **Ctrl+Shift+X** (macOS: **⌘⇧X**) or tray menu → region capture.
+  If another app owns that key, Screenbook falls back to Ctrl+Alt+X, then Ctrl+Shift+2;
+  the active one is shown in the library toolbar
 - "Freeze first, select later": all monitors are frozen, then you drag a region
   (click = whole monitor, Esc / right-click = cancel)
-- Every capture is saved to the library and copied to the clipboard
-- Library window with thumbnails, preview and delete
+- Every capture is saved to the library, copied to the clipboard and opened in the editor
+- **Library:** thumbnails, search (title, tags), favorites, tags, copy, delete
+- **Editor:** arrow, rectangle, text box, highlighter, pixelate; colors and sizes;
+  move/resize; undo/redo; autosave; copy the annotated image. Draw outside the screenshot
+  and the canvas grows (transparent background); mark an area and press Del to delete it.
+  Annotations stay editable ([format](docs/spec/document-format.md)), the original is never changed
 - Runs in the system tray; closing the window keeps it running
+
+### Editor shortcuts
+
+| Key | Action |
+|---|---|
+| V / A / R / T / H / B | Select / Arrow / Rectangle / Text / Highlighter / Pixelate |
+| Ctrl+Z, Ctrl+Y | Undo, redo |
+| Drag on empty area (V) | Mark an area |
+| Del | Delete marked area, or the selected shape |
+| Ctrl+C | Copy annotated image |
+| Double-click text | Edit text (Esc or Ctrl+Enter to finish) |
 
 ## Install
 
@@ -78,6 +95,7 @@ That keeps the planned CLI, HTTP API and MCP server (v2) on the same code path.
 ```bash
 npm run dev            # app with hot reload
 npm test               # Rust tests
+npm test -w apps/desktop   # TypeScript unit tests (Vitest)
 npm run typecheck      # TypeScript
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all

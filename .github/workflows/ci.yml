@@ -43,6 +43,7 @@ jobs:
 
       - run: npm ci
       - run: npm run typecheck
+      - run: npm test -w apps/desktop
       # The Tauri build embeds the frontend, so it must exist before cargo runs.
       - run: npm run build:web
 

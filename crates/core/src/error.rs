@@ -28,6 +28,12 @@ pub enum Error {
 
     #[error(transparent)]
     Json(#[from] serde_json::Error),
+
+    #[error("library database error: {0}")]
+    Database(#[from] rusqlite::Error),
+
+    #[error("invalid annotation document: {0}")]
+    InvalidDocument(String),
 }
 
 pub(crate) trait IoContext<T> {

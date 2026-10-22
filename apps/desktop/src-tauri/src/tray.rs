@@ -2,15 +2,15 @@ use tauri::AppHandle;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 
-use crate::{CAPTURE_SHORTCUT, capture, show_main};
+use crate::{capture, show_main};
 
-pub fn create(app: &AppHandle) -> tauri::Result<()> {
+pub fn create(app: &AppHandle, capture_shortcut: Option<&str>) -> tauri::Result<()> {
     let capture = MenuItem::with_id(
         app,
         "capture",
         "Screenshot aufnehmen",
         true,
-        Some(CAPTURE_SHORTCUT),
+        capture_shortcut,
     )?;
     let library = MenuItem::with_id(app, "library", "Bibliothek öffnen", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Beenden", true, None::<&str>)?;

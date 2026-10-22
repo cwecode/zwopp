@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Library } from "./library/Library";
+import { App } from "./App";
 import { Overlay } from "./capture/Overlay";
 import "./styles.css";
 
@@ -11,6 +11,6 @@ const overlayIndex = label.startsWith("overlay-") ? Number(label.slice("overlay-
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    {overlayIndex === null ? <Library /> : <Overlay index={overlayIndex} />}
+    {overlayIndex === null ? <App /> : <Overlay index={overlayIndex} />}
   </React.StrictMode>,
 );
