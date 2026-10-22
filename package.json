@@ -1,0 +1,15 @@
+{
+  "name": "screenbook-workspace",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run tauri -w apps/desktop -- dev",
+    "build:app": "npm run tauri -w apps/desktop -- build --no-bundle",
+    "bundle": "npm run tauri -w apps/desktop -- build",
+    "build:web": "npm run build -w apps/desktop",
+    "typecheck": "npm run typecheck -w apps/desktop",
+    "test": "cargo test --workspace"
+  }
+}
