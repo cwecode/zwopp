@@ -28,6 +28,6 @@ corrupted, and the data should stay understandable without Screenbook.
 
 - Backups and sync tools (Dropbox, Syncthing) work on plain files.
 - Search is `LIKE` on title and tags for now; full-text search (FTS5) and OCR text can be added
-  as new index tables later.
+  as new index tables later. *(Superseded: FTS5 trigram search, see ADR 0004.)*
 - Each metadata write touches two places; a crash in between is healed by the next reindex only
   for new/removed items, not for changed metadata. Acceptable for now.

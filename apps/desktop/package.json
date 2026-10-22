@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@tanstack/react-virtual": "^3.14.22",
     "@tauri-apps/api": "^2",
     "konva": "^10.9.0",
     "react": "^19.1.0",

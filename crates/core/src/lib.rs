@@ -6,5 +6,7 @@
 pub mod capture;
 pub mod error;
 pub mod library;
+#[doc(hidden)]
+pub mod testing;
 
 pub use error::{Error, Result};

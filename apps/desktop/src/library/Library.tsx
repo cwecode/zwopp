@@ -1,18 +1,27 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   captureShortcut,
   copyItem,
   deleteItem,
   fileUrl,
   formatShortcut,
-  listItems,
   startCapture,
   updateItem,
   type ItemUpdate,
   type LibraryItem,
+  type ListQuery,
 } from "../api";
+import { useLibraryPages } from "./useLibraryPages";
 
 const dateFormat = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" });
+
+/** Grid geometry; rows have a fixed height so the list can be virtualized. */
+const CARD_MIN_WIDTH = 190;
+const GAP = 12;
+const PADDING = 16;
+const ROW_HEIGHT = 196;
 
 const parseTags = (text: string) =>
   text
@@ -21,14 +30,18 @@ const parseTags = (text: string) =>
     .filter(Boolean);
 
 export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
-  const [items, setItems] = useState<LibraryItem[]>([]);
   const [search, setSearch] = useState("");
+  const [query, setQuery] = useState<ListQuery>({});
   const [favoritesOnly, setFavoritesOnly] = useState(false);
-  const [selectedId, setSelectedId] = useState<string>();
+  const [version, setVersion] = useState(0);
+  const [selected, setSelected] = useState<LibraryItem>();
   const [message, setMessage] = useState<string>();
   const [shortcut, setShortcut] = useState<string | null>(null);
+  const [width, setWidth] = useState(0);
+  const scroller = useRef<HTMLDivElement>(null);
 
   const report = (e: unknown) => setMessage(String(e));
+  const refresh = () => setVersion((v) => v + 1);
 
   useEffect(() => {
     captureShortcut()
@@ -36,21 +49,55 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
       .catch(report);
   }, []);
 
-  const refresh = useCallback(() => {
-    listItems({ search, favoritesOnly }).then(setItems).catch(report);
+  // Debounce typing; the query object only changes when the search settles.
+  useEffect(() => {
+    const timer = window.setTimeout(() => setQuery({ search: search.trim() || undefined, favoritesOnly }), 150);
+    return () => window.clearTimeout(timer);
   }, [search, favoritesOnly]);
 
+  // The background index sync and thumbnail generation can change the list.
   useEffect(() => {
-    const timer = window.setTimeout(refresh, 150);
-    return () => window.clearTimeout(timer);
-  }, [refresh]);
+    const unlisten = Promise.all([listen("library:indexed", refresh), listen("library:thumbnails", refresh)]);
+    return () => void unlisten.then((fns) => fns.forEach((fn) => fn()));
+  }, []);
 
-  const selected = items.find((item) => item.id === selectedId);
+  useEffect(() => {
+    const element = scroller.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const pages = useLibraryPages(query, version);
+  const count = pages.count ?? 0;
+  const columns = Math.max(1, Math.floor((width - PADDING * 2 + GAP) / (CARD_MIN_WIDTH + GAP)));
+  const rows = Math.ceil(count / columns);
+
+  const virtualizer = useVirtualizer({
+    count: rows,
+    getScrollElement: () => scroller.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 3,
+    paddingStart: PADDING,
+    paddingEnd: PADDING,
+  });
+  const virtualRows = virtualizer.getVirtualItems();
+
+  // Fetch the pages behind the rows on screen (plus overscan).
+  const first = virtualRows[0]?.index ?? 0;
+  const last = virtualRows[virtualRows.length - 1]?.index ?? 0;
+  useEffect(() => {
+    if (count) pages.ensureRange(first * columns, (last + 1) * columns - 1);
+  }, [first, last, columns, count, pages]);
 
   const update = async (id: string, change: ItemUpdate) => {
     try {
       const updated = await updateItem(id, change);
-      setItems((list) => list.map((i) => (i.id === id ? updated : i)));
+      if (selected?.id === id) setSelected(updated);
+      // Leaving the favorites filter changes the list itself.
+      if (favoritesOnly && change.favorite === false) refresh();
+      else pages.replaceItem(updated);
     } catch (e) {
       report(e);
     }
@@ -58,7 +105,7 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
 
   const remove = async (id: string) => {
     await deleteItem(id).catch(report);
-    if (id === selectedId) setSelectedId(undefined);
+    if (id === selected?.id) setSelected(undefined);
     refresh();
   };
 
@@ -67,6 +114,47 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
       .then(() => setMessage("In die Zwischenablage kopiert"))
       .catch(report);
   };
+
+  const gridStyle = useMemo(
+    () => ({ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gap: GAP }),
+    [columns],
+  );
+
+  const card = (item: LibraryItem) => (
+    <div
+      key={item.id}
+      className={item.id === selected?.id ? "card selected" : "card"}
+      role="button"
+      tabIndex={0}
+      onClick={() => setSelected(item)}
+      onDoubleClick={() => onOpen(item)}
+      onKeyDown={(e) => e.key === "Enter" && onOpen(item)}
+    >
+      <img src={fileUrl(item.thumbPath, item.updatedAt)} alt="" loading="lazy" decoding="async" />
+      <button
+        className={item.favorite ? "star active" : "star"}
+        title={item.favorite ? "Favorit entfernen" : "Als Favorit markieren"}
+        aria-pressed={item.favorite}
+        onClick={(e) => {
+          e.stopPropagation();
+          void update(item.id, { favorite: !item.favorite });
+        }}
+      >
+        ★
+      </button>
+      <span className="card-title">{item.title || "Ohne Titel"}</span>
+      <span className="meta">
+        {dateFormat.format(new Date(item.createdAt))} · {item.width} × {item.height}
+      </span>
+      <span className="tags">
+        {item.tags.map((tag) => (
+          <span key={tag} className="tag">
+            {tag}
+          </span>
+        ))}
+      </span>
+    </div>
+  );
 
   return (
     <div className="library">
@@ -87,6 +175,9 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
         >
           ★ Favoriten
         </button>
+        {pages.count !== null && (
+          <span className="meta">{count.toLocaleString("de-DE")} Screenshots</span>
+        )}
         <span className="spacer" />
         <button className="primary" onClick={() => startCapture().catch(report)}>
           Neuer Screenshot
@@ -102,67 +193,45 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
       )}
 
       <main className="content">
-        {items.length === 0 ? (
-          <div className="empty">
-            {search || favoritesOnly ? (
-              <p>Keine Treffer.</p>
-            ) : (
-              <>
-                <p>Noch keine Screenshots.</p>
-                <p>
-                  {shortcut ? (
-                    <>
-                      Drücke <kbd>{shortcut}</kbd> oder klicke auf „Neuer Screenshot“.
-                    </>
-                  ) : (
-                    <>Klicke auf „Neuer Screenshot“ oder nutze das Tray-Menü.</>
-                  )}
-                </p>
-              </>
-            )}
-          </div>
-        ) : (
-          <ul className="grid">
-            {items.map((item) => (
-              <li key={item.id}>
-                <div
-                  className={item.id === selectedId ? "card selected" : "card"}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setSelectedId(item.id)}
-                  onDoubleClick={() => onOpen(item)}
-                  onKeyDown={(e) => e.key === "Enter" && onOpen(item)}
-                >
-                  <img src={fileUrl(item.thumbPath, item.updatedAt)} alt="" loading="lazy" />
-                  <button
-                    className={item.favorite ? "star active" : "star"}
-                    title={item.favorite ? "Favorit entfernen" : "Als Favorit markieren"}
-                    aria-pressed={item.favorite}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void update(item.id, { favorite: !item.favorite });
-                    }}
-                  >
-                    ★
-                  </button>
-                  <span className="card-title">{item.title || "Ohne Titel"}</span>
-                  <span className="meta">
-                    {dateFormat.format(new Date(item.createdAt))} · {item.width} × {item.height}
-                  </span>
-                  {item.tags.length > 0 && (
-                    <span className="tags">
-                      {item.tags.map((tag) => (
-                        <span key={tag} className="tag">
-                          {tag}
-                        </span>
-                      ))}
-                    </span>
-                  )}
-                </div>
-              </li>
+        <div className="grid-scroller" ref={scroller}>
+          {pages.count === 0 && (
+            <div className="empty">
+              {query.search || query.favoritesOnly ? (
+                <p>Keine Treffer.</p>
+              ) : (
+                <>
+                  <p>Noch keine Screenshots.</p>
+                  <p>
+                    {shortcut ? (
+                      <>
+                        Drücke <kbd>{shortcut}</kbd> oder klicke auf „Neuer Screenshot“.
+                      </>
+                    ) : (
+                      <>Klicke auf „Neuer Screenshot“ oder nutze das Tray-Menü.</>
+                    )}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+          {/* Only the rows on screen exist in the DOM. */}
+          <div className="grid-space" style={{ height: virtualizer.getTotalSize() }}>
+            {virtualRows.map((row) => (
+              <div
+                key={row.key}
+                className="grid-row"
+                style={{ ...gridStyle, transform: `translateY(${row.start}px)`, height: ROW_HEIGHT - GAP }}
+              >
+                {Array.from({ length: columns }, (_, column) => {
+                  const index = row.index * columns + column;
+                  if (index >= count) return null;
+                  const item = pages.getItem(index);
+                  return item ? card(item) : <div key={`placeholder-${index}`} className="card placeholder" />;
+                })}
+              </div>
             ))}
-          </ul>
-        )}
+          </div>
+        </div>
 
         {selected && (
           <aside className="preview" key={selected.id}>

@@ -3,10 +3,10 @@ mod commands;
 mod platform;
 mod tray;
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use screenbook_core::library::Library;
-use tauri::{AppHandle, Manager, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, WindowEvent};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 /// Global hotkeys that start a region capture, in order of preference. Another
@@ -18,7 +18,7 @@ const CAPTURE_SHORTCUTS: &[&str] = &[
 ];
 
 pub struct AppState {
-    pub library: Library,
+    pub library: Arc<Library>,
     pub session: Mutex<Option<capture::Session>>,
     /// The registered capture hotkey, if any could be registered.
     pub capture_shortcut: Option<&'static str>,
@@ -37,6 +37,23 @@ fn register_capture_shortcut(app: &AppHandle) -> Option<&'static str> {
             }
         }
     })
+}
+
+/// Syncs the index with the item folders and creates missing thumbnails,
+/// off the main thread so even a huge library opens instantly. The UI
+/// refreshes on the `library:indexed` / `library:thumbnails` events.
+fn maintain_library(app: AppHandle, library: Arc<Library>) {
+    std::thread::spawn(move || {
+        match library.reindex() {
+            Ok(()) => drop(app.emit("library:indexed", ())),
+            Err(err) => eprintln!("reindex failed: {err}"),
+        }
+        match library.ensure_thumbnails() {
+            Ok(0) => {}
+            Ok(_) => drop(app.emit("library:thumbnails", ())),
+            Err(err) => eprintln!("thumbnails failed: {err}"),
+        }
+    });
 }
 
 /// Brings the main (library) window to the front.
@@ -63,11 +80,22 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
-            let root = app.path().app_data_dir()?.join("library");
+            // SCREENBOOK_LIBRARY_DIR points the app at another library, e.g. a
+            // generated one for performance tests (see README).
+            let root = match std::env::var_os("SCREENBOOK_LIBRARY_DIR") {
+                Some(dir) => {
+                    let dir = std::path::PathBuf::from(dir);
+                    app.asset_protocol_scope().allow_directory(&dir, true)?;
+                    dir
+                }
+                None => app.path().app_data_dir()?.join("library"),
+            };
             // Without a hotkey the tray menu and the library button still work.
             let capture_shortcut = register_capture_shortcut(app.handle());
+            let library = Arc::new(Library::open_index(root)?);
+            maintain_library(app.handle().clone(), library.clone());
             app.manage(AppState {
-                library: Library::open(root)?,
+                library,
                 session: Mutex::default(),
                 capture_shortcut,
             });
@@ -93,6 +121,8 @@ pub fn run() {
             commands::cancel_capture,
             commands::capture_shortcut,
             commands::list_items,
+            commands::count_items,
+            commands::item_position,
             commands::list_tags,
             commands::update_item,
             commands::delete_item,

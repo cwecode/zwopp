@@ -3,7 +3,7 @@ import * as api from "../api";
 import type { LibraryItem } from "../api";
 import { getClipboard, nextPasteOffset, setClipboard } from "./clipboard";
 import { EditorCanvas, type CanvasHandle, type ZoomState } from "./EditorCanvas";
-import { Filmstrip } from "./Filmstrip";
+import { Filmstrip, type FilmstripHandle } from "./Filmstrip";
 import { LayersPanel } from "./LayersPanel";
 import {
   eraseArea,
@@ -86,12 +86,12 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
   const [status, setStatus] = useState<SaveStatus>("saved");
   const [message, setMessage] = useState<string>();
   const [area, setArea] = useState({ width: 0, height: 0 });
-  const [items, setItems] = useState<LibraryItem[]>([]);
   const [zoom, setZoom] = useState<ZoomState>({ zoom: 1, fit: true });
   const [activeLayerId, setActiveLayerId] = useState<string>();
   const [showLayers, setShowLayers] = useState(true);
 
   const canvas = useRef<CanvasHandle>(null);
+  const filmstrip = useRef<FilmstripHandle>(null);
   const areaRef = useRef<HTMLDivElement>(null);
   // Async code reads the latest state through refs.
   const historyRef = useRef(history);
@@ -131,11 +131,6 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
       cancelled = true;
     };
   }, [item.id]);
-
-  // Library items for the filmstrip; refreshed when this item was saved.
-  useEffect(() => {
-    api.listItems().then(setItems).catch(() => {});
-  }, [item.updatedAt]);
 
   useEffect(() => {
     const element = areaRef.current;
@@ -384,11 +379,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
     setHistory((h) => h && redo(h));
   };
 
-  const step = (direction: 1 | -1) => {
-    const index = items.findIndex((i) => i.id === item.id);
-    const target = items[index + direction];
-    if (target) void open(target);
-  };
+  const step = (direction: 1 | -1) => filmstrip.current?.step(direction);
 
   // Keyboard shortcuts. Re-bound every render so handlers see current state.
   useEffect(() => {
@@ -624,7 +615,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
         )}
       </div>
 
-      <Filmstrip items={items} currentId={item.id} onOpen={open} />
+      <Filmstrip ref={filmstrip} currentId={item.id} version={item.updatedAt} onOpen={open} />
     </div>
   );
 });

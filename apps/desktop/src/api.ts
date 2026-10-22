@@ -53,7 +53,13 @@ export const finishCapture = (index: number, rect: Rect) =>
   invoke<LibraryItem>("finish_capture", { index, rect });
 export const cancelCapture = () => invoke<void>("cancel_capture");
 
-export const listItems = (query: ListQuery = {}) => invoke<LibraryItem[]>("list_items", { query });
+/** One page of the library, newest first. */
+export const listItems = (query: ListQuery, offset: number, limit: number) =>
+  invoke<LibraryItem[]>("list_items", { query, offset, limit });
+export const countItems = (query: ListQuery) => invoke<number>("count_items", { query });
+/** Index of an item in the list for `query`, or null if it does not match. */
+export const itemPosition = (id: string, query: ListQuery = {}) =>
+  invoke<number | null>("item_position", { id, query });
 export const listTags = () => invoke<string[]>("list_tags");
 export const updateItem = (id: string, update: ItemUpdate) =>
   invoke<LibraryItem>("update_item", { id, update });

@@ -139,21 +139,44 @@ button.tool.active {
   color: var(--muted);
 }
 
-.grid {
+.grid-scroller {
+  position: relative;
   flex: 1;
-  list-style: none;
-  margin: 0;
-  padding: 16px;
-  overflow: auto;
+  overflow-y: auto;
+  contain: strict;
+}
+
+.grid-space {
+  position: relative;
+  width: 100%;
+}
+
+.grid-row {
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 16px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  align-content: start;
-  gap: 12px;
+}
+
+.card.placeholder {
+  cursor: default;
+  background: linear-gradient(90deg, var(--surface), var(--bg), var(--surface));
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
 }
 
 .card {
   position: relative;
   width: 100%;
+  height: 100%;
+  overflow: hidden;
   padding: 6px;
   display: flex;
   flex-direction: column;
@@ -186,8 +209,8 @@ button.tool.active {
 
 .tags {
   display: flex;
-  flex-wrap: wrap;
   gap: 4px;
+  overflow: hidden;
 }
 
 .tag {
@@ -206,7 +229,8 @@ button.tool.active {
 
 .card img {
   width: 100%;
-  aspect-ratio: 16 / 10;
+  height: 110px;
+  flex: none;
   object-fit: contain;
   background: var(--bg);
   border-radius: 4px;
@@ -527,20 +551,37 @@ button.tool.active {
   background: var(--surface);
 }
 
-.filmstrip ul {
+.filmstrip-scroller {
   flex: 1;
-  display: flex;
-  gap: 8px;
-  margin: 0;
-  padding: 2px;
-  list-style: none;
+  height: 72px;
   overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.filmstrip-space {
+  position: relative;
+  height: 100%;
+}
+
+.filmstrip-cell {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  padding: 2px 4px;
 }
 
 .filmstrip-item {
+  width: 100%;
   padding: 2px;
   height: 64px;
   border-width: 2px;
+}
+
+.filmstrip-item.placeholder {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
 }
 
 .filmstrip-item.current {
@@ -549,8 +590,8 @@ button.tool.active {
 
 .filmstrip-item img {
   display: block;
+  width: 100%;
   height: 100%;
-  max-width: 140px;
   object-fit: contain;
 }
 

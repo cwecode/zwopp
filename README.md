@@ -114,6 +114,20 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all
 ```
 
+### Performance
+
+The library is built for 100 000+ screenshots (see [ADR 0004](docs/adr/0004-library-performance.md)).
+
+```bash
+# Benchmarks (default 20 000 items; set SCREENBOOK_BENCH_ITEMS for more)
+cargo bench -p screenbook-core --bench library
+# Fill a library folder with synthetic items, e.g. to try the app with 100 000
+cargo run -p screenbook-core --release --example seed -- <library-dir> 100000
+```
+
+Start the app on such a library (your own library stays untouched) by setting
+`SCREENBOOK_LIBRARY_DIR=<library-dir>` before `npm run dev`.
+
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License

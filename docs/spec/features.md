@@ -29,8 +29,9 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned · Phase in brackets.
 | Clipboard | Capture is copied to the clipboard | ✅ (0) |
 | Grid + preview | Thumbnails, newest first | ✅ (0) |
 | Delete | | ✅ (0) |
-| Search, tags, favorites | SQLite index, search in title and tags | ✅ (1) |
-| Thumbnails | Generated small previews for speed | ✅ (1) |
+| Search, tags, favorites | Full-text search in title and tags; every word must match, in any order, also as part of a word | ✅ (1) |
+| Thumbnails | Small WebP previews, generated in the background | ✅ (1.5) |
+| Large libraries | Virtualized grid and filmstrip, pages loaded on demand; tested with 100 000 items | ✅ (1.5) |
 | Drag out | Drag an item into other apps | ⬜ (2) |
 | OCR | Search text inside screenshots | ⬜ (v2) |
 

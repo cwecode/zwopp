@@ -12,17 +12,24 @@
 //!         item.json          metadata (title, tags, favorite, …)
 //!         document.json      annotations, see docs/spec/document-format.md
 //!         render.png         original + annotations, written by the editor
-//!         thumb.png          small preview for the library grid
+//!         thumb.webp         small preview for the library grid
 //!         assets/<uuid>.png  extra images used by the document (pasted content)
 //! ```
+//!
+//! Built to stay fast with 100 000+ items (see `docs/adr/0004-library-performance.md`):
+//! pages are fetched by offset from a covering index, search uses an FTS5
+//! trigram index, and thumbnails are generated in the background.
 
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use chrono::{DateTime, Utc};
 use image::RgbaImage;
-use rusqlite::{Connection, OptionalExtension, Row, params};
+use rayon::prelude::*;
+use rusqlite::types::Value;
+use rusqlite::{Connection, OptionalExtension, Row, params, params_from_iter};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -34,14 +41,16 @@ const ORIGINAL: &str = "original.png";
 const METADATA: &str = "item.json";
 const DOCUMENT: &str = "document.json";
 const RENDER: &str = "render.png";
-const THUMB: &str = "thumb.png";
+const THUMB: &str = "thumb.webp";
+/// PNG thumbnails written before version 0.2; replaced in the background.
+const LEGACY_THUMB: &str = "thumb.png";
 const ASSETS: &str = "assets";
 
 /// Longest edge of generated thumbnails, in pixels.
-pub const THUMB_SIZE: u32 = 400;
+pub const THUMB_SIZE: u32 = 320;
 
 /// Current database schema, stored in SQLite's `user_version`.
-const SCHEMA_VERSION: i32 = 1;
+const SCHEMA_VERSION: i32 = 2;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -58,6 +67,7 @@ pub struct LibraryItem {
     pub original_path: PathBuf,
     /// The annotated image, if the item was edited.
     pub render_path: Option<PathBuf>,
+    /// Preview image: the thumbnail, or the original while none exists yet.
     pub thumb_path: PathBuf,
 }
 
@@ -106,18 +116,28 @@ impl Library {
     /// Opens (and creates, if needed) the library at `root` and brings the
     /// index in sync with the item folders.
     pub fn open(root: impl AsRef<Path>) -> Result<Self> {
+        let library = Self::open_index(root)?;
+        library.reindex()?;
+        Ok(library)
+    }
+
+    /// Opens the library without scanning the item folders. The index may be
+    /// out of date until [`Library::reindex`] ran, which callers can do in the
+    /// background so a large library opens instantly.
+    pub fn open_index(root: impl AsRef<Path>) -> Result<Self> {
         let root = root.as_ref();
         let items_dir = root.join("items");
         fs::create_dir_all(&items_dir).at(&items_dir)?;
 
         let db = Connection::open(root.join(DATABASE))?;
+        // WAL lets reads run while a write is in progress and makes commits cheap.
+        db.pragma_update(None, "journal_mode", "WAL")?;
+        db.pragma_update(None, "synchronous", "NORMAL")?;
         migrate(&db)?;
-        let library = Self {
+        Ok(Self {
             items_dir,
             db: Mutex::new(db),
-        };
-        library.reindex()?;
-        Ok(library)
+        })
     }
 
     /// Stores a new screenshot and returns its metadata.
@@ -136,7 +156,7 @@ impl Library {
         let dir = self.dir(metadata.id);
         fs::create_dir_all(&dir).at(&dir)?;
         image.save(dir.join(ORIGINAL))?;
-        thumbnail(image).save(dir.join(THUMB))?;
+        save_thumbnail(&dir, image)?;
         write_metadata(&dir, &metadata)?;
 
         let db = self.db.lock().unwrap();
@@ -149,28 +169,79 @@ impl Library {
         get(&self.db.lock().unwrap(), &self.items_dir, id)
     }
 
-    /// Lists items matching `query`, newest first.
+    /// Lists all items matching `query`, newest first.
     pub fn list(&self, query: &ListQuery) -> Result<Vec<LibraryItem>> {
-        let pattern = query
-            .search
-            .as_deref()
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(like_pattern);
+        self.list_page(query, 0, u32::MAX)
+    }
+
+    /// One page of items matching `query`, newest first.
+    ///
+    /// Pages are addressed by offset so a virtualized list can jump anywhere
+    /// (e.g. dragging the scrollbar); with the ordering index SQLite skips
+    /// even 100 000 rows in a few milliseconds.
+    pub fn list_page(
+        &self,
+        query: &ListQuery,
+        offset: u64,
+        limit: u32,
+    ) -> Result<Vec<LibraryItem>> {
+        let filter = Filter::new(query);
+        let [limit_at, offset_at] = filter.extra();
         let db = self.db.lock().unwrap();
-        let mut stmt = db.prepare(&format!(
-            "{SELECT_ITEMS}
-             WHERE (?1 IS NULL
-                    OR title LIKE ?1 ESCAPE '\\'
-                    OR EXISTS (SELECT 1 FROM tags t
-                               WHERE t.item_id = items.id AND t.tag LIKE ?1 ESCAPE '\\'))
-               AND (?2 = 0 OR favorite = 1)
-             ORDER BY created_at DESC, id DESC"
+        // The offset is applied to bare rowids from the ordering index first;
+        // only the rows of the page then pay for the full columns (tags).
+        let mut stmt = db.prepare_cached(&format!(
+            "{SELECT_ITEMS} WHERE items.rowid IN (
+                 SELECT rowid FROM items WHERE {}
+                 ORDER BY created_at DESC, id DESC LIMIT ?{limit_at} OFFSET ?{offset_at})
+             ORDER BY created_at DESC, id DESC",
+            filter.sql
         ))?;
-        let rows = stmt.query_map(params![pattern, query.favorites_only], |row| {
+        let params = filter.params_with([Value::from(limit), Value::from(offset as i64)]);
+        let rows = stmt.query_map(params_from_iter(params), |row| {
             read_item(row, &self.items_dir)
         })?;
         Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// Number of items matching `query`.
+    pub fn count(&self, query: &ListQuery) -> Result<u64> {
+        let filter = Filter::new(query);
+        let db = self.db.lock().unwrap();
+        let count: i64 = db
+            .prepare_cached(&format!("SELECT COUNT(*) FROM items WHERE {}", filter.sql))?
+            .query_row(params_from_iter(&filter.params), |row| row.get(0))?;
+        Ok(count as u64)
+    }
+
+    /// Index of item `id` in the list for `query`, or None if it does not match.
+    pub fn position(&self, id: Uuid, query: &ListQuery) -> Result<Option<u64>> {
+        let filter = Filter::new(query);
+        let [first, second] = filter.extra();
+        let db = self.db.lock().unwrap();
+        let id = id.to_string();
+        let Some(created_at) = db
+            .query_row(
+                &format!(
+                    "SELECT created_at FROM items WHERE id = ?{first} AND {}",
+                    filter.sql
+                ),
+                params_from_iter(filter.params_with([Value::from(id.clone())])),
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?
+        else {
+            return Ok(None);
+        };
+        let newer: i64 = db.query_row(
+            &format!(
+                "SELECT COUNT(*) FROM items WHERE {} AND (created_at, id) > (?{first}, ?{second})",
+                filter.sql
+            ),
+            params_from_iter(filter.params_with([Value::from(created_at), Value::from(id)])),
+            |row| row.get(0),
+        )?;
+        Ok(Some(newer as u64))
     }
 
     /// All tags in use, alphabetically.
@@ -233,7 +304,7 @@ impl Library {
         let image = image::load_from_memory_with_format(png, image::ImageFormat::Png)?.to_rgba8();
         let path = dir.join(RENDER);
         fs::write(&path, png).at(&path)?;
-        thumbnail(&image).save(dir.join(THUMB))?;
+        save_thumbnail(&dir, &image)?;
 
         let mut metadata = read_metadata(&dir)?;
         metadata.updated_at = Some(Utc::now());
@@ -291,36 +362,50 @@ impl Library {
     pub fn reindex(&self) -> Result<()> {
         let mut db = self.db.lock().unwrap();
         let tx = db.transaction()?;
-        let known: Vec<String> = {
+        let known: HashSet<String> = {
             let mut stmt = tx.prepare("SELECT id FROM items")?;
             stmt.query_map([], |row| row.get(0))?
                 .collect::<Result<_, _>>()?
         };
-        for id in &known {
-            if !self.items_dir.join(id).is_dir() {
-                tx.execute("DELETE FROM items WHERE id = ?1", [id])?;
-            }
-        }
-
+        let mut present = HashSet::with_capacity(known.len());
         let entries = fs::read_dir(&self.items_dir).at(&self.items_dir)?;
-        for dir in entries.filter_map(|e| e.ok()).map(|e| e.path()) {
-            let name = dir.file_name().and_then(|n| n.to_str()).unwrap_or_default();
-            if !dir.is_dir() || known.iter().any(|id| id == name) {
+        for entry in entries.filter_map(|e| e.ok()) {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if known.contains(&name) {
+                present.insert(name);
                 continue;
             }
+            let dir = entry.path();
             // Folders without valid metadata are left alone, not deleted.
             let Ok(metadata) = read_metadata(&dir) else {
                 continue;
             };
-            if !dir.join(THUMB).is_file()
-                && let Ok(original) = image::open(dir.join(ORIGINAL))
-            {
-                thumbnail(&original.to_rgba8()).save(dir.join(THUMB))?;
-            }
             upsert(&tx, &metadata, dir.join(RENDER).is_file())?;
+        }
+        for id in known.difference(&present) {
+            tx.execute("DELETE FROM items WHERE id = ?1", [id])?;
         }
         tx.commit()?;
         Ok(())
+    }
+
+    /// Creates missing thumbnails (in parallel) and returns how many were made.
+    /// Meant to run in the background; until then the original is shown.
+    pub fn ensure_thumbnails(&self) -> Result<usize> {
+        let ids: Vec<String> = {
+            let db = self.db.lock().unwrap();
+            let mut stmt = db.prepare("SELECT id FROM items ORDER BY created_at DESC")?;
+            stmt.query_map([], |row| row.get(0))?
+                .collect::<Result<_, _>>()?
+        };
+        let made = ids
+            .par_iter()
+            .filter(|id| {
+                let dir = self.items_dir.join(id);
+                !dir.join(THUMB).is_file() && write_thumbnail(&dir).is_ok()
+            })
+            .count();
+        Ok(made)
     }
 
     fn dir(&self, id: Uuid) -> PathBuf {
@@ -341,6 +426,65 @@ const SELECT_ITEMS: &str = "SELECT id, created_at, updated_at, width, height, ti
         has_annotations,
         (SELECT group_concat(tag, char(31)) FROM tags t WHERE t.item_id = items.id)
     FROM items";
+
+/// Search words beyond this are ignored.
+const MAX_SEARCH_TERMS: usize = 8;
+
+/// The WHERE clause for a [`ListQuery`] with its positional parameters
+/// (?1, ?2, … in order; callers append theirs after [`Filter::extra`]).
+struct Filter {
+    sql: String,
+    params: Vec<Value>,
+}
+
+impl Filter {
+    /// Every search word must occur in the title or the tags, in any order
+    /// and as part of a word ("chnung 42" finds "Rechnung Lieferant 4242").
+    fn new(query: &ListQuery) -> Self {
+        let mut clauses = Vec::new();
+        let mut params = Vec::new();
+        if query.favorites_only {
+            clauses.push("favorite = 1".to_owned());
+        }
+        let terms = query
+            .search
+            .as_deref()
+            .unwrap_or_default()
+            .split_whitespace();
+        for term in terms.take(MAX_SEARCH_TERMS) {
+            let n = params.len() + 1;
+            if term.chars().count() >= 3 {
+                // A quoted phrase on the trigram index matches any substring.
+                clauses.push(format!(
+                    "items.rowid IN (SELECT rowid FROM items_fts WHERE items_fts MATCH ?{n})"
+                ));
+                params.push(Value::from(format!("\"{}\"", term.replace('"', "\"\""))));
+            } else {
+                // Too short for trigrams: scan the (small) full-text table.
+                clauses.push(format!(
+                    "items.rowid IN (SELECT rowid FROM items_fts
+                                     WHERE title LIKE ?{n} ESCAPE '\\' OR tags LIKE ?{n} ESCAPE '\\')"
+                ));
+                params.push(Value::from(like_pattern(term)));
+            }
+        }
+        let sql = if clauses.is_empty() {
+            "1".to_owned()
+        } else {
+            clauses.join(" AND ")
+        };
+        Self { sql, params }
+    }
+
+    /// Placeholder numbers for `N` further parameters after the filter's own.
+    fn extra<const N: usize>(&self) -> [usize; N] {
+        std::array::from_fn(|i| self.params.len() + 1 + i)
+    }
+
+    fn params_with(&self, extra: impl IntoIterator<Item = Value>) -> Vec<Value> {
+        self.params.iter().cloned().chain(extra).collect()
+    }
+}
 
 fn migrate(db: &Connection) -> Result<()> {
     db.pragma_update(None, "foreign_keys", true)?;
@@ -364,6 +508,23 @@ fn migrate(db: &Connection) -> Result<()> {
                  PRIMARY KEY (item_id, tag)
              );
              CREATE INDEX tags_tag ON tags (tag);",
+        )?;
+    }
+    if version < 2 {
+        // Indexes matching the list order (also with the favorites filter)
+        // and a trigram full-text index for substring search.
+        db.execute_batch(
+            "DROP INDEX IF EXISTS items_created_at;
+             CREATE INDEX items_order ON items (created_at DESC, id DESC);
+             CREATE INDEX items_favorite ON items (favorite, created_at DESC, id DESC);
+             CREATE VIRTUAL TABLE items_fts USING fts5(title, tags, tokenize = 'trigram');
+             CREATE TRIGGER items_fts_delete AFTER DELETE ON items BEGIN
+                 DELETE FROM items_fts WHERE rowid = old.rowid;
+             END;
+             INSERT INTO items_fts (rowid, title, tags)
+                 SELECT rowid, title,
+                        COALESCE((SELECT group_concat(tag, ' ') FROM tags WHERE item_id = items.id), '')
+                 FROM items;",
         )?;
     }
     db.pragma_update(None, "user_version", SCHEMA_VERSION)?;
@@ -392,11 +553,15 @@ fn upsert(db: &Connection, metadata: &Metadata, has_annotations: bool) -> Result
     )?;
     db.execute("DELETE FROM tags WHERE item_id = ?1", [&id])?;
     for tag in &metadata.tags {
-        db.execute(
-            "INSERT OR IGNORE INTO tags (item_id, tag) VALUES (?1, ?2)",
-            [&id, tag],
-        )?;
+        db.prepare_cached("INSERT OR IGNORE INTO tags (item_id, tag) VALUES (?1, ?2)")?
+            .execute([&id, tag])?;
     }
+    let rowid: i64 = db.query_row("SELECT rowid FROM items WHERE id = ?1", [&id], |r| r.get(0))?;
+    db.execute("DELETE FROM items_fts WHERE rowid = ?1", [rowid])?;
+    db.execute(
+        "INSERT INTO items_fts (rowid, title, tags) VALUES (?1, ?2, ?3)",
+        params![rowid, metadata.title, metadata.tags.join(" ")],
+    )?;
     Ok(())
 }
 
@@ -429,10 +594,38 @@ fn read_item(row: &Row, items_dir: &Path) -> rusqlite::Result<LibraryItem> {
         favorite: row.get(6)?,
         tags,
         has_annotations,
+        thumb_path: thumb_path(&dir),
         original_path: dir.join(ORIGINAL),
         render_path: has_annotations.then(|| dir.join(RENDER)),
-        thumb_path: dir.join(THUMB),
     })
+}
+
+/// The best available preview: thumbnail, legacy thumbnail, or the original.
+fn thumb_path(dir: &Path) -> PathBuf {
+    [THUMB, LEGACY_THUMB]
+        .iter()
+        .map(|name| dir.join(name))
+        .find(|path| path.is_file())
+        .unwrap_or_else(|| dir.join(ORIGINAL))
+}
+
+/// Writes the thumbnail of an item folder from its render (or original).
+fn write_thumbnail(dir: &Path) -> Result<()> {
+    let source = [RENDER, ORIGINAL]
+        .iter()
+        .map(|name| dir.join(name))
+        .find(|path| path.is_file())
+        .ok_or_else(|| Error::Io {
+            path: dir.join(ORIGINAL),
+            source: std::io::ErrorKind::NotFound.into(),
+        })?;
+    save_thumbnail(dir, &image::open(source)?.to_rgba8())
+}
+
+fn save_thumbnail(dir: &Path, image: &RgbaImage) -> Result<()> {
+    thumbnail(image).save(dir.join(THUMB))?;
+    let _ = fs::remove_file(dir.join(LEGACY_THUMB));
+    Ok(())
 }
 
 fn parse_time(row: &Row, index: usize) -> rusqlite::Result<DateTime<Utc>> {
@@ -532,7 +725,7 @@ mod tests {
     #[test]
     fn thumbnails_keep_aspect_ratio() {
         let thumb = thumbnail(&RgbaImage::new(1600, 400));
-        assert_eq!(thumb.dimensions(), (THUMB_SIZE, 100));
+        assert_eq!(thumb.dimensions(), (THUMB_SIZE, THUMB_SIZE / 4));
         let small = thumbnail(&RgbaImage::new(10, 20));
         assert_eq!(small.dimensions(), (10, 20));
     }
@@ -639,6 +832,88 @@ mod tests {
     }
 
     #[test]
+    fn pages_count_and_position() {
+        let root = tempfile::tempdir().unwrap();
+        let library = Library::open(root.path()).unwrap();
+        let ids: Vec<Uuid> = (0..7)
+            .map(|_| library.add(&RgbaImage::new(1, 1)).unwrap().id)
+            .collect();
+        let newest_first: Vec<Uuid> = ids.iter().rev().copied().collect();
+        let all = ListQuery::default();
+
+        assert_eq!(library.count(&all).unwrap(), 7);
+        let page = |offset, limit| -> Vec<Uuid> {
+            library
+                .list_page(&all, offset, limit)
+                .unwrap()
+                .iter()
+                .map(|i| i.id)
+                .collect()
+        };
+        assert_eq!(page(0, 3), newest_first[0..3]);
+        assert_eq!(page(3, 3), newest_first[3..6]);
+        assert_eq!(page(6, 3), newest_first[6..]);
+        assert!(page(9, 3).is_empty());
+
+        assert_eq!(library.position(ids[6], &all).unwrap(), Some(0));
+        assert_eq!(library.position(ids[0], &all).unwrap(), Some(6));
+        let favorites = ListQuery {
+            favorites_only: true,
+            ..Default::default()
+        };
+        assert_eq!(library.position(ids[0], &favorites).unwrap(), None);
+        assert_eq!(library.count(&favorites).unwrap(), 0);
+    }
+
+    #[test]
+    fn search_finds_substrings_and_follows_updates() {
+        let root = tempfile::tempdir().unwrap();
+        let library = Library::open(root.path()).unwrap();
+        let item = library.add(&RgbaImage::new(1, 1)).unwrap();
+        let search = |text: &str| {
+            library
+                .count(&ListQuery {
+                    search: Some(text.into()),
+                    ..Default::default()
+                })
+                .unwrap()
+        };
+        library
+            .update(
+                item.id,
+                ItemUpdate {
+                    title: Some("Rechnung Lieferant".into()),
+                    tags: Some(vec!["Buchhaltung".into()]),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        assert_eq!(search("chnung"), 1);
+        assert_eq!(search("LIEFER"), 1);
+        assert_eq!(search("haltung"), 1);
+        assert_eq!(search("re"), 1);
+        assert_eq!(search("nichts"), 0);
+        // Every word must match, in any order, title or tags.
+        assert_eq!(search("liefer chnung"), 1);
+        assert_eq!(search("chnung buchhalt"), 1);
+        assert_eq!(search("chnung angebot"), 0);
+        assert_eq!(search("\"chnung"), 0);
+
+        library
+            .update(
+                item.id,
+                ItemUpdate {
+                    title: Some("Angebot".into()),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        assert_eq!(search("chnung"), 0);
+        library.delete(item.id).unwrap();
+        assert_eq!(search("gebot"), 0);
+    }
+
+    #[test]
     fn reindex_imports_and_prunes_folders() {
         let root = tempfile::tempdir().unwrap();
         let (kept, removed) = {
@@ -688,6 +963,11 @@ mod tests {
         let library = Library::open(root.path()).unwrap();
         let item = library.get(id).unwrap();
         assert_eq!(item.updated_at, item.created_at);
-        assert!(item.thumb_path.is_file());
+        // Until thumbnails are made in the background, the original is the preview.
+        assert_eq!(item.thumb_path, item.original_path);
+        assert_eq!(library.ensure_thumbnails().unwrap(), 1);
+        let item = library.get(id).unwrap();
+        assert!(item.thumb_path.ends_with("thumb.webp") && item.thumb_path.is_file());
+        assert_eq!(library.ensure_thumbnails().unwrap(), 0);
     }
 }
