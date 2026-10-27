@@ -13,6 +13,7 @@ import {
   type StackMove,
 } from "./document";
 import { keys, useT, type Messages } from "../i18n";
+import { toolOf } from "./tools";
 
 interface Props {
   doc: EditorDocument;
@@ -26,6 +27,7 @@ interface Props {
 const ICONS: Record<Shape["type"], string> = {
   arrow: "➚",
   rect: "▭",
+  ellipse: "◯",
   text: "T",
   highlight: "▬",
   blur: "▦",
@@ -44,6 +46,7 @@ function label(t: Messages, shape: Shape) {
     const text = shape.text.trim().replace(/\s+/g, " ");
     return t.quote(text.length > 24 ? `${text.slice(0, 24)}…` : text);
   }
+  if (shape.type === "arrow" && toolOf(shape) === "line") return t.layers.shapes.line;
   return t.layers.shapes[shape.type];
 }
 

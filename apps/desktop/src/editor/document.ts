@@ -2,7 +2,7 @@
 // a screenshot. Stored as `document.json` next to the untouched original.
 // The format is specified in docs/spec/document-format.md — keep both in sync.
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export interface Rect {
   x: number;
@@ -43,18 +43,36 @@ export interface Layer {
   locked: boolean;
 }
 
+/** End of a line: plain, a filled triangle or an open "V". */
+export type ArrowHead = "none" | "filled" | "open";
+
+/** A straight line, with or without arrowheads (the line tool makes one without). */
 export interface ArrowShape extends ShapeBase {
   type: "arrow";
-  /** Tail and head: [x1, y1, x2, y2]. */
+  /** Start and end: [x1, y1, x2, y2]. */
   points: [number, number, number, number];
   stroke: string;
   strokeWidth: number;
+  /** Head at the start; default "none". */
+  startHead?: ArrowHead;
+  /** Head at the end; default "filled". */
+  endHead?: ArrowHead;
 }
 
 export interface RectShape extends ShapeBase, Rect {
   type: "rect";
   stroke: string;
   strokeWidth: number;
+  /** Fill colour; omitted = outline only. */
+  fill?: string;
+}
+
+export interface EllipseShape extends ShapeBase, Rect {
+  type: "ellipse";
+  stroke: string;
+  strokeWidth: number;
+  /** Fill colour; omitted = outline only. */
+  fill?: string;
 }
 
 export interface TextShape extends ShapeBase {
@@ -85,7 +103,7 @@ export interface ImageShape extends ShapeBase, Rect {
   asset: string;
 }
 
-export type Shape = ArrowShape | RectShape | TextShape | HighlightShape | BlurShape | ImageShape;
+export type Shape = ArrowShape | RectShape | EllipseShape | TextShape | HighlightShape | BlurShape | ImageShape;
 export type ShapeType = Shape["type"];
 
 export interface EditorDocument {
@@ -108,6 +126,14 @@ export interface EditorDocument {
 export const LINE_HEIGHT = 1.2;
 /** Rough average glyph width relative to the font size, for layout estimates. */
 const GLYPH_WIDTH = 0.6;
+
+/** The heads of a line, with their defaults filled in. */
+export function arrowHeads(shape: ArrowShape): { start: ArrowHead; end: ArrowHead } {
+  return { start: shape.startHead ?? "none", end: shape.endHead ?? "filled" };
+}
+
+/** Length and width of an arrowhead for a line of `strokeWidth`. */
+export const headSize = (strokeWidth: number) => strokeWidth * 3 + 6;
 
 /**
  * The bottom layer always holds the original screenshot (drawn first, below
@@ -140,7 +166,9 @@ export function createDocument(width: number, height: number): EditorDocument {
  */
 export function loadDocument(stored: unknown, width: number, height: number): EditorDocument {
   const doc = stored as (Partial<Omit<EditorDocument, "schemaVersion">> & { schemaVersion?: number }) | null;
-  if (!doc || !Array.isArray(doc.objects) || (doc.schemaVersion !== 1 && doc.schemaVersion !== SCHEMA_VERSION)) {
+  // Version 3 only added optional fields and shape types: older documents are valid as they are.
+  const known = [1, 2, SCHEMA_VERSION];
+  if (!doc || !Array.isArray(doc.objects) || !known.includes(doc.schemaVersion ?? 0)) {
     return createDocument(width, height);
   }
   const fresh = createDocument(width, height);
@@ -148,12 +176,12 @@ export function loadDocument(stored: unknown, width: number, height: number): Ed
   // version 2 documents called the base layer "Ebene 1".
   const storedLayers = Array.isArray(doc.layers) && doc.layers.length ? doc.layers : fresh.layers;
   const layers = storedLayers.map((l, i) => (i === 0 && l.name === "Ebene 1" ? { ...l, name: BASE_LAYER_NAME } : l));
-  const known = new Set(layers.map((l) => l.id));
+  const layerIds = new Set(layers.map((l) => l.id));
   return pruneGroups({
     ...fresh,
     erased: Array.isArray(doc.erased) ? doc.erased : [],
     layers,
-    objects: doc.objects.map((s) => (known.has(s.layer) ? s : { ...s, layer: layers[0].id })),
+    objects: doc.objects.map((s) => (layerIds.has(s.layer) ? s : { ...s, layer: layers[0].id })),
     groups: Array.isArray(doc.groups) ? doc.groups : [],
   });
 }
@@ -278,7 +306,8 @@ export function shapeBounds(shape: Shape): Rect {
       const r = rectFromPoints(x1, y1, x2, y2);
       return { x: r.x - pad, y: r.y - pad, width: r.width + pad * 2, height: r.height + pad * 2 };
     }
-    case "rect": {
+    case "rect":
+    case "ellipse": {
       const pad = shape.strokeWidth / 2;
       return { x: shape.x - pad, y: shape.y - pad, width: shape.width + pad * 2, height: shape.height + pad * 2 };
     }

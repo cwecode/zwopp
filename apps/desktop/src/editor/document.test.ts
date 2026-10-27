@@ -9,6 +9,7 @@ import {
   loadDocument,
   rectFromPoints,
   removeShapes,
+  SCHEMA_VERSION,
   translateShape,
   unionRect,
   updateShape,
@@ -52,7 +53,7 @@ describe("document", () => {
     const { layer: _, ...v1Rect } = rect;
     const stored = { schemaVersion: 1, erased: [{ x: 1, y: 1, width: 5, height: 5 }], objects: [v1Rect] };
     const doc = loadDocument(stored, 100, 50);
-    expect(doc.schemaVersion).toBe(2);
+    expect(doc.schemaVersion).toBe(SCHEMA_VERSION);
     expect(doc.layers.map((l) => l.name)).toEqual(["Original"]);
     expect(doc.objects).toEqual([{ ...rect, layer: doc.layers[0].id }]);
     // Early version 2 documents named the base layer "Ebene 1".

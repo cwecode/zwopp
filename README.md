@@ -17,7 +17,8 @@ highlights, step numbers, emojis and more.
   (click = whole monitor, Esc / right-click = cancel)
 - Every capture is saved to the library, copied to the clipboard and opened in the editor
 - **Library:** thumbnails, search (title, tags), favorites, tags, copy, delete
-- **Editor:** arrow, rectangle, text box, highlighter, pixelate; colors and sizes;
+- **Editor:** arrow, line, rectangle, ellipse (outlined or filled), text box, highlighter,
+  pixelate; colors, sizes and arrowheads (filled, open, at either end);
   move/resize; undo/redo; autosave; copy the annotated image. Draw outside the screenshot
   and the canvas grows (transparent background); mark an area and press Del to delete it.
   A layers panel lists every element and lets you add, hide, lock and reorder layers.
@@ -30,7 +31,8 @@ highlights, step numbers, emojis and more.
 
 | Key | Action |
 |---|---|
-| V / A / R / T / H / B | Select / Arrow / Rectangle / Text / Highlighter / Pixelate |
+| V / A / L / R / E | Select / Arrow / Line / Rectangle / Ellipse |
+| T / H / B | Text / Highlighter / Pixelate |
 | Ctrl+Z, Ctrl+Y | Undo, redo |
 | Drag on empty area (V) | Mark an area |
 | Del | Delete marked area, or the selected shapes |

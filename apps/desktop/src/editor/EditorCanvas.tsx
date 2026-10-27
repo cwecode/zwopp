@@ -8,6 +8,7 @@ import {
   Image as KonvaImage,
   Layer,
   Rect as KonvaRect,
+  Shape as KonvaShape,
   Stage,
   Text as KonvaText,
   Transformer,
@@ -15,6 +16,8 @@ import {
 import {
   LINE_HEIGHT,
   addShape,
+  arrowHeads,
+  headSize,
   contentBounds,
   visibleShapes,
   imageBounds,
@@ -24,6 +27,8 @@ import {
   unionRect,
   updateShape,
   expandToGroups,
+  type ArrowHead,
+  type ArrowShape,
   type BlurShape,
   type EditorDocument,
   type Rect,
@@ -123,15 +128,28 @@ function makeShape(
   const rect = rectFromPoints(a.x, a.y, b.x, b.y);
   switch (tool) {
     case "arrow":
+    case "line": {
+      const heads = style.heads ?? (tool === "line" ? { start: "none", end: "none" } : { start: "none", end: "filled" });
       return {
         ...base,
         type: "arrow",
         points: [a.x, a.y, b.x, b.y],
         stroke: style.color,
         strokeWidth: size.strokeWidth,
+        startHead: heads.start,
+        endHead: heads.end,
       };
+    }
     case "rect":
-      return { ...base, type: "rect", ...rect, stroke: style.color, strokeWidth: size.strokeWidth };
+    case "ellipse":
+      return {
+        ...base,
+        type: tool,
+        ...rect,
+        stroke: style.color,
+        strokeWidth: size.strokeWidth,
+        ...(style.filled && { fill: style.color }),
+      };
     case "highlight":
       return { ...base, type: "highlight", ...rect, fill: style.color };
     case "blur":
@@ -139,6 +157,66 @@ function makeShape(
     default:
       return null;
   }
+}
+
+/**
+ * Draws a line with its heads: the shaft stops short of filled heads (so the
+ * round cap cannot poke through the tip), open heads are two strokes meeting
+ * at the end point. Used as the scene function of a Konva.Arrow, which keeps
+ * computing the bounds (from `points` and the pointer size).
+ */
+function drawArrow(start: ArrowHead, end: ArrowHead) {
+  return (ctx: Konva.Context, node: Konva.Shape) => {
+    const [x1, y1, x2, y2] = node.getAttr("points") as number[];
+    const length = Math.hypot(x2 - x1, y2 - y1);
+    if (length === 0) return;
+    const [ux, uy] = [(x2 - x1) / length, (y2 - y1) / length];
+    const size = Math.min(headSize(node.strokeWidth()), length);
+    const inset = (head: ArrowHead) => (head === "filled" ? size * 0.8 : 0);
+    // Corners of a head at tip (tx, ty) pointing along (dx, dy).
+    const corners = (tx: number, ty: number, dx: number, dy: number) => {
+      const [bx, by] = [tx - dx * size, ty - dy * size];
+      const [nx, ny] = [-dy * size * 0.5, dx * size * 0.5];
+      return [bx + nx, by + ny, bx - nx, by - ny];
+    };
+    const heads: [ArrowHead, number, number, number, number][] = [
+      [start, x1, y1, -ux, -uy],
+      [end, x2, y2, ux, uy],
+    ];
+
+    ctx.beginPath();
+    ctx.moveTo(x1 + ux * inset(start), y1 + uy * inset(start));
+    ctx.lineTo(x2 - ux * inset(end), y2 - uy * inset(end));
+    for (const [head, tx, ty, dx, dy] of heads) {
+      if (head !== "open") continue;
+      const [ax, ay, bx, by] = corners(tx, ty, dx, dy);
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(tx, ty);
+      ctx.lineTo(bx, by);
+    }
+    ctx.strokeShape(node);
+
+    if (start !== "filled" && end !== "filled") return;
+    ctx.beginPath();
+    for (const [head, tx, ty, dx, dy] of heads) {
+      if (head !== "filled") continue;
+      const [ax, ay, bx, by] = corners(tx, ty, dx, dy);
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(ax, ay);
+      ctx.lineTo(bx, by);
+      ctx.closePath();
+    }
+    ctx.fillStrokeShape(node);
+  };
+}
+
+/** An ellipse inside the node's width × height box, like a rectangle. */
+function drawEllipse(ctx: Konva.Context, node: Konva.Shape) {
+  const [rx, ry] = [node.width() / 2, node.height() / 2];
+  ctx.beginPath();
+  ctx.ellipse(rx, ry, rx, ry, 0, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.fillStrokeShape(node);
 }
 
 /** Tracks a mouse drag on window level so it keeps working past the stage edge. */
@@ -540,7 +618,8 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
         const shape = makeShape(tool, { id, layer: activeLayer }, start, p, style);
         const dx = Math.abs(p.x - start.x) * scale;
         const dy = Math.abs(p.y - start.y) * scale;
-        const big = tool === "arrow" ? Math.hypot(dx, dy) >= MIN_DRAG : dx >= MIN_DRAG && dy >= MIN_DRAG;
+        const big =
+          tool === "arrow" || tool === "line" ? Math.hypot(dx, dy) >= MIN_DRAG : dx >= MIN_DRAG && dy >= MIN_DRAG;
         if (shape && big) {
           onCommit(addShape(doc, shape));
           // Keep the new shape selected so its handles show it can be adjusted.
@@ -620,21 +699,7 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
     const common = isDraft || locked.has(shape.layer) ? { listening: false } : shapeProps(shape);
     switch (shape.type) {
       case "arrow":
-        return (
-          <Arrow
-            key={shape.id}
-            {...common}
-            points={shape.points}
-            stroke={shape.stroke}
-            fill={shape.stroke}
-            strokeWidth={shape.strokeWidth}
-            pointerLength={shape.strokeWidth * 3 + 6}
-            pointerWidth={shape.strokeWidth * 3 + 6}
-            lineCap="round"
-            lineJoin="round"
-            hitStrokeWidth={Math.max(16, shape.strokeWidth * 3)}
-          />
-        );
+        return <ArrowNode key={shape.id} common={common} shape={shape} />;
       case "rect":
         return (
           <KonvaRect
@@ -649,7 +714,26 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
             strokeScaleEnabled={false}
             cornerRadius={2}
             hitStrokeWidth={Math.max(16, shape.strokeWidth * 3)}
-            fillEnabled={false}
+            fill={shape.fill}
+            fillEnabled={shape.fill !== undefined}
+          />
+        );
+      case "ellipse":
+        return (
+          <KonvaShape
+            key={shape.id}
+            {...common}
+            x={shape.x}
+            y={shape.y}
+            width={shape.width}
+            height={shape.height}
+            stroke={shape.stroke}
+            strokeWidth={shape.strokeWidth}
+            strokeScaleEnabled={false}
+            hitStrokeWidth={Math.max(16, shape.strokeWidth * 3)}
+            fill={shape.fill}
+            fillEnabled={shape.fill !== undefined}
+            sceneFunc={drawEllipse}
           />
         );
       case "highlight":
@@ -873,6 +957,31 @@ function autosize(textarea: HTMLTextAreaElement) {
   textarea.style.height = "0";
   if (!boxed) textarea.style.width = `${textarea.scrollWidth + 4}px`;
   textarea.style.height = `${textarea.scrollHeight}px`;
+}
+
+/** A line with optional heads (see `drawArrow`). */
+function ArrowNode({ shape, common }: { shape: ArrowShape; common: object }) {
+  const { start, end } = arrowHeads(shape);
+  const sceneFunc = useMemo(() => drawArrow(start, end), [start, end]);
+  const size = headSize(shape.strokeWidth);
+  return (
+    <Arrow
+      {...common}
+      points={shape.points}
+      stroke={shape.stroke}
+      fill={shape.stroke}
+      strokeWidth={shape.strokeWidth}
+      // Only for the bounds; the heads are drawn by `sceneFunc`.
+      pointerAtBeginning={start !== "none"}
+      pointerAtEnding={end !== "none"}
+      pointerLength={size}
+      pointerWidth={size}
+      lineCap="round"
+      lineJoin="round"
+      hitStrokeWidth={Math.max(16, shape.strokeWidth * 3)}
+      sceneFunc={sceneFunc}
+    />
+  );
 }
 
 /**

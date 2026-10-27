@@ -20,6 +20,8 @@ import {
   selectedGroup,
   setGroupFrame,
   ungroup,
+  arrowHeads,
+  type ArrowHead,
   type EditorDocument,
   type ImageShape,
   type Rect,
@@ -28,7 +30,18 @@ import {
 import { keys, useT } from "../i18n";
 import { initHistory, push, redo, undo, type History } from "./history";
 import { loadImage, renderBase } from "./render";
-import { COLORS, HIGHLIGHT_COLOR, SIZES, TOOLS, stylePatch, type Tool, type ToolStyle } from "./tools";
+import {
+  COLORS,
+  HEADS,
+  HIGHLIGHT_COLOR,
+  SIZES,
+  TOOLS,
+  stylePatch,
+  toolOf,
+  type ArrowHeads,
+  type Tool,
+  type ToolStyle,
+} from "./tools";
 
 export interface EditorHandle {
   /** Saves pending changes; call before leaving the editor. */
@@ -56,12 +69,35 @@ const BASE_ASSET = "base";
 
 const DEFAULT_STYLES: Record<Tool, ToolStyle> = {
   select: { color: COLORS[0], size: 1 },
-  arrow: { color: COLORS[0], size: 1 },
-  rect: { color: COLORS[0], size: 1 },
+  arrow: { color: COLORS[0], size: 1, heads: { start: "none", end: "filled" } },
+  line: { color: COLORS[0], size: 1, heads: { start: "none", end: "none" } },
+  rect: { color: COLORS[0], size: 1, filled: false },
+  ellipse: { color: COLORS[0], size: 1, filled: false },
   text: { color: COLORS[0], size: 1 },
   highlight: { color: HIGHLIGHT_COLOR, size: 1 },
   blur: { color: COLORS[0], size: 1 },
 };
+
+/** A tiny line with the given heads, for the line-ends buttons. */
+function HeadsIcon({ start, end }: ArrowHeads) {
+  const head = (kind: ArrowHead, tip: number, dir: 1 | -1) =>
+    kind === "none" ? null : (
+      <path
+        d={`M ${tip - dir * 7} 3 L ${tip} 8 L ${tip - dir * 7} 13${kind === "filled" ? " Z" : ""}`}
+        fill={kind === "filled" ? "currentColor" : "none"}
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    );
+  return (
+    <svg width="26" height="16" viewBox="0 0 26 16" aria-hidden>
+      <line x1="2" y1="8" x2="24" y2="8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      {head(start, 2, -1)}
+      {head(end, 24, 1)}
+    </svg>
+  );
+}
 
 function isTyping(event: KeyboardEvent) {
   const target = event.target as HTMLElement | null;
@@ -208,8 +244,12 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
   const block = doc ? selectedGroup(doc, selectedIds) : null;
   const canGroup = selected.length >= 2 && !block;
   // A framed block's colour and size controls style the frame (like a rectangle).
-  const styleKey: Tool = block?.frame ? "rect" : ((selected[0]?.type as Tool | undefined) ?? tool);
-  const style = styles[styleKey] ?? styles.arrow;
+  const styleKey: Tool | "image" = block?.frame ? "rect" : selected[0] ? (toolOf(selected[0]) ?? "image") : tool;
+  const style = styleKey === "image" ? styles.arrow : styles[styleKey];
+  // Heads and fill show the selected shape's own, else the tool's defaults.
+  const first = selected[0];
+  const heads = first?.type === "arrow" ? arrowHeads(first) : style.heads;
+  const filled = first?.type === "rect" || first?.type === "ellipse" ? first.fill !== undefined : style.filled;
 
   const frameStyle = (s: ToolStyle) => {
     const width = SIZES[s.size].strokeWidth;
@@ -217,7 +257,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
   };
 
   const changeStyle = (patch: Partial<ToolStyle>) => {
-    setStyles((s) => ({ ...s, [styleKey]: { ...s[styleKey], ...patch } }));
+    if (styleKey !== "image") setStyles((s) => ({ ...s, [styleKey]: { ...s[styleKey], ...patch } }));
     if (!doc) return;
     if (block?.frame) {
       commit(setGroupFrame(doc, block.id, frameStyle({ ...styles.rect, ...patch })));
@@ -421,6 +461,8 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
 
   const showColor = !["blur", "select", "image"].includes(styleKey);
   const showSize = !["highlight", "select", "image"].includes(styleKey);
+  const showHeads = !block?.frame && (styleKey === "arrow" || styleKey === "line");
+  const showFill = !block?.frame && (styleKey === "rect" || styleKey === "ellipse");
   const images = Object.fromEntries(Object.entries(assets).map(([name, a]) => [name, a.image]));
 
   return (
@@ -494,6 +536,41 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
                 onClick={() => changeStyle({ size: index })}
               >
                 {size.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {showHeads && (
+          <div className="tool-group" aria-label={t.editor.heads}>
+            {HEADS.map(({ id, start, end }) => {
+              const active = heads?.start === start && heads?.end === end;
+              return (
+                <button
+                  key={id}
+                  className={active ? "tool active" : "tool"}
+                  aria-pressed={active}
+                  title={t.editor.headStyles[id]}
+                  onClick={() => changeStyle({ heads: { start, end } })}
+                >
+                  <HeadsIcon start={start} end={end} />
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {showFill && (
+          <div className="tool-group" aria-label={t.editor.fill}>
+            {[false, true].map((value) => (
+              <button
+                key={String(value)}
+                className={!!filled === value ? "tool active" : "tool"}
+                aria-pressed={!!filled === value}
+                title={value ? t.editor.filled : t.editor.outline}
+                onClick={() => changeStyle({ filled: value })}
+              >
+                {styleKey === "ellipse" ? (value ? "●" : "○") : value ? "■" : "□"}
               </button>
             ))}
           </div>

@@ -1,6 +1,6 @@
 # Annotation document format (`document.json`)
 
-Version: **2** · Status: stable for Phase 1 (version 1 documents are migrated on load)
+Version: **3** · Status: stable (version 1 and 2 documents are read as they are, see below)
 
 Each library item may have a `document.json` next to its `original.png`. It describes all
 annotations as vector objects, so they stay editable and the original stays untouched.
@@ -24,7 +24,7 @@ The TypeScript source of truth is
 
 | Field | Type | Description |
 |---|---|---|
-| `schemaVersion` | `2` | Format version |
+| `schemaVersion` | `3` | Format version |
 | `canvas` | `{ width, height }` | Size of `original.png` |
 | `erased` | `Rect[]` | Deleted areas of the image (transparent); shapes are not affected |
 | `layers` | `Layer[]` | Layers above the screenshot, bottom to top; at least one |
@@ -46,6 +46,10 @@ rendered and do not count for the output area.
 **Migration from version 1:** all shapes go into the base layer "Original". A base layer
 named "Ebene 1" (early version 2 documents) is renamed to "Original".
 
+**Version 3** only added optional fields (`startHead`, `endHead`, `fill`) and the `ellipse`
+type. Their defaults reproduce version 2, so version 2 documents need no migration; they are
+saved as version 3 on the next change.
+
 `Rect` = `{ x, y, width, height }`.
 
 ## Shapes
@@ -55,8 +59,9 @@ optionally the `group` id of its block.
 
 | `type` | Fields | Rendering |
 |---|---|---|
-| `arrow` | `points: [x1, y1, x2, y2]`, `stroke`, `strokeWidth` | Line from tail to head with a filled arrowhead of size `strokeWidth × 3 + 6` |
-| `rect` | `Rect`, `stroke`, `strokeWidth` | Outline, corner radius 2 |
+| `arrow` | `points: [x1, y1, x2, y2]`, `stroke`, `strokeWidth`, optional `startHead`, `endHead` | Straight line from start to end, round caps. Each end has a head: `"none"`, `"filled"` (triangle in the stroke colour) or `"open"` (two strokes meeting at the end point); length and width `strokeWidth × 3 + 6`. Defaults: `startHead` `"none"`, `endHead` `"filled"`. Without heads it is a plain line |
+| `rect` | `Rect`, `stroke`, `strokeWidth`, optional `fill` | Outline, corner radius 2; with `fill` also filled |
+| `ellipse` | `Rect`, `stroke`, `strokeWidth`, optional `fill` | Ellipse inscribed in the rectangle; with `fill` also filled |
 | `text` | `x`, `y` (top-left), `text`, `fontSize`, `fill`, optional `width` | Bold sans-serif, line height 1.2, multi-line via `\n`; with `width` the text wraps at word boundaries |
 | `highlight` | `Rect`, `fill` | Filled rectangle, blend mode *multiply* |
 | `blur` | `Rect`, `pixelSize` | The original pixels under the rectangle, pixelated in blocks of `pixelSize` |
@@ -70,7 +75,7 @@ other shapes are copied as they are.
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "canvas": { "width": 1920, "height": 1080 },
   "erased": [{ "x": 0, "y": 800, "width": 1920, "height": 280 }],
   "layers": [
@@ -83,6 +88,8 @@ other shapes are copied as they are.
     { "id": "d2b7…", "layer": "L1", "type": "text", "x": 510, "y": 390, "width": 240, "text": "Click here to sign in", "fontSize": 26, "fill": "#e5322d" },
     { "id": "3e9d…", "layer": "L1", "type": "arrow", "points": [-120, -60, 20, 20], "stroke": "#e5322d", "strokeWidth": 5 },
     { "id": "0f3c…", "layer": "L1", "type": "rect", "x": 80, "y": 50, "width": 320, "height": 60, "stroke": "#e5322d", "strokeWidth": 5 },
+    { "id": "4b21…", "layer": "L1", "type": "arrow", "points": [40, 700, 600, 700], "stroke": "#1d1d1b", "strokeWidth": 3, "startHead": "open", "endHead": "open" },
+    { "id": "9d0e…", "layer": "L2", "type": "ellipse", "x": 1200, "y": 300, "width": 160, "height": 90, "stroke": "#1d1d1b", "strokeWidth": 3, "fill": "#1d1d1b" },
     { "id": "77aa…", "layer": "L2", "type": "blur", "x": 900, "y": 20, "width": 200, "height": 40, "pixelSize": 10 }
   ]
 }
