@@ -13,8 +13,9 @@ highlights, step numbers, emojis and more.
 - Global hotkey **Ctrl+Shift+X** (macOS: **⌘⇧X**) or tray menu → region capture.
   If another app owns that key, Screenbook falls back to Ctrl+Alt+X, then Ctrl+Shift+2;
   the active one is shown in the library toolbar
-- "Freeze first, select later": all monitors are frozen, then you drag a region
-  (click = whole monitor, Esc / right-click = cancel)
+- "Freeze first, select later": all monitors are frozen, then you drag a region, also across
+  monitors, with a magnifier at the cursor. Click = the window under the mouse,
+  Shift+click = whole monitor, Esc / right-click = cancel. Optional delay of 3/5/10 s.
 - Every capture is saved to the library, copied to the clipboard and opened in the editor
 - **Library:** thumbnails, search (title, tags), favorites, tags, copy, export, drag into
   other apps, delete

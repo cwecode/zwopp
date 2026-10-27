@@ -80,7 +80,7 @@ pub fn run() {
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
                     if event.state() == ShortcutState::Pressed {
-                        capture::start_in_background(app.clone());
+                        capture::start_in_background(app.clone(), std::time::Duration::ZERO);
                     }
                 })
                 .build(),
@@ -123,6 +123,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::start_capture,
+            commands::capture_layout,
             commands::overlay_frame,
             commands::finish_capture,
             commands::cancel_capture,

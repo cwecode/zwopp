@@ -1,12 +1,13 @@
 //! Region capture: freeze all monitors, show one selection overlay per monitor,
-//! then cut the selected region out of the frozen frame.
+//! then cut the selected region out of the frozen frames (also across monitors).
 
 use std::sync::Arc;
 use std::time::Duration;
 
 use image::RgbaImage;
-use screenbook_core::capture::{self, Rect};
+use screenbook_core::capture::{self, DesktopRect, PlacedFrame};
 use screenbook_core::library::LibraryItem;
+use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 
@@ -14,22 +15,41 @@ use crate::AppState;
 
 pub const OVERLAY_PREFIX: &str = "overlay-";
 
+/// A frozen monitor image and its top-left corner in desktop pixels.
+pub struct Frozen {
+    pub image: Arc<RgbaImage>,
+    x: i32,
+    y: i32,
+}
+
 /// An ongoing capture. `frames[i]` belongs to the window `overlay-{i}`.
 pub struct Session {
-    pub frames: Vec<Arc<RgbaImage>>,
+    pub frames: Vec<Frozen>,
+    /// Visible windows at the moment of the capture, topmost first.
+    windows: Vec<DesktopRect>,
     main_was_visible: bool,
 }
 
-pub fn start_in_background(app: AppHandle) {
+/// Where the monitors and windows were, for the overlays (desktop pixels).
+#[derive(Serialize)]
+pub struct Layout {
+    monitors: Vec<DesktopRect>,
+    windows: Vec<DesktopRect>,
+}
+
+/// Starts a capture after `delay` without blocking the caller.
+pub fn start_in_background(app: AppHandle, delay: Duration) {
     tauri::async_runtime::spawn(async move {
-        if let Err(err) = start(&app) {
+        if let Err(err) = start(&app, delay).await {
             eprintln!("capture failed: {err}");
             finish(&app);
         }
     });
 }
 
-pub fn start(app: &AppHandle) -> Result<(), String> {
+/// Freezes all monitors (after `delay`, e.g. to open a menu first) and opens
+/// the selection overlays.
+pub async fn start(app: &AppHandle, delay: Duration) -> Result<(), String> {
     let state = app.state::<AppState>();
     if state.session.lock().unwrap().is_some() {
         return Ok(());
@@ -43,21 +63,33 @@ pub fn start(app: &AppHandle) -> Result<(), String> {
         .is_some_and(|w| w.is_visible().unwrap_or(false));
     if let Some(main) = main.filter(|_| main_was_visible) {
         main.hide().map_err(err)?;
-        std::thread::sleep(Duration::from_millis(200));
     }
+    let repaint = if main_was_visible {
+        Duration::from_millis(200)
+    } else {
+        Duration::ZERO
+    };
+    pause(delay.max(repaint)).await;
 
     let monitors = app.available_monitors().map_err(err)?;
     let frames = monitors
         .iter()
         .map(|monitor| {
             let (x, y) = native_center(monitor);
-            capture::capture_monitor_at(x, y).map(|frame| Arc::new(frame.image))
+            let position = monitor.position();
+            capture::capture_monitor_at(x, y).map(|frame| Frozen {
+                image: Arc::new(frame.image),
+                x: position.x,
+                y: position.y,
+            })
         })
         .collect::<Result<Vec<_>, _>>()
         .map_err(err)?;
+    let windows = capture::windows(std::process::id());
 
     *state.session.lock().unwrap() = Some(Session {
         frames,
+        windows,
         main_was_visible,
     });
 
@@ -83,6 +115,13 @@ pub fn start(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Waits without holding an async worker.
+async fn pause(duration: Duration) {
+    if !duration.is_zero() {
+        let _ = tauri::async_runtime::spawn_blocking(move || std::thread::sleep(duration)).await;
+    }
+}
+
 /// The center of a monitor in the coordinate space `xcap` expects.
 fn native_center(monitor: &tauri::Monitor) -> (i32, i32) {
     let position = monitor.position();
@@ -96,6 +135,26 @@ fn native_center(monitor: &tauri::Monitor) -> (i32, i32) {
     } else {
         (x, y)
     }
+}
+
+/// Monitors and windows of the current session, for the overlays.
+pub fn layout(app: &AppHandle) -> Result<Layout, String> {
+    let state = app.state::<AppState>();
+    let session = state.session.lock().unwrap();
+    let session = session.as_ref().ok_or("no capture in progress")?;
+    Ok(Layout {
+        monitors: session
+            .frames
+            .iter()
+            .map(|frame| DesktopRect {
+                x: frame.x,
+                y: frame.y,
+                width: frame.image.width(),
+                height: frame.image.height(),
+            })
+            .collect(),
+        windows: session.windows.clone(),
+    })
 }
 
 /// Encodes a frozen frame as PNG for the overlay. Speed matters more than size here.
@@ -115,18 +174,24 @@ pub fn preview_png(image: &RgbaImage) -> Result<Vec<u8>, String> {
     Ok(png)
 }
 
-/// Saves the selected region to the library and copies it to the clipboard.
-pub fn complete(app: &AppHandle, index: usize, rect: Rect) -> Result<LibraryItem, String> {
+/// Saves the selected region (desktop pixels, may span monitors) to the
+/// library and copies it to the clipboard.
+pub fn complete(app: &AppHandle, rect: DesktopRect) -> Result<LibraryItem, String> {
     let state = app.state::<AppState>();
-    let frame = state
-        .session
-        .lock()
-        .unwrap()
-        .as_ref()
-        .and_then(|session| session.frames.get(index).cloned())
-        .ok_or("no capture in progress")?;
-
-    let image = capture::crop(&frame, rect).map_err(err)?;
+    let image = {
+        let session = state.session.lock().unwrap();
+        let session = session.as_ref().ok_or("no capture in progress")?;
+        let frames: Vec<_> = session
+            .frames
+            .iter()
+            .map(|frame| PlacedFrame {
+                image: &frame.image,
+                x: frame.x,
+                y: frame.y,
+            })
+            .collect();
+        capture::compose(&frames, rect).map_err(err)?
+    };
     let item = state.library.add(&image).map_err(err)?;
 
     let clip = tauri::image::Image::new(image.as_raw(), image.width(), image.height());

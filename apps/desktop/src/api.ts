@@ -38,10 +38,21 @@ export interface Rect {
 export const setLanguage = (language: string) => invoke<void>("set_language", { language });
 
 export const captureShortcut = () => invoke<string | null>("capture_shortcut");
-export const startCapture = () => invoke<void>("start_capture");
+/** Starts a capture, after `delay` seconds if given. */
+export const startCapture = (delay?: number) => invoke<void>("start_capture", { delay });
 export const overlayFrame = (index: number) => invoke<ArrayBuffer>("overlay_frame", { index });
-export const finishCapture = (index: number, rect: Rect) =>
-  invoke<LibraryItem>("finish_capture", { index, rect });
+
+/** Monitors and windows of the running capture, in desktop pixels (shared by all monitors). */
+export interface CaptureLayout {
+  monitors: Rect[];
+  /** Visible windows, topmost first. */
+  windows: Rect[];
+}
+
+export const captureLayout = () => invoke<CaptureLayout>("capture_layout");
+
+/** Saves `rect` (desktop pixels, may span monitors) as a new library item. */
+export const finishCapture = (rect: Rect) => invoke<LibraryItem>("finish_capture", { rect });
 export const cancelCapture = () => invoke<void>("cancel_capture");
 
 /** One page of the library, newest first. */

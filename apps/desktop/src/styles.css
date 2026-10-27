@@ -642,6 +642,43 @@ button.tool.active {
   box-shadow: 0 0 0 100vmax rgb(0 0 0 / 0.35);
 }
 
+/* What a click captures: the window under the mouse or the monitor. */
+.overlay-target {
+  position: absolute;
+  outline: 2px solid var(--selection);
+  outline-offset: -2px;
+  background: rgb(47 128 237 / 0.08);
+  box-shadow: 0 0 0 100vmax rgb(0 0 0 / 0.35);
+  pointer-events: none;
+}
+
+/* Magnifier next to the mouse. */
+.overlay-loupe {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.overlay-loupe canvas {
+  display: block;
+  border: 2px solid #fff;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.5);
+  image-rendering: pixelated;
+}
+
+.overlay-loupe span {
+  align-self: flex-start;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font: 12px ui-monospace, monospace;
+  background: rgb(0 0 0 / 0.7);
+  color: #fff;
+  white-space: nowrap;
+}
+
 .overlay-size {
   position: absolute;
   top: -26px;

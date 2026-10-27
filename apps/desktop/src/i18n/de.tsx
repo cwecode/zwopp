@@ -12,7 +12,7 @@ export const de = {
   quote: (text: string) => `„${text}“`,
 
   capture: {
-    hint: "Bereich aufziehen · Klick = ganzer Bildschirm · Esc = Abbrechen",
+    hint: "Bereich aufziehen · Klick = Fenster · Umschalt+Klick = ganzer Bildschirm · Esc = Abbrechen",
   },
 
   library: {
@@ -21,6 +21,9 @@ export const de = {
     favoritesOnly: "Nur Favoriten",
     count: (n: number) => `${n.toLocaleString("de-DE")} ${n === 1 ? "Screenshot" : "Screenshots"}`,
     newScreenshot: "Neuer Screenshot",
+    delay: "Verzögerung",
+    delayNone: "Sofort",
+    delaySeconds: (s: number) => `In ${s} s`,
     noMatches: "Keine Treffer.",
     empty: "Noch keine Screenshots.",
     emptyHint: (shortcut: ReactNode): ReactNode => (

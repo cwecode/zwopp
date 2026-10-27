@@ -5,7 +5,9 @@
 
 use std::path::PathBuf;
 
-use screenbook_core::capture::Rect;
+use std::time::Duration;
+
+use screenbook_core::capture::DesktopRect;
 use screenbook_core::export::{self, ExportFormat};
 use screenbook_core::library::{ItemUpdate, Library, LibraryItem, ListQuery};
 use serde::Serialize;
@@ -36,9 +38,19 @@ async fn blocking<T: Send + 'static>(
         .map_err(err)
 }
 
+/// Starts a capture, after `delay` seconds if given (to open a menu first).
 #[tauri::command]
-pub async fn start_capture(app: AppHandle) -> CmdResult<()> {
-    capture::start(&app).inspect_err(|_| capture::finish(&app))
+pub async fn start_capture(app: AppHandle, delay: Option<u64>) -> CmdResult<()> {
+    let delay = Duration::from_secs(delay.unwrap_or(0));
+    capture::start(&app, delay)
+        .await
+        .inspect_err(|_| capture::finish(&app))
+}
+
+/// Monitors and windows of the running capture, in desktop pixels.
+#[tauri::command]
+pub async fn capture_layout(app: AppHandle) -> CmdResult<capture::Layout> {
+    capture::layout(&app)
 }
 
 /// The frozen frame for overlay `index`, as PNG bytes.
@@ -49,14 +61,15 @@ pub async fn overlay_frame(state: State<'_, AppState>, index: usize) -> CmdResul
         .lock()
         .unwrap()
         .as_ref()
-        .and_then(|session| session.frames.get(index).cloned())
+        .and_then(|session| session.frames.get(index).map(|frame| frame.image.clone()))
         .ok_or("no capture in progress")?;
     Ok(Response::new(capture::preview_png(&frame)?))
 }
 
+/// Saves the selected region; `rect` is in desktop pixels and may span monitors.
 #[tauri::command]
-pub async fn finish_capture(app: AppHandle, index: usize, rect: Rect) -> CmdResult<LibraryItem> {
-    capture::complete(&app, index, rect)
+pub async fn finish_capture(app: AppHandle, rect: DesktopRect) -> CmdResult<LibraryItem> {
+    capture::complete(&app, rect)
 }
 
 #[tauri::command]

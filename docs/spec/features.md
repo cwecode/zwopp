@@ -14,10 +14,10 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned · Phase in brackets.
 | Whole monitor | Single click during selection | ✅ (0) |
 | Cancel | Esc or right-click | ✅ (0) |
 | Multi-monitor | One overlay per monitor | ✅ (0) |
-| Magnifier | Zoomed view of the pixels under the cursor while selecting | ⬜ (1) |
-| Window capture | Hover highlights a window, click captures it | ⬜ (2) |
-| Cross-monitor selection | Selection may span monitors | ⬜ (2) |
-| Delay | Capture after 3/5/10 s | ⬜ (2) |
+| Magnifier | Zoomed view of the pixels under the cursor while selecting, with position and colour | ✅ (2) |
+| Window capture | Hover highlights a window, click captures it (cut from the frozen frame); Shift+click or a click on the bare desktop takes the whole monitor | ✅ (2) |
+| Cross-monitor selection | A drag may continue onto other monitors; the parts are joined, gaps between monitors of different sizes stay transparent | ✅ (2) |
+| Delay | Capture after 3/5/10 s, from the tray menu or the picker next to "New screenshot"; the window hides at once | ✅ (2) |
 | Scrolling capture | Long pages stitched together | ⬜ (v2) |
 | Screen recording / GIF | | ⬜ (v2) |
 

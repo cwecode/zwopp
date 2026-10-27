@@ -10,7 +10,7 @@ export const en: Messages = {
   quote: (text: string) => `“${text}”`,
 
   capture: {
-    hint: "Drag to select an area · Click = whole screen · Esc = cancel",
+    hint: "Drag to select an area · Click = window · Shift+click = whole screen · Esc = cancel",
   },
 
   library: {
@@ -19,6 +19,9 @@ export const en: Messages = {
     favoritesOnly: "Favorites only",
     count: (n: number) => `${n.toLocaleString("en-US")} ${n === 1 ? "screenshot" : "screenshots"}`,
     newScreenshot: "New screenshot",
+    delay: "Delay",
+    delayNone: "Now",
+    delaySeconds: (s: number) => `In ${s} s`,
     noMatches: "No matches.",
     empty: "No screenshots yet.",
     emptyHint: (shortcut: ReactNode): ReactNode => <>Press {shortcut} or click “New screenshot”.</>,

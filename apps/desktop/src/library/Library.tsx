@@ -26,6 +26,20 @@ const ROW_HEIGHT = 196;
 /** Rows above and below the view whose data is fetched ahead of scrolling. */
 const PREFETCH_ROWS = 6;
 
+/** Capture delays offered next to "New screenshot", in seconds (0 = now). */
+const DELAYS = [0, 3, 5, 10];
+const DELAY_KEY = "screenbook.captureDelay";
+
+/** The delay picked last time; a per-user convenience, so storage may fail. */
+function storedDelay(): number {
+  try {
+    const value = Number(localStorage.getItem(DELAY_KEY));
+    return DELAYS.includes(value) ? value : 0;
+  } catch {
+    return 0;
+  }
+}
+
 const parseTags = (text: string) =>
   text
     .split(",")
@@ -43,6 +57,7 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
   const [message, setMessage] = useState<string>();
   const [accelerator, setAccelerator] = useState<string | null>(null);
   const [width, setWidth] = useState(0);
+  const [delay, setDelay] = useState(storedDelay);
   const scroller = useRef<HTMLDivElement>(null);
 
   const report = (e: unknown) => setMessage(String(e));
@@ -208,9 +223,30 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
         </button>
         {pages.count !== null && <span className="meta">{t.library.count(count)}</span>}
         <span className="spacer" />
-        <button className="primary" onClick={() => startCapture().catch(report)}>
+        <button className="primary" onClick={() => startCapture(delay).catch(report)}>
           {t.library.newScreenshot}
         </button>
+        <select
+          className="delay"
+          aria-label={t.library.delay}
+          title={t.library.delay}
+          value={delay}
+          onChange={(e) => {
+            const value = Number(e.target.value);
+            setDelay(value);
+            try {
+              localStorage.setItem(DELAY_KEY, String(value));
+            } catch {
+              // Not remembered; still used now.
+            }
+          }}
+        >
+          {DELAYS.map((s) => (
+            <option key={s} value={s}>
+              {s ? t.library.delaySeconds(s) : t.library.delayNone}
+            </option>
+          ))}
+        </select>
         {shortcut && <kbd>{shortcut}</kbd>}
       </header>
 
