@@ -27,7 +27,8 @@ jobs:
             os: macos-latest
             args: --target x86_64-apple-darwin
           - name: linux
-            os: ubuntu-22.04
+            # 22.04 ships PipeWire 0.3.48, too old for libspa 0.10 (via xcap).
+            os: ubuntu-24.04
             args: ""
     runs-on: ${{ matrix.os }}
     steps:
