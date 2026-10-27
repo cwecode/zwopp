@@ -122,6 +122,7 @@ pub fn run() {
             commands::finish_capture,
             commands::cancel_capture,
             commands::capture_shortcut,
+            commands::set_language,
             commands::list_items,
             commands::count_items,
             commands::item_position,

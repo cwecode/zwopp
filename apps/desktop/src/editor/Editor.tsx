@@ -25,6 +25,7 @@ import {
   type Rect,
   type Shape,
 } from "./document";
+import { keys, useT } from "../i18n";
 import { initHistory, push, redo, undo, type History } from "./history";
 import { loadImage, renderBase } from "./render";
 import { COLORS, HIGHLIGHT_COLOR, SIZES, TOOLS, stylePatch, type Tool, type ToolStyle } from "./tools";
@@ -62,19 +63,15 @@ const DEFAULT_STYLES: Record<Tool, ToolStyle> = {
   blur: { color: COLORS[0], size: 1 },
 };
 
-const STATUS_LABEL: Record<SaveStatus, string> = {
-  saved: "Gespeichert",
-  pending: "Ungespeichert",
-  saving: "Speichert …",
-  error: "Speichern fehlgeschlagen",
-};
-
 function isTyping(event: KeyboardEvent) {
   const target = event.target as HTMLElement | null;
   return target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
 }
 
 export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, onClose, onOpen, onSaved }, ref) {
+  const t = useT();
+  /** A key combination with this language's key names, e.g. "Strg+Z". */
+  const k = (...combo: string[]) => keys(t, combo);
   const [image, setImage] = useState<HTMLImageElement>();
   const [assets, setAssets] = useState<Record<string, Asset>>({});
   const [history, setHistory] = useState<History<EditorDocument>>();
@@ -279,7 +276,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
     try {
       await flush();
       await api.copyItem(item.id);
-      setMessage("Bild in die Zwischenablage kopiert");
+      setMessage(t.editor.imageCopied);
     } catch (e) {
       setMessage(String(e));
     }
@@ -310,9 +307,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
           groups: groupsOf(selected),
           assets: assetBytes(selected),
         });
-        setMessage(
-          `${selected.length} ${selected.length === 1 ? "Element" : "Elemente"} kopiert – mit Strg+V einfügen, auch in einem anderen Screenshot`,
-        );
+        setMessage(t.editor.copiedShapes(selected.length, k("mod", "V")));
         return;
       }
       // Blur shapes are baked into the base image so hidden pixels never travel.
@@ -327,7 +322,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
       }
       setClipboard(content);
       await copyImage();
-      setMessage("Alles kopiert – im Filmstreifen einen anderen Screenshot öffnen und mit Strg+V einfügen");
+      setMessage(t.editor.copiedAll(k("mod", "V")));
     } catch (e) {
       setMessage(String(e));
     }
@@ -414,7 +409,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
         setMarquee(null);
         setTool("select");
       } else if (!mod && !e.altKey) {
-        const match = TOOLS.find((t) => t.key === key);
+        const match = TOOLS.find((entry) => entry.key === key);
         if (match) chooseTool(match.id);
         else return;
       } else return;
@@ -431,30 +426,30 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
   return (
     <div className="editor">
       <header className="toolbar editor-toolbar">
-        <button onClick={close} title="Zurück zur Bibliothek">
-          ← Bibliothek
+        <button onClick={close} title={t.editor.backTitle}>
+          ← {t.editor.back}
         </button>
 
-        <div className="tool-group" role="toolbar" aria-label="Werkzeuge">
-          {TOOLS.map((t) => (
+        <div className="tool-group" role="toolbar" aria-label={t.editor.tools}>
+          {TOOLS.map(({ id, key, icon }) => (
             <button
-              key={t.id}
-              className={tool === t.id ? "tool active" : "tool"}
-              title={`${t.label} (${t.key.toUpperCase()})`}
-              aria-pressed={tool === t.id}
-              onClick={() => chooseTool(t.id)}
+              key={id}
+              className={tool === id ? "tool active" : "tool"}
+              title={`${t.tools[id]} (${key.toUpperCase()})`}
+              aria-pressed={tool === id}
+              onClick={() => chooseTool(id)}
             >
-              <span aria-hidden>{t.icon}</span>
-              <span className="tool-label">{t.label}</span>
+              <span aria-hidden>{icon}</span>
+              <span className="tool-label">{t.tools[id]}</span>
             </button>
           ))}
         </div>
 
         {(canGroup || block) && (
-          <div className="tool-group" aria-label="Block">
+          <div className="tool-group" aria-label={t.editor.block}>
             {canGroup && (
-              <button className="primary" onClick={makeBlock} title="Auswahl zu einem Block zusammenfassen (Strg+G)">
-                Block bilden
+              <button className="primary" onClick={makeBlock} title={`${t.editor.makeBlockTitle} (${k("mod", "G")})`}>
+                {t.editor.makeBlock}
               </button>
             )}
             {block && (
@@ -463,12 +458,12 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
                   className={block.frame ? "tool active" : "tool"}
                   aria-pressed={!!block.frame}
                   onClick={toggleFrame}
-                  title="Rahmen um den Block (Farbe und Stärke über die Palette)"
+                  title={t.editor.frameTitle}
                 >
-                  ▢ Rahmen
+                  ▢ {t.editor.frame}
                 </button>
-                <button onClick={dissolveBlock} title="Block auflösen (Strg+Umschalt+G)">
-                  Auflösen
+                <button onClick={dissolveBlock} title={`${t.editor.dissolveTitle} (${k("mod", "shift", "G")})`}>
+                  {t.editor.dissolve}
                 </button>
               </>
             )}
@@ -476,14 +471,14 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
         )}
 
         {showColor && (
-          <div className="tool-group" aria-label="Farbe">
+          <div className="tool-group" aria-label={t.editor.color}>
             {COLORS.map((color) => (
               <button
                 key={color}
                 className={style.color === color ? "swatch active" : "swatch"}
                 style={{ background: color }}
                 title={color}
-                aria-label={`Farbe ${color}`}
+                aria-label={t.editor.colorOf(color)}
                 onClick={() => changeStyle({ color })}
               />
             ))}
@@ -491,7 +486,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
         )}
 
         {showSize && (
-          <div className="tool-group" aria-label="Größe">
+          <div className="tool-group" aria-label={t.editor.size}>
             {SIZES.map((size, index) => (
               <button
                 key={size.label}
@@ -505,54 +500,51 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
         )}
 
         <div className="tool-group">
-          <button onClick={doUndo} disabled={!history?.past.length} title="Rückgängig (Strg+Z)">
+          <button onClick={doUndo} disabled={!history?.past.length} title={`${t.editor.undo} (${k("mod", "Z")})`}>
             ↶
           </button>
-          <button onClick={doRedo} disabled={!history?.future.length} title="Wiederholen (Strg+Y)">
+          <button onClick={doRedo} disabled={!history?.future.length} title={`${t.editor.redo} (${k("mod", "Y")})`}>
             ↷
           </button>
           <button
             className={marquee ? "danger" : undefined}
             onClick={deleteSelected}
             disabled={!selected.length && !marquee}
-            title="Löschen (Entf)"
+            title={`${t.editor.delete} (${k("del")})`}
           >
-            {marquee ? "Bereich löschen" : "Löschen"}
+            {marquee ? t.editor.deleteArea : t.editor.delete}
           </button>
         </div>
 
         <div className="tool-group">
-          <button
-            onClick={copy}
-            title="Auswahl kopieren, ohne Auswahl alles (Strg+C)"
-          >
-            {selected.length ? "Auswahl kopieren" : "Alles kopieren"}
+          <button onClick={copy} title={`${t.editor.copyTitle} (${k("mod", "C")})`}>
+            {selected.length ? t.editor.copySelection : t.editor.copyAll}
           </button>
-          <button onClick={paste} disabled={!getClipboard()} title="Einfügen (Strg+V)">
-            Einfügen
+          <button onClick={paste} disabled={!getClipboard()} title={`${t.editor.paste} (${k("mod", "V")})`}>
+            {t.editor.paste}
           </button>
         </div>
 
         <div className="tool-group" aria-label="Zoom">
-          <button onClick={() => canvas.current?.zoomBy(0.8)} title="Verkleinern (Strg+−, Strg+Mausrad)">
+          <button onClick={() => canvas.current?.zoomBy(0.8)} title={`${t.editor.zoomOut} (${k("mod", "−")}, ${k("mod", "wheel")})`}>
             −
           </button>
           <button
             className="zoom-level"
             onClick={() => canvas.current?.actualSize()}
-            title="Auf 100 % (Originalgröße, Strg+1)"
+            title={`${t.editor.actualSize} (${k("mod", "1")})`}
           >
             {Math.round(zoom.zoom * 100)} %
           </button>
-          <button onClick={() => canvas.current?.zoomBy(1.25)} title="Vergrößern (Strg++, Strg+Mausrad)">
+          <button onClick={() => canvas.current?.zoomBy(1.25)} title={`${t.editor.zoomIn} (${k("mod", "+")}, ${k("mod", "wheel")})`}>
             +
           </button>
           <button
             className={zoom.fit ? "tool active" : "tool"}
             onClick={() => canvas.current?.fit()}
-            title="Einpassen: so groß wie möglich (Strg+0)"
+            title={`${t.editor.fitTitle} (${k("mod", "0")})`}
           >
-            Einpassen
+            {t.editor.fit}
           </button>
         </div>
 
@@ -560,21 +552,21 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
           className={showLayers ? "tool active" : "tool"}
           aria-pressed={showLayers}
           onClick={() => setShowLayers((v) => !v)}
-          title="Ebenen-Panel ein-/ausblenden"
+          title={t.editor.layersTitle}
         >
-          Ebenen
+          {t.editor.layers}
         </button>
 
-        <span className={`save-status ${status}`}>{STATUS_LABEL[status]}</span>
-        <button className="primary" onClick={copyImage} title="Bild in die Zwischenablage (Strg+Umschalt+C)">
-          Bild kopieren
+        <span className={`save-status ${status}`}>{t.editor.status[status]}</span>
+        <button className="primary" onClick={copyImage} title={`${t.editor.copyImageTitle} (${k("mod", "shift", "C")})`}>
+          {t.editor.copyImage}
         </button>
       </header>
 
       {message && (
         <div className="notice" role="status">
           {message}
-          <button onClick={() => setMessage(undefined)}>OK</button>
+          <button onClick={() => setMessage(undefined)}>{t.ok}</button>
         </div>
       )}
 

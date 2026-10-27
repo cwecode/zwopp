@@ -12,6 +12,8 @@ export default defineConfig({
     baseURL: "http://localhost:1430",
     browserName: "chromium",
     viewport: { width: 1100, height: 720 },
+    // The tests read German texts (e.g. "24.999 Screenshots").
+    locale: "de-DE",
     // `gc()` and exact (not bucketed) `performance.memory` for the heap budget.
     launchOptions: { args: ["--js-flags=--expose-gc", "--enable-precise-memory-info"] },
   },

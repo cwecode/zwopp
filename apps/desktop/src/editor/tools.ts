@@ -2,13 +2,14 @@ import type { Shape } from "./document";
 
 export type Tool = "select" | "arrow" | "rect" | "text" | "highlight" | "blur";
 
-export const TOOLS: { id: Tool; label: string; key: string; icon: string }[] = [
-  { id: "select", label: "Auswählen", key: "v", icon: "↖" },
-  { id: "arrow", label: "Pfeil", key: "a", icon: "➚" },
-  { id: "rect", label: "Rechteck", key: "r", icon: "▭" },
-  { id: "text", label: "Text", key: "t", icon: "T" },
-  { id: "highlight", label: "Marker", key: "h", icon: "▬" },
-  { id: "blur", label: "Verpixeln", key: "b", icon: "▦" },
+/** The tools in toolbar order; their names are in the translations (`tools`). */
+export const TOOLS: { id: Tool; key: string; icon: string }[] = [
+  { id: "select", key: "v", icon: "↖" },
+  { id: "arrow", key: "a", icon: "➚" },
+  { id: "rect", key: "r", icon: "▭" },
+  { id: "text", key: "t", icon: "T" },
+  { id: "highlight", key: "h", icon: "▬" },
+  { id: "blur", key: "b", icon: "▦" },
 ];
 
 export const COLORS = ["#e5322d", "#f2994a", "#f2c94c", "#27ae60", "#2f80ed", "#1d1d1b", "#ffffff"];

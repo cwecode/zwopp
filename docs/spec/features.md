@@ -69,6 +69,13 @@ see [document-format.md](document-format.md). Changes are saved automatically.
 | Magnify | Enlarged inset of a region | ⬜ (2) |
 | Quick styles | Saved tool presets | ⬜ (2) |
 
+## General
+
+| Feature | Description | Status |
+|---|---|---|
+| Language | German and English, picked from the system language; tooltips name keys as on the keyboard (Strg / Ctrl / ⌘) | ✅ (2) |
+| Settings | Language, hotkey, library folder, defaults | ⬜ (2) |
+
 ## Export & automation
 
 | Feature | Status |

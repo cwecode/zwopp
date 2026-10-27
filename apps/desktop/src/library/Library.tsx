@@ -6,7 +6,6 @@ import {
   copyItem,
   deleteItem,
   fileUrl,
-  formatShortcut,
   startCapture,
   thumbUrl,
   updateItem,
@@ -14,9 +13,8 @@ import {
   type LibraryItem,
   type ListQuery,
 } from "../api";
+import { formatAccelerator, useT } from "../i18n";
 import { useLibraryPages } from "./useLibraryPages";
-
-const dateFormat = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" });
 
 /** Grid geometry; rows have a fixed height so the list can be virtualized. */
 const CARD_MIN_WIDTH = 190;
@@ -33,6 +31,7 @@ const parseTags = (text: string) =>
     .filter(Boolean);
 
 export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
+  const t = useT();
   const [search, setSearch] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   // Starts as what the debounce below produces, so opening loads only once.
@@ -40,7 +39,7 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
   const [version, setVersion] = useState(0);
   const [selected, setSelected] = useState<LibraryItem>();
   const [message, setMessage] = useState<string>();
-  const [shortcut, setShortcut] = useState<string | null>(null);
+  const [accelerator, setAccelerator] = useState<string | null>(null);
   const [width, setWidth] = useState(0);
   const scroller = useRef<HTMLDivElement>(null);
 
@@ -49,7 +48,7 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
 
   useEffect(() => {
     captureShortcut()
-      .then((s) => setShortcut(s && formatShortcut(s)))
+      .then(setAccelerator)
       .catch(report);
   }, []);
 
@@ -72,6 +71,12 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
+
+  const shortcut = accelerator && formatAccelerator(t, accelerator);
+  const dateFormat = useMemo(
+    () => new Intl.DateTimeFormat(t.locale, { dateStyle: "medium", timeStyle: "short" }),
+    [t.locale],
+  );
 
   const pages = useLibraryPages(query, version);
   const count = pages.count ?? 0;
@@ -117,7 +122,7 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
 
   const copy = async (id: string) => {
     await copyItem(id)
-      .then(() => setMessage("In die Zwischenablage kopiert"))
+      .then(() => setMessage(t.library.copied))
       .catch(report);
   };
 
@@ -141,7 +146,7 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
       <img src={thumbUrl(item)} alt="" decoding="async" />
       <button
         className={item.favorite ? "star active" : "star"}
-        title={item.favorite ? "Favorit entfernen" : "Als Favorit markieren"}
+        title={item.favorite ? t.library.unfavorite : t.library.favorite}
         aria-pressed={item.favorite}
         onClick={(e) => {
           e.stopPropagation();
@@ -150,7 +155,7 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
       >
         ★
       </button>
-      <span className="card-title">{item.title || "Ohne Titel"}</span>
+      <span className="card-title">{item.title || t.untitled}</span>
       <span className="meta">
         {dateFormat.format(new Date(item.createdAt))} · {item.width} × {item.height}
       </span>
@@ -171,7 +176,7 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
         <input
           type="search"
           className="search"
-          placeholder="Suchen (Titel, Tags) …"
+          placeholder={t.library.search}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -179,16 +184,14 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
           className={favoritesOnly ? "tool active" : "tool"}
           aria-pressed={favoritesOnly}
           onClick={() => setFavoritesOnly((f) => !f)}
-          title="Nur Favoriten"
+          title={t.library.favoritesOnly}
         >
-          ★ Favoriten
+          ★ {t.library.favorites}
         </button>
-        {pages.count !== null && (
-          <span className="meta">{count.toLocaleString("de-DE")} Screenshots</span>
-        )}
+        {pages.count !== null && <span className="meta">{t.library.count(count)}</span>}
         <span className="spacer" />
         <button className="primary" onClick={() => startCapture().catch(report)}>
-          Neuer Screenshot
+          {t.library.newScreenshot}
         </button>
         {shortcut && <kbd>{shortcut}</kbd>}
       </header>
@@ -196,7 +199,7 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
       {message && (
         <div className="notice" role="status">
           {message}
-          <button onClick={() => setMessage(undefined)}>OK</button>
+          <button onClick={() => setMessage(undefined)}>{t.ok}</button>
         </div>
       )}
 
@@ -205,18 +208,12 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
           {pages.count === 0 && (
             <div className="empty">
               {query.search || query.favoritesOnly ? (
-                <p>Keine Treffer.</p>
+                <p>{t.library.noMatches}</p>
               ) : (
                 <>
-                  <p>Noch keine Screenshots.</p>
+                  <p>{t.library.empty}</p>
                   <p>
-                    {shortcut ? (
-                      <>
-                        Drücke <kbd>{shortcut}</kbd> oder klicke auf „Neuer Screenshot“.
-                      </>
-                    ) : (
-                      <>Klicke auf „Neuer Screenshot“ oder nutze das Tray-Menü.</>
-                    )}
+                    {shortcut ? t.library.emptyHint(<kbd>{shortcut}</kbd>) : t.library.emptyHintNoShortcut}
                   </p>
                 </>
               )}
@@ -245,14 +242,14 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
           <aside className="preview" key={selected.id}>
             <img
               src={fileUrl(selected.renderPath ?? selected.originalPath, selected.updatedAt)}
-              alt="Ausgewählter Screenshot"
+              alt={t.library.selected}
               onDoubleClick={() => onOpen(selected)}
             />
             <label>
-              Titel
+              {t.library.title}
               <input
                 defaultValue={selected.title}
-                placeholder="Ohne Titel"
+                placeholder={t.untitled}
                 onBlur={(e) =>
                   e.target.value !== selected.title && update(selected.id, { title: e.target.value })
                 }
@@ -260,10 +257,10 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
               />
             </label>
             <label>
-              Tags (durch Komma getrennt)
+              {t.library.tags}
               <input
                 defaultValue={selected.tags.join(", ")}
-                placeholder="z. B. bug, login"
+                placeholder={t.library.tagsExample}
                 onBlur={(e) => {
                   const tags = parseTags(e.target.value);
                   if (tags.join("\n") !== selected.tags.join("\n")) void update(selected.id, { tags });
@@ -273,12 +270,12 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
             </label>
             <div className="preview-actions">
               <button className="primary" onClick={() => onOpen(selected)}>
-                Bearbeiten
+                {t.library.edit}
               </button>
-              <button onClick={() => copy(selected.id)}>Kopieren</button>
+              <button onClick={() => copy(selected.id)}>{t.library.copy}</button>
               <span className="spacer" />
               <button className="danger" onClick={() => remove(selected.id)}>
-                Löschen
+                {t.library.delete}
               </button>
             </div>
           </aside>

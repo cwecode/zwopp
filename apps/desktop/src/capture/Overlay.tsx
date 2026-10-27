@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { cancelCapture, finishCapture, overlayFrame, type Rect } from "../api";
+import { useT } from "../i18n";
 
 interface Point {
   x: number;
@@ -24,6 +25,7 @@ function toRect(a: Point, b: Point): Rect {
  * captured by the backend, so what the user selects is exactly what gets saved.
  */
 export function Overlay({ index }: { index: number }) {
+  const t = useT();
   const [src, setSrc] = useState<string>();
   const [start, setStart] = useState<Point>();
   const [current, setCurrent] = useState<Point>();
@@ -113,7 +115,7 @@ export function Overlay({ index }: { index: number }) {
         </div>
       ) : (
         <div className="overlay-dim">
-          <p className="overlay-hint">Bereich aufziehen · Klick = ganzer Bildschirm · Esc = Abbrechen</p>
+          <p className="overlay-hint">{t.capture.hint}</p>
         </div>
       )}
       {current && !selection && (

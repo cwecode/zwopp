@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { itemPosition, listItems, thumbUrl, type LibraryItem, type ListQuery } from "../api";
+import { keys, useT } from "../i18n";
 import { useLibraryPages } from "../library/useLibraryPages";
 
 export interface FilmstripHandle {
@@ -26,6 +27,7 @@ export const Filmstrip = forwardRef<FilmstripHandle, Props>(function Filmstrip(
   { currentId, version, onOpen },
   ref,
 ) {
+  const t = useT();
   const pages = useLibraryPages(ALL, version);
   const count = pages.count ?? 0;
   const [position, setPosition] = useState<number | null>(null);
@@ -71,7 +73,7 @@ export const Filmstrip = forwardRef<FilmstripHandle, Props>(function Filmstrip(
         className="filmstrip-step"
         disabled={position === null || position <= 0}
         onClick={() => step(-1)}
-        title="Neuerer Screenshot (Alt+←)"
+        title={`${t.editor.newer} (${keys(t, ["alt", "←"])})`}
       >
         ‹
       </button>
@@ -90,7 +92,7 @@ export const Filmstrip = forwardRef<FilmstripHandle, Props>(function Filmstrip(
                   <button
                     className={isCurrent ? "filmstrip-item current" : "filmstrip-item"}
                     aria-current={isCurrent}
-                    title={item.title || new Date(item.createdAt).toLocaleString("de-DE")}
+                    title={item.title || new Date(item.createdAt).toLocaleString(t.locale)}
                     onClick={() => onOpen(item)}
                   >
                     <img src={thumbUrl(item)} alt="" decoding="async" />
@@ -107,7 +109,7 @@ export const Filmstrip = forwardRef<FilmstripHandle, Props>(function Filmstrip(
         className="filmstrip-step"
         disabled={position === null || position >= count - 1}
         onClick={() => step(1)}
-        title="Älterer Screenshot (Alt+→)"
+        title={`${t.editor.older} (${keys(t, ["alt", "→"])})`}
       >
         ›
       </button>

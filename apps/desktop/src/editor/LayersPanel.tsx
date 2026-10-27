@@ -12,6 +12,7 @@ import {
   type Shape,
   type StackMove,
 } from "./document";
+import { keys, useT, type Messages } from "../i18n";
 
 interface Props {
   doc: EditorDocument;
@@ -31,28 +32,19 @@ const ICONS: Record<Shape["type"], string> = {
   image: "▣",
 };
 
-const NAMES: Record<Shape["type"], string> = {
-  arrow: "Pfeil",
-  rect: "Rechteck",
-  text: "Text",
-  highlight: "Marker",
-  blur: "Verpixelung",
-  image: "Bild",
-};
-
-const STACK_MOVES: { move: StackMove; icon: string; label: string; keys: string }[] = [
-  { move: "front", icon: "⤒", label: "Ganz nach vorne", keys: "Strg+Umschalt+↑" },
-  { move: "forward", icon: "↑", label: "Eine Stufe nach vorne", keys: "Strg+↑" },
-  { move: "backward", icon: "↓", label: "Eine Stufe nach hinten", keys: "Strg+↓" },
-  { move: "back", icon: "⤓", label: "Ganz nach hinten", keys: "Strg+Umschalt+↓" },
+const STACK_MOVES: { move: StackMove; icon: string; keys: string[] }[] = [
+  { move: "front", icon: "⤒", keys: ["mod", "shift", "↑"] },
+  { move: "forward", icon: "↑", keys: ["mod", "↑"] },
+  { move: "backward", icon: "↓", keys: ["mod", "↓"] },
+  { move: "back", icon: "⤓", keys: ["mod", "shift", "↓"] },
 ];
 
-function label(shape: Shape) {
+function label(t: Messages, shape: Shape) {
   if (shape.type === "text" && shape.text.trim()) {
     const text = shape.text.trim().replace(/\s+/g, " ");
-    return `„${text.length > 24 ? `${text.slice(0, 24)}…` : text}“`;
+    return t.quote(text.length > 24 ? `${text.slice(0, 24)}…` : text);
   }
-  return NAMES[shape.type];
+  return t.layers.shapes[shape.type];
 }
 
 /** What is being dragged in the panel. */
@@ -66,6 +58,7 @@ const classes = (...names: (string | false | undefined)[]) => names.filter(Boole
  * nach"; the screenshot is the fixed background at the bottom.
  */
 export function LayersPanel({ doc, selectedIds, activeLayer, onSelect, onActivate, onCommit }: Props) {
+  const t = useT();
   // The drag source lives in a ref: re-rendering during `dragstart` can make
   // the webview cancel the drag. State only drives the drop highlight.
   const drag = useRef<Drag | null>(null);
@@ -125,7 +118,7 @@ export function LayersPanel({ doc, selectedIds, activeLayer, onSelect, onActivat
   };
 
   const add = () => {
-    const { doc: next, id } = addLayer(doc);
+    const { doc: next, id } = addLayer(doc, t.layers.newName);
     onCommit(next);
     onActivate(id);
   };
@@ -170,7 +163,7 @@ export function LayersPanel({ doc, selectedIds, activeLayer, onSelect, onActivat
       <span className="shape-icon" aria-hidden>
         {ICONS[shape.type]}
       </span>
-      {label(shape)}
+      {label(t, shape)}
     </li>
   );
 
@@ -202,7 +195,7 @@ export function LayersPanel({ doc, selectedIds, activeLayer, onSelect, onActivat
           onDragStart={(e) => startDrag(e, { kind: "shapes", ids })}
           onDragEnd={endDrag}
           onClick={(e) => !layer.locked && clickRow(e, ids, layer.id)}
-          title="Block: wird als Einheit gewählt; Doppelklick im Bild öffnet ihn"
+          title={t.layers.blockTitle}
         >
           <span className="shape-icon" aria-hidden>
             {group?.frame ? "▢" : "⧉"}
@@ -216,11 +209,11 @@ export function LayersPanel({ doc, selectedIds, activeLayer, onSelect, onActivat
   };
 
   return (
-    <aside className="layers" aria-label="Ebenen">
+    <aside className="layers" aria-label={t.layers.title}>
       <header className="layers-header">
-        <h2>Ebenen</h2>
-        <button onClick={add} title="Neue Ebene">
-          + Ebene
+        <h2>{t.layers.title}</h2>
+        <button onClick={add} title={t.layers.addTitle}>
+          + {t.layers.add}
         </button>
       </header>
 
@@ -249,7 +242,7 @@ export function LayersPanel({ doc, selectedIds, activeLayer, onSelect, onActivat
               >
                 <button
                   className="icon"
-                  title={layer.visible ? "Ausblenden" : "Einblenden"}
+                  title={layer.visible ? t.layers.hide : t.layers.show}
                   aria-pressed={layer.visible}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -260,7 +253,7 @@ export function LayersPanel({ doc, selectedIds, activeLayer, onSelect, onActivat
                 </button>
                 <button
                   className="icon"
-                  title={layer.locked ? "Entsperren" : "Sperren"}
+                  title={layer.locked ? t.layers.unlock : t.layers.lock}
                   aria-pressed={layer.locked}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -287,13 +280,13 @@ export function LayersPanel({ doc, selectedIds, activeLayer, onSelect, onActivat
                     }}
                   />
                 ) : (
-                  <span className="layer-name" onDoubleClick={() => setRenaming(layer.id)} title="Doppelklick zum Umbenennen">
+                  <span className="layer-name" onDoubleClick={() => setRenaming(layer.id)} title={t.layers.rename}>
                     {layer.name}
                   </span>
                 )}
                 <button
                   className="icon"
-                  title="Alle Elemente dieser Ebene auswählen"
+                  title={t.layers.selectAll}
                   disabled={!layerIds.length || layer.locked}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -305,7 +298,7 @@ export function LayersPanel({ doc, selectedIds, activeLayer, onSelect, onActivat
                 </button>
                 <button
                   className="icon"
-                  title={isBase ? "Die Original-Ebene mit dem Screenshot bleibt immer" : "Ebene löschen (mit Inhalt)"}
+                  title={isBase ? t.layers.baseStays : t.layers.delete}
                   disabled={isBase}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -318,11 +311,11 @@ export function LayersPanel({ doc, selectedIds, activeLayer, onSelect, onActivat
               <ol className="layer-shapes">
                 {layerContent(layer)}
                 {isBase && (
-                  <li className="shape-row background" title="Der Screenshot liegt in der Original-Ebene ganz unten">
+                  <li className="shape-row background" title={t.layers.screenshotTitle}>
                     <span className="shape-icon" aria-hidden>
                       ▣
                     </span>
-                    Screenshot
+                    {t.layers.screenshot}
                   </li>
                 )}
               </ol>
@@ -331,16 +324,16 @@ export function LayersPanel({ doc, selectedIds, activeLayer, onSelect, onActivat
         })}
       </ol>
 
-      <footer className="layers-footer" aria-label="Auswahl">
+      <footer className="layers-footer" aria-label={t.layers.selection}>
         <label className="move-to">
-          Verschieben nach
+          {t.layers.moveTo}
           <select
             value=""
             disabled={!selectedShapes.length || selectedShapes.some((s) => locked.has(s.layer))}
             onChange={(e) => moveSelectionTo(e.target.value)}
           >
             <option value="" disabled>
-              Ebene wählen …
+              {t.layers.chooseLayer}
             </option>
             {[...doc.layers].reverse().map((layer) => (
               <option key={layer.id} value={layer.id}>
@@ -350,11 +343,11 @@ export function LayersPanel({ doc, selectedIds, activeLayer, onSelect, onActivat
           </select>
         </label>
         <div className="stack-buttons">
-          {STACK_MOVES.map(({ move, icon, label: text, keys }) => (
+          {STACK_MOVES.map(({ move, icon, keys: combo }) => (
             <button
               key={move}
               disabled={!selectedIds.length}
-              title={`${text} (${keys})`}
+              title={`${t.layers.stack[move]} (${keys(t, combo)})`}
               onClick={() => onCommit(moveShapes(doc, selectedIds, move))}
             >
               {icon}

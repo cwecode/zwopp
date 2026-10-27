@@ -10,7 +10,7 @@ use tauri::{AppHandle, State};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use uuid::Uuid;
 
-use crate::{AppState, capture};
+use crate::{AppState, capture, tray};
 
 type CmdResult<T> = Result<T, String>;
 
@@ -63,6 +63,13 @@ pub async fn cancel_capture(app: AppHandle) {
 #[tauri::command]
 pub fn capture_shortcut(state: State<'_, AppState>) -> Option<&'static str> {
     state.capture_shortcut
+}
+
+/// The UI language ("de", "en") as the web UI picked it, for the tray menu.
+/// Async, so it does not run on the main thread, which menu changes wait for.
+#[tauri::command]
+pub async fn set_language(menu: State<'_, tray::TrayMenu>, language: String) -> CmdResult<()> {
+    tray::set_language(&menu, &language).map_err(err)
 }
 
 /// One page of the library list (see `Library::list_page`).

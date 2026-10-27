@@ -1,0 +1,134 @@
+// German texts. The source of truth for the shape of `Messages`: every other
+// language must provide the same keys (checked by TypeScript).
+import type { ReactNode } from "react";
+
+export const de = {
+  /** BCP 47 tag for dates and numbers. */
+  locale: "de-DE",
+  keys: { mod: "Strg", shift: "Umschalt", alt: "Alt", del: "Entf", wheel: "Mausrad" },
+  ok: "OK",
+  untitled: "Ohne Titel",
+  /** Quotes a short text, e.g. a text box in the layers panel. */
+  quote: (text: string) => `„${text}“`,
+
+  capture: {
+    hint: "Bereich aufziehen · Klick = ganzer Bildschirm · Esc = Abbrechen",
+  },
+
+  library: {
+    search: "Suchen (Titel, Tags) …",
+    favorites: "Favoriten",
+    favoritesOnly: "Nur Favoriten",
+    count: (n: number) => `${n.toLocaleString("de-DE")} ${n === 1 ? "Screenshot" : "Screenshots"}`,
+    newScreenshot: "Neuer Screenshot",
+    noMatches: "Keine Treffer.",
+    empty: "Noch keine Screenshots.",
+    emptyHint: (shortcut: ReactNode): ReactNode => (
+      <>
+        Drücke {shortcut} oder klicke auf „Neuer Screenshot“.
+      </>
+    ),
+    emptyHintNoShortcut: "Klicke auf „Neuer Screenshot“ oder nutze das Tray-Menü.",
+    favorite: "Als Favorit markieren",
+    unfavorite: "Favorit entfernen",
+    selected: "Ausgewählter Screenshot",
+    title: "Titel",
+    tags: "Tags (durch Komma getrennt)",
+    tagsExample: "z. B. bug, login",
+    edit: "Bearbeiten",
+    copy: "Kopieren",
+    copied: "In die Zwischenablage kopiert",
+    delete: "Löschen",
+  },
+
+  tools: {
+    select: "Auswählen",
+    arrow: "Pfeil",
+    rect: "Rechteck",
+    text: "Text",
+    highlight: "Marker",
+    blur: "Verpixeln",
+  },
+
+  editor: {
+    back: "Bibliothek",
+    backTitle: "Zurück zur Bibliothek",
+    tools: "Werkzeuge",
+    block: "Block",
+    makeBlock: "Block bilden",
+    makeBlockTitle: "Auswahl zu einem Block zusammenfassen",
+    frame: "Rahmen",
+    frameTitle: "Rahmen um den Block (Farbe und Stärke über die Palette)",
+    dissolve: "Auflösen",
+    dissolveTitle: "Block auflösen",
+    color: "Farbe",
+    colorOf: (color: string) => `Farbe ${color}`,
+    size: "Größe",
+    undo: "Rückgängig",
+    redo: "Wiederholen",
+    delete: "Löschen",
+    deleteArea: "Bereich löschen",
+    copySelection: "Auswahl kopieren",
+    copyAll: "Alles kopieren",
+    copyTitle: "Auswahl kopieren, ohne Auswahl alles",
+    paste: "Einfügen",
+    zoomOut: "Verkleinern",
+    zoomIn: "Vergrößern",
+    actualSize: "Auf 100 % (Originalgröße)",
+    fit: "Einpassen",
+    fitTitle: "Einpassen: so groß wie möglich",
+    layers: "Ebenen",
+    layersTitle: "Ebenen-Panel ein-/ausblenden",
+    copyImage: "Bild kopieren",
+    copyImageTitle: "Bild in die Zwischenablage",
+    imageCopied: "Bild in die Zwischenablage kopiert",
+    copiedShapes: (count: number, paste: string) =>
+      `${count} ${count === 1 ? "Element" : "Elemente"} kopiert – mit ${paste} einfügen, auch in einem anderen Screenshot`,
+    copiedAll: (paste: string) =>
+      `Alles kopiert – im Filmstreifen einen anderen Screenshot öffnen und mit ${paste} einfügen`,
+    status: {
+      saved: "Gespeichert",
+      pending: "Ungespeichert",
+      saving: "Speichert …",
+      error: "Speichern fehlgeschlagen",
+    },
+    newer: "Neuerer Screenshot",
+    older: "Älterer Screenshot",
+  },
+
+  layers: {
+    title: "Ebenen",
+    add: "Ebene",
+    addTitle: "Neue Ebene",
+    /** Name of new layers, followed by a number. */
+    newName: "Ebene",
+    hide: "Ausblenden",
+    show: "Einblenden",
+    lock: "Sperren",
+    unlock: "Entsperren",
+    rename: "Doppelklick zum Umbenennen",
+    selectAll: "Alle Elemente dieser Ebene auswählen",
+    delete: "Ebene löschen (mit Inhalt)",
+    baseStays: "Die Original-Ebene mit dem Screenshot bleibt immer",
+    screenshot: "Screenshot",
+    screenshotTitle: "Der Screenshot liegt in der Original-Ebene ganz unten",
+    blockTitle: "Block: wird als Einheit gewählt; Doppelklick im Bild öffnet ihn",
+    selection: "Auswahl",
+    moveTo: "Verschieben nach",
+    chooseLayer: "Ebene wählen …",
+    shapes: {
+      arrow: "Pfeil",
+      rect: "Rechteck",
+      text: "Text",
+      highlight: "Marker",
+      blur: "Verpixelung",
+      image: "Bild",
+    },
+    stack: {
+      front: "Ganz nach vorne",
+      forward: "Eine Stufe nach vorne",
+      backward: "Eine Stufe nach hinten",
+      back: "Ganz nach hinten",
+    },
+  },
+};

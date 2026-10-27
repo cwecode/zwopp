@@ -1,19 +1,31 @@
-use tauri::AppHandle;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{AppHandle, Manager, Wry};
 
 use crate::{capture, show_main};
 
+/// The tray menu entries, kept to translate them when the UI language changes.
+pub struct TrayMenu {
+    capture: MenuItem<Wry>,
+    library: MenuItem<Wry>,
+    quit: MenuItem<Wry>,
+}
+
+/// Capture, library and quit entries in `language` ("de" or anything else for English).
+/// The web UI decides the language and reports it via `set_language`.
+fn texts(language: &str) -> [&'static str; 3] {
+    match language {
+        "de" => ["Screenshot aufnehmen", "Bibliothek öffnen", "Beenden"],
+        _ => ["Take screenshot", "Open library", "Quit"],
+    }
+}
+
 pub fn create(app: &AppHandle, capture_shortcut: Option<&str>) -> tauri::Result<()> {
-    let capture = MenuItem::with_id(
-        app,
-        "capture",
-        "Screenshot aufnehmen",
-        true,
-        capture_shortcut,
-    )?;
-    let library = MenuItem::with_id(app, "library", "Bibliothek öffnen", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "Beenden", true, None::<&str>)?;
+    // English until the main window reports its language, right after it loaded.
+    let [capture_text, library_text, quit_text] = texts("en");
+    let capture = MenuItem::with_id(app, "capture", capture_text, true, capture_shortcut)?;
+    let library = MenuItem::with_id(app, "library", library_text, true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", quit_text, true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&capture, &library, &quit])?;
 
     let mut tray = TrayIconBuilder::with_id("main")
@@ -40,5 +52,18 @@ pub fn create(app: &AppHandle, capture_shortcut: Option<&str>) -> tauri::Result<
         tray = tray.icon(icon.clone());
     }
     tray.build(app)?;
+    app.manage(TrayMenu {
+        capture,
+        library,
+        quit,
+    });
     Ok(())
+}
+
+/// Translates the tray menu.
+pub fn set_language(menu: &TrayMenu, language: &str) -> tauri::Result<()> {
+    let [capture, library, quit] = texts(language);
+    menu.capture.set_text(capture)?;
+    menu.library.set_text(library)?;
+    menu.quit.set_text(quit)
 }

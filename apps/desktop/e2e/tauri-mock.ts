@@ -73,6 +73,7 @@ export function tauriMock({ items, latencyMs }: MockOptions) {
   type Args = Record<string, any>;
   const commands: Record<string, (args: Args) => unknown> = {
     capture_shortcut: () => "CommandOrControl+Shift+X",
+    set_language: () => null,
     list_tags: () => TAGS,
     count_items: ({ query }) => total(filter(query)),
     list_items: ({ query, offset, limit }) => {

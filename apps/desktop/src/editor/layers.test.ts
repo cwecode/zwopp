@@ -23,7 +23,7 @@ function box(id: string, layer: string, x = 0): RectShape {
 function fixture(): { doc: EditorDocument; bottom: string; top: string } {
   const base = createDocument(100, 100);
   const bottom = base.layers[0].id;
-  const { doc: withTop, id: top } = addLayer(base);
+  const { doc: withTop, id: top } = addLayer(base, "Ebene");
   // Array order deliberately mixed: paint order is by layer first.
   const doc = { ...withTop, objects: [box("d", top), box("a", bottom), box("b", bottom), box("c", bottom)] };
   return { doc, bottom, top };
@@ -38,7 +38,13 @@ describe("layers", () => {
 
   it("names new layers with the next number", () => {
     const { doc } = fixture();
-    expect(addLayer(doc).doc.layers.map((l) => l.name)).toEqual(["Original", "Ebene 1", "Ebene 2"]);
+    expect(addLayer(doc, "Ebene").doc.layers.map((l) => l.name)).toEqual(["Original", "Ebene 1", "Ebene 2"]);
+  });
+
+  it("numbers new layers per language", () => {
+    const { doc } = fixture();
+    const english = addLayer(addLayer(doc, "Layer").doc, "Layer").doc;
+    expect(english.layers.map((l) => l.name)).toEqual(["Original", "Ebene 1", "Layer 1", "Layer 2"]);
   });
 
   it("hides shapes of hidden layers, also from the bounds", () => {
@@ -60,7 +66,7 @@ describe("layers", () => {
 
   it("reorders layers but keeps the base layer at the bottom", () => {
     const { doc, top, bottom } = fixture();
-    const { doc: three, id: third } = addLayer(doc);
+    const { doc: three, id: third } = addLayer(doc, "Ebene");
     const withE = { ...three, objects: [...three.objects, box("e", third)] };
     expect(ids(moveLayer(withE, third, 1))).toEqual(["a", "b", "c", "e", "d"]);
     // Index 0 is clamped to 1: nothing goes below the base layer.

@@ -330,10 +330,16 @@ export function visibleShapes(doc: EditorDocument): Shape[] {
   return orderedShapes(doc).filter((s) => !hidden.has(s.layer));
 }
 
-/** Adds an empty layer on top and returns the document and the new layer's id. */
-export function addLayer(doc: EditorDocument): { doc: EditorDocument; id: string } {
-  const numbers = doc.layers.map((l) => Number(/^Ebene (\d+)$/.exec(l.name)?.[1] ?? 0));
-  const layer = createLayer(`Ebene ${Math.max(0, ...numbers) + 1}`);
+/**
+ * Adds an empty layer on top, named `prefix` and the next free number (e.g.
+ * "Ebene 2" or "Layer 2", depending on the UI language). Returns the document
+ * and the new layer's id.
+ */
+export function addLayer(doc: EditorDocument, prefix: string): { doc: EditorDocument; id: string } {
+  const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`^${escaped} (\\d+)$`);
+  const numbers = doc.layers.map((l) => Number(pattern.exec(l.name)?.[1] ?? 0));
+  const layer = createLayer(`${prefix} ${Math.max(0, ...numbers) + 1}`);
   return { doc: { ...doc, layers: [...doc.layers, layer] }, id: layer.id };
 }
 

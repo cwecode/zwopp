@@ -23,7 +23,7 @@ function box(id: string, layer: string): RectShape {
 function fixture(): { doc: EditorDocument; bottom: string; top: string } {
   const base = createDocument(100, 100);
   const bottom = base.layers[0].id;
-  const { doc: withTop, id: top } = addLayer(base);
+  const { doc: withTop, id: top } = addLayer(base, "Ebene");
   const objects = [box("a", bottom), box("b", bottom), box("c", bottom), box("d", bottom), box("e", top)];
   return { doc: { ...withTop, objects }, bottom, top };
 }

@@ -33,17 +33,8 @@ export interface Rect {
   height: number;
 }
 
-const isMac = navigator.userAgent.includes("Mac");
-const KEY_LABELS: Record<string, string> = isMac
-  ? { CommandOrControl: "⌘", Shift: "⇧", Alt: "⌥" }
-  : { CommandOrControl: "Strg", Shift: "Umschalt", Alt: "Alt" };
-
-/** "CommandOrControl+Shift+X" → "Strg + Umschalt + X" (or "⌘ ⇧ X" on macOS). */
-export const formatShortcut = (accelerator: string) =>
-  accelerator
-    .split("+")
-    .map((key) => KEY_LABELS[key] ?? key)
-    .join(isMac ? " " : " + ");
+/** Tells the backend the UI language, for the tray menu. */
+export const setLanguage = (language: string) => invoke<void>("set_language", { language });
 
 export const captureShortcut = () => invoke<string | null>("capture_shortcut");
 export const startCapture = () => invoke<void>("start_capture");
