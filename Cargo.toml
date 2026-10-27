@@ -6,7 +6,7 @@ members = ["crates/core", "apps/desktop/src-tauri"]
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/screenbook/screenbook"
+repository = "https://github.com/cwecode/screenbook"
 rust-version = "1.90"
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

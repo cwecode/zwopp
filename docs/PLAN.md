@@ -3,7 +3,7 @@
 > Arbeitstitel: **Screenbook** – ein schlanker, quelloffener Screenshot‑ und Annotations‑Editor
 > für Windows, macOS und Linux.
 >
-> Stand: 2026‑10‑27 · Status: Entwurf
+> Stand: 2026‑10‑27 · Status: Phase 1.5 abgeschlossen, Phase 2 als Nächstes
 
 ---
 
@@ -315,21 +315,28 @@ eine Datenbank‑Tabelle; nichts blockiert die Oberfläche.
 | Reindex im Hintergrund, Befehle im Blocking‑Pool | ✅ |
 | Benchmarks und Testdaten‑Generator | ✅ |
 | Budgets als CI‑Check (Core in Rust, UI mit Playwright) | ✅ – Messwerte in ADR 0004 |
+| Zweite Thumbnail‑Größe (160 px) für den Filmstreifen | ⏸ später – die 320‑px‑WebP sind klein genug |
+| Schnellere PNG‑Kodierung (`zlib-rs`/`fdeflate`) | ⏸ später – Screenshot hinzufügen dauert ~20–30 ms |
+| Editor: Dekodieren im Hintergrund, Rendern im Worker | ⏸ später – in Phase 2 messen, falls der Editor bei großen Bildern hakt |
 
 ---
 
-## 6. Offene Entscheidungen
+## 6. Entscheidungen
 
-1. **Name** – „Screenbook“ ok? (Marken‑/Domain‑Check)
-2. **Lizenz** – MIT/Apache‑2.0 vs. GPL‑3.0
-3. **Frontend** – React (Empfehlung, größtes Ökosystem) vs. Svelte/Solid
-4. **Neubau vs. Beitrag zu ksnip** – Empfehlung: Neubau (Bibliothek + moderne UI + API)
-5. ~~Signing‑Budget~~ – entfällt vorerst: unsignierte Downloads + Start aus dem Quellcode.
+| Frage | Stand |
+|---|---|
+| **Name** – „Screenbook“ ok? | ⬜ offen: Marken‑/Domain‑Check vor dem ersten öffentlichen Release |
+| **Lizenz** | ✅ MIT oder Apache‑2.0 nach Wahl |
+| **Frontend** | ✅ React |
+| **Neubau vs. Beitrag zu ksnip** | ✅ Neubau |
+| **Signing** | ✅ entfällt vorerst: unsignierte Downloads + Start aus dem Quellcode |
+| **Linux‑Mindestversion** | ✅ Ubuntu 24.04 / Debian 13: `xcap` braucht PipeWire ≥ 1.0, CI und Release bauen auf `ubuntu-24.04` |
+| **Repository** | ✅ privat unter `cwecode/screenbook`; öffentlich spätestens mit v1.0 |
 
 ---
 
 ## 7. Nächste Schritte
 
-1. Offene Entscheidungen klären.
-2. `git init`, Monorepo‑Gerüst, Lizenz, README, erste ADR.
-3. Tauri‑2‑Skeleton + Capture‑Spike (Region‑Overlay) auf Windows, danach macOS/Linux in CI.
+1. Phase 2 planen und umsetzen (Editor komplett, siehe Roadmap und `docs/spec/features.md`).
+2. Die UI‑Budgets auf dem CI‑Runner im Blick behalten (ADR 0004).
+3. Vor v1.0: Namens‑Check, Repository öffentlich, Release‑Workflow mit einem Test‑Tag ausprobieren.

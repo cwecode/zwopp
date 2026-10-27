@@ -4,7 +4,8 @@ A lean, open-source screenshot tool for **Windows, macOS and Linux**: select a r
 the screenshot lands in a **library**, and an **editor** lets you add arrows, callouts,
 highlights, step numbers, emojis and more.
 
-> **Status: Phase 1.** Capture, library and the basic editor work.
+> **Status: Phase 1.5.** Capture, library and the basic editor work; the library stays fast
+> with 100 000 screenshots.
 > See the [project plan](docs/PLAN.md) (German) and the [feature list](docs/spec/features.md).
 
 ## Features (current)
@@ -53,7 +54,8 @@ Pre-built downloads (unsigned) will be published on the
 
 - **Windows:** SmartScreen shows "Windows protected your PC" → *More info* → *Run anyway*.
 - **macOS:** right-click the app → *Open*, or *System Settings → Privacy & Security → Open Anyway*.
-- **Linux:** AppImage or `.deb`, no extra steps.
+- **Linux:** AppImage or `.deb`, no extra steps. Needs Ubuntu 24.04, Debian 13 or a
+  similarly recent distribution (PipeWire ≥ 1.0).
 
 ## Run from source
 
@@ -64,7 +66,7 @@ Pre-built downloads (unsigned) will be published on the
 | All | [Git](https://git-scm.com), [Rust](https://rustup.rs) (stable, ≥ 1.90), [Node.js](https://nodejs.org) LTS |
 | Windows | Visual Studio 2022 or Build Tools with **"Desktop development with C++"**; WebView2 (preinstalled on Windows 11) |
 | macOS | Xcode Command Line Tools: `xcode-select --install` |
-| Linux (Debian/Ubuntu) | see below |
+| Linux (Debian/Ubuntu) | Ubuntu 24.04 / Debian 13 or newer, see below |
 
 ```bash
 sudo apt install libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev \
@@ -77,7 +79,7 @@ Other distributions: see the [Tauri prerequisites](https://tauri.app/start/prere
 ### Start
 
 ```bash
-git clone https://github.com/screenbook/screenbook.git
+git clone https://github.com/cwecode/screenbook.git
 cd screenbook
 npm install
 npm run dev
