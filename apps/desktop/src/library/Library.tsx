@@ -23,6 +23,8 @@ const CARD_MIN_WIDTH = 190;
 const GAP = 12;
 const PADDING = 16;
 const ROW_HEIGHT = 196;
+/** Rows above and below the view whose data is fetched ahead of scrolling. */
+const PREFETCH_ROWS = 6;
 
 const parseTags = (text: string) =>
   text
@@ -32,8 +34,9 @@ const parseTags = (text: string) =>
 
 export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
   const [search, setSearch] = useState("");
-  const [query, setQuery] = useState<ListQuery>({});
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  // Starts as what the debounce below produces, so opening loads only once.
+  const [query, setQuery] = useState<ListQuery>({ search: undefined, favoritesOnly });
   const [version, setVersion] = useState(0);
   const [selected, setSelected] = useState<LibraryItem>();
   const [message, setMessage] = useState<string>();
@@ -79,17 +82,19 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
     count: rows,
     getScrollElement: () => scroller.current,
     estimateSize: () => ROW_HEIGHT,
-    overscan: 3,
+    // Every rendered row costs layout and paint on a jump; rows further out
+    // are only fetched ahead (PREFETCH_ROWS), not rendered.
+    overscan: 1,
     paddingStart: PADDING,
     paddingEnd: PADDING,
   });
   const virtualRows = virtualizer.getVirtualItems();
 
-  // Fetch the pages behind the rows on screen (plus overscan).
+  // Fetch the pages behind the rows on screen, then the ones just beyond.
   const first = virtualRows[0]?.index ?? 0;
   const last = virtualRows[virtualRows.length - 1]?.index ?? 0;
   useEffect(() => {
-    if (count) pages.ensureRange(first * columns, (last + 1) * columns - 1);
+    if (count) pages.ensureRange(first * columns, (last + 1) * columns - 1, PREFETCH_ROWS * columns);
   }, [first, last, columns, count, pages]);
 
   const update = async (id: string, change: ItemUpdate) => {
@@ -131,7 +136,9 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
       onDoubleClick={() => onOpen(item)}
       onKeyDown={(e) => e.key === "Enter" && onOpen(item)}
     >
-      <img src={thumbUrl(item)} alt="" loading="lazy" decoding="async" />
+      {/* Not `loading="lazy"`: only rows near the view exist, and lazy
+          loading would wait for layout before requesting the image. */}
+      <img src={thumbUrl(item)} alt="" decoding="async" />
       <button
         className={item.favorite ? "star active" : "star"}
         title={item.favorite ? "Favorit entfernen" : "Als Favorit markieren"}

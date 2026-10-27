@@ -159,17 +159,11 @@ button.tool.active {
   display: grid;
 }
 
+/* Static on purpose: an animated background repaints every placeholder in
+   every frame, which slowed jumps through the library by ~50 % (ADR 0004). */
 .card.placeholder {
   cursor: default;
-  background: linear-gradient(90deg, var(--surface), var(--bg), var(--surface));
-  background-size: 200% 100%;
-  animation: shimmer 1.2s linear infinite;
-}
-
-@keyframes shimmer {
-  to {
-    background-position: -200% 0;
-  }
+  background: var(--bg);
 }
 
 .card {

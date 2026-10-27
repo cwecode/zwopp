@@ -93,7 +93,7 @@ export const Filmstrip = forwardRef<FilmstripHandle, Props>(function Filmstrip(
                     title={item.title || new Date(item.createdAt).toLocaleString("de-DE")}
                     onClick={() => onOpen(item)}
                   >
-                    <img src={thumbUrl(item)} alt="" loading="lazy" decoding="async" />
+                    <img src={thumbUrl(item)} alt="" decoding="async" />
                   </button>
                 ) : (
                   <div className="filmstrip-item placeholder" />

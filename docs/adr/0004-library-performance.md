@@ -70,26 +70,45 @@ for 1–4 s. Criterion benchmarks for the core operations: `cargo bench -p scree
     100 000 items written straight into the index) and `apps/desktop/e2e/budgets.e2e.ts`
     (Playwright against the production build, Tauri mocked with 100 000 items).
 
-| Budget (Windows 11 dev machine) | Limit | Measured |
-|---|---|---|
-| Open + count + first page (core) | 100 ms | 25 ms |
-| Page in the middle / last page | 20 ms | 2 / 3 ms |
-| Search count + first page ("chnung", "review", "re", "login rechnung 42") | 50 ms | 15–40 ms |
-| Adding a 2560×1440 screenshot | 500 ms | 30 ms |
-| UI: open → first thumbnails | 200 ms | ~110 ms |
-| UI: longest frame while scrolling | 50 ms | 17 ms |
-| UI: scrollbar jump → no empty cards | 100 ms | 25–35 ms |
-| UI: search → results, after the 150 ms debounce | 50 ms | ~32 ms |
-| UI: DOM elements / heap growth after 40 jumps | 2000 / 10 MB | 308 / 3 MB |
+13. **Faster on slow machines** (2026-10-27). The first CI run (GitHub's ubuntu runner,
+    no GPU) passed, but the UI only just did: 94 of 100 ms for a scrollbar jump, 168 of
+    200 ms to the first thumbnails. Profiling with the CPU throttled 4× showed the main
+    thread busy with layout and paint, not with JavaScript:
+    - The placeholders' shimmer animated `background-position`, which repaints every
+      placeholder in every frame: ~50 ms per jump. Placeholders are static now.
+    - 3 rows of overscan on each side meant ~30 off-screen cards to lay out per jump;
+      now 1 row is rendered, and the data of 6 rows each side is fetched ahead instead.
+      Visible pages always start loading at once, fetching ahead fills the remaining
+      request slots.
+    - Opening the library loaded everything twice: the initial query `{}` and the
+      debounced `{favoritesOnly: false}` differ as cache keys, so the cache was dropped
+      ~150 ms after the first page arrived.
+    - The first page is requested together with the count, not after it.
+    - No `loading="lazy"` on thumbnails: only rows near the view exist anyway, and lazy
+      images are requested only after layout.
+
+    With the CPU throttled 4×, open → first thumbnail went from 415 to 345 ms (median),
+    the worst jump from ~180 to ~100 ms.
+
+| Budget | Limit | Windows 11 dev machine | CI (ubuntu-24.04), before 13 |
+|---|---|---|---|
+| Open + count + first page (core) | 100 ms | 25 ms | 14 ms |
+| Page in the middle / last page | 20 ms | 2 / 3 ms | 1 / 2 ms |
+| Search count + first page ("chnung", "review", "re", "login rechnung 42") | 50 ms | 15–40 ms | 12–26 ms |
+| Adding a 2560×1440 screenshot | 500 ms | 30 ms | 19 ms |
+| UI: open → first thumbnails | 200 ms | ~90 ms | 168 ms |
+| UI: longest frame while scrolling | 50 ms | 17 ms | 33 ms |
+| UI: scrollbar jump → no empty cards | 100 ms | 25–50 ms | 94 ms |
+| UI: search → results, after the 150 ms debounce | 50 ms | 35–45 ms | 21 ms |
+| UI: DOM elements / heap growth after 40 jumps | 2000 / 10 MB | 226 / 3 MB | 308 / 3 MB |
 
 Timings are medians after warming up every read connection once; the first query after
-start can be a few ms slower.
+start can be a few ms slower. The UI timings on the dev machine vary by ±10 ms between runs.
 
 ## Consequences
 
 - Offset pages can shift by a few items if the library changes while scrolling; the cache is
   dropped on every change notification, so this heals itself.
-- Short search words (1–2 characters) are the slowest case (~40 ms with 100 000 items), close
-  to the budget; if CI runners prove slower, they need an index of their own.
-- The UI budgets measure the frontend with a fixed 10 ms backend delay; the real backend is
+- Short search words (1–2 characters) are the slowest case in the core (~40 ms with 100 000
+  items on the dev machine, 26 ms in CI); if that changes, they need an index of their own.- The UI budgets measure the frontend with a fixed 10 ms backend delay; the real backend is
   covered by the core budgets, not by an end-to-end test of the Tauri app.
