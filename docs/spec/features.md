@@ -62,9 +62,9 @@ see [document-format.md](document-format.md). Changes are saved automatically.
 | Filmstrip | Library along the bottom of the editor, Alt+←/→ to switch | ✅ (1) |
 | Zoom & pan | Ctrl+wheel / Ctrl+± zoom at the cursor, Ctrl+0 / "Einpassen" fills the window, Ctrl+1 actual pixels; wheel, middle mouse or Space+drag to pan; sharp at every zoom level (HiDPI-aware, high-quality downscaling) | ✅ (1) |
 | Line, ellipse, filled shapes, arrowhead styles | Line tool (L) and ellipse (E); rectangles and ellipses outlined or filled; lines and arrows with no, filled or open heads at either end | ✅ (2) |
-| Text background, fonts | | ⬜ (2) |
-| Callout / speech bubble | Text box with a pointer tail | ⬜ (2) |
-| Step numbers | Auto-incrementing numbered badges | ⬜ (2) |
+| Text background, fonts | Sans serif, serif or monospace; optional coloured box behind the text, the text contrasting in black or white | ✅ (2) |
+| Callout / speech bubble | Text in a coloured bubble with a pointer: drag from the point it refers to to where the bubble goes (C); the pointer stays on target when the bubble moves and has its own handle | ✅ (2) |
+| Step numbers | Each click places the next number in a round badge (N) | ✅ (2) |
 | Emoji / stickers | | ⬜ (2) |
 | Magnify | Enlarged inset of a region | ⬜ (2) |
 | Quick styles | Saved tool presets | ⬜ (2) |

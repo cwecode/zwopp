@@ -1,6 +1,16 @@
-import { arrowHeads, type ArrowHead, type Shape } from "./document";
+import { arrowHeads, contrastColor, type ArrowHead, type FontFamily, type Shape } from "./document";
 
-export type Tool = "select" | "arrow" | "line" | "rect" | "ellipse" | "text" | "highlight" | "blur";
+export type Tool =
+  | "select"
+  | "arrow"
+  | "line"
+  | "rect"
+  | "ellipse"
+  | "text"
+  | "callout"
+  | "step"
+  | "highlight"
+  | "blur";
 
 /** The tools in toolbar order; their names are in the translations (`tools`). */
 export const TOOLS: { id: Tool; key: string; icon: string }[] = [
@@ -10,6 +20,8 @@ export const TOOLS: { id: Tool; key: string; icon: string }[] = [
   { id: "rect", key: "r", icon: "▭" },
   { id: "ellipse", key: "e", icon: "◯" },
   { id: "text", key: "t", icon: "T" },
+  { id: "callout", key: "c", icon: "💬" },
+  { id: "step", key: "n", icon: "①" },
   { id: "highlight", key: "h", icon: "▬" },
   { id: "blur", key: "b", icon: "▦" },
 ];
@@ -26,6 +38,16 @@ export const SIZES = [
   { label: "L", strokeWidth: 8, fontSize: 36, pixelSize: 16 },
   { label: "XL", strokeWidth: 12, fontSize: 52, pixelSize: 24 },
 ];
+
+/** Diameter of a step badge for a size. */
+export const stepDiameter = (size: (typeof SIZES)[number]) => Math.round(size.fontSize * 1.4);
+
+/** CSS font stacks; the names are in the translations (`editor.fonts`). */
+export const FONTS: Record<FontFamily, string> = {
+  sans: "Inter, 'Segoe UI', system-ui, sans-serif",
+  serif: "Georgia, 'Times New Roman', serif",
+  mono: "'Cascadia Mono', Consolas, 'SF Mono', Menlo, monospace",
+};
 
 export interface ArrowHeads {
   start: ArrowHead;
@@ -48,6 +70,10 @@ export interface ToolStyle {
   filled?: boolean;
   /** Lines and arrows. */
   heads?: ArrowHeads;
+  /** Text: the colour fills a box behind it, the text gets a contrasting colour. */
+  background?: boolean;
+  /** Text and callouts. */
+  font?: FontFamily;
 }
 
 /** The tool whose style a shape follows: a line without heads is a "line". */
@@ -57,6 +83,8 @@ export function toolOf(shape: Shape): Tool | null {
       const { start, end } = arrowHeads(shape);
       return start === "none" && end === "none" ? "line" : "arrow";
     }
+    case "text":
+      return shape.tail ? "callout" : "text";
     case "image":
       return null;
     default:
@@ -85,11 +113,31 @@ export function stylePatch(shape: Shape, style: Partial<ToolStyle>): Partial<Sha
         ...((style.color || style.filled !== undefined) && { fill: filled ? color : undefined }),
       };
     }
-    case "text":
+    case "text": {
+      // With a background the colour belongs to it; the text contrasts.
+      const color = style.color ?? shape.background ?? shape.fill;
+      const background = style.background ?? shape.background !== undefined;
+      return {
+        ...(size && { fontSize: size.fontSize }),
+        ...(style.font && { font: style.font }),
+        ...((style.color || style.background !== undefined) &&
+          (background
+            ? { background: color, fill: contrastColor(color) }
+            : { background: undefined, fill: color })),
+      };
+    }
+    case "step": {
+      if (!size) return style.color ? { fill: style.color } : {};
+      // Grow or shrink around the centre.
+      const diameter = stepDiameter(size);
       return {
         ...(style.color && { fill: style.color }),
-        ...(size && { fontSize: size.fontSize }),
+        x: shape.x + (shape.width - diameter) / 2,
+        y: shape.y + (shape.height - diameter) / 2,
+        width: diameter,
+        height: diameter,
       };
+    }
     case "highlight":
       return style.color ? { fill: style.color } : {};
     case "blur":

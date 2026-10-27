@@ -46,8 +46,8 @@ rendered and do not count for the output area.
 **Migration from version 1:** all shapes go into the base layer "Original". A base layer
 named "Ebene 1" (early version 2 documents) is renamed to "Original".
 
-**Version 3** only added optional fields (`startHead`, `endHead`, `fill`) and the `ellipse`
-type. Their defaults reproduce version 2, so version 2 documents need no migration; they are
+**Version 3** only added optional fields (`startHead`, `endHead`, `fill`; for text `font`,
+`background`, `tail`) and the `ellipse` and `step` types. Their defaults reproduce version 2, so version 2 documents need no migration; they are
 saved as version 3 on the next change.
 
 `Rect` = `{ x, y, width, height }`.
@@ -62,7 +62,8 @@ optionally the `group` id of its block.
 | `arrow` | `points: [x1, y1, x2, y2]`, `stroke`, `strokeWidth`, optional `startHead`, `endHead` | Straight line from start to end, round caps. Each end has a head: `"none"`, `"filled"` (triangle in the stroke colour) or `"open"` (two strokes meeting at the end point); length and width `strokeWidth × 3 + 6`. Defaults: `startHead` `"none"`, `endHead` `"filled"`. Without heads it is a plain line |
 | `rect` | `Rect`, `stroke`, `strokeWidth`, optional `fill` | Outline, corner radius 2; with `fill` also filled |
 | `ellipse` | `Rect`, `stroke`, `strokeWidth`, optional `fill` | Ellipse inscribed in the rectangle; with `fill` also filled |
-| `text` | `x`, `y` (top-left), `text`, `fontSize`, `fill`, optional `width` | Bold sans-serif, line height 1.2, multi-line via `\n`; with `width` the text wraps at word boundaries |
+| `text` | `x`, `y` (top-left), `text`, `fontSize`, `fill`, optional `width`, `font`, `background`, `tail` | Bold, line height 1.2, multi-line via `\n`; with `width` the text wraps at word boundaries. `font`: `"sans"` (default), `"serif"` or `"mono"`. `background`: colour of a box behind the text with padding and corner radius `round(fontSize × 0.35)`. `tail: [x, y]`: a callout — a triangle in the background colour from the middle of the box to that point |
+| `step` | `Rect` (a square), `number`, `fill` | Circle filled with `fill`, white rim of `max(1.5, width × 0.06)`, the number centred in bold, black or white (whichever contrasts with `fill`) |
 | `highlight` | `Rect`, `fill` | Filled rectangle, blend mode *multiply* |
 | `blur` | `Rect`, `pixelSize` | The original pixels under the rectangle, pixelated in blocks of `pixelSize` |
 | `image` | `Rect`, `asset` | The PNG `assets/<asset>` of the same item, scaled to the rectangle. Used for content pasted from another screenshot |

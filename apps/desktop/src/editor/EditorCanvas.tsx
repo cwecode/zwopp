@@ -17,7 +17,10 @@ import {
   LINE_HEIGHT,
   addShape,
   arrowHeads,
+  contrastColor,
   headSize,
+  nextStepNumber,
+  textPadding,
   contentBounds,
   visibleShapes,
   imageBounds,
@@ -33,11 +36,12 @@ import {
   type EditorDocument,
   type Rect,
   type Shape,
+  type StepShape,
   type TextShape,
 } from "./document";
 import { MipImage } from "./MipImage";
 import { pixelBlocks } from "./render";
-import { SIZES, type Tool, type ToolStyle } from "./tools";
+import { FONTS, SIZES, stepDiameter, type Tool, type ToolStyle } from "./tools";
 
 export interface CanvasHandle {
   /** Renders image and shapes at full resolution, transparent where empty. */
@@ -97,7 +101,6 @@ interface Point {
 
 /** Free space around the content so shapes can be drawn outside the image. */
 const MARGIN = 80;
-const FONT_FAMILY = "Inter, 'Segoe UI', system-ui, sans-serif";
 const SELECTION = "#2f80ed";
 /** Minimum drag distance in screen px before a drag counts. */
 const MIN_DRAG = 4;
@@ -208,6 +211,68 @@ function drawArrow(start: ArrowHead, end: ArrowHead) {
     }
     ctx.fillStrokeShape(node);
   };
+}
+
+/**
+ * Draws the box behind a text (and the callout pointer towards `tail`), then
+ * the text itself. Scene function of a Konva.Text, which keeps measuring the
+ * text; the box is not part of its hit area, so clicks on the padding miss.
+ */
+function drawTextBox(ctx: Konva.Context, node: Konva.Shape) {
+  const background = node.getAttr("background") as string | undefined;
+  if (background) {
+    const text = node as Konva.Text;
+    const pad = textPadding(text.fontSize());
+    const [w, h] = [text.width(), text.height()];
+    ctx.setAttr("fillStyle", background);
+    ctx.beginPath();
+    ctx.translate(-pad, -pad);
+    Konva.Util.drawRoundedRectPath(ctx, w + pad * 2, h + pad * 2, pad);
+    ctx.translate(pad, pad);
+    // Filled on its own: in one path, the pointer could wind against the box
+    // and punch a hole where they overlap.
+    ctx.fill();
+    const tail = node.getAttr("tail") as [number, number] | undefined;
+    if (tail) {
+      ctx.beginPath();
+      // A triangle from the middle of the box to the tip; the box covers its base.
+      const [tx, ty] = [(tail[0] - node.x()) / node.scaleX(), (tail[1] - node.y()) / node.scaleY()];
+      const [cx, cy] = [w / 2, h / 2];
+      const length = Math.hypot(tx - cx, ty - cy) || 1;
+      const half = Math.max(pad, Math.min(w, h) * 0.3);
+      const [nx, ny] = [(-(ty - cy) / length) * half, ((tx - cx) / length) * half];
+      ctx.moveTo(cx + nx, cy + ny);
+      ctx.lineTo(tx, ty);
+      ctx.lineTo(cx - nx, cy - ny);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+  (Konva.Text.prototype as unknown as { _sceneFunc(ctx: Konva.Context): void })._sceneFunc.call(node, ctx);
+}
+
+/** A filled circle with a white rim and the step number in the middle. */
+function drawStep(ctx: Konva.Context, node: Konva.Shape) {
+  const r = node.width() / 2;
+  ctx.beginPath();
+  ctx.arc(r, r, r, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.fillStrokeShape(node);
+  const fill = node.fill() as string;
+  ctx.setAttr("fillStyle", contrastColor(fill));
+  ctx.setAttr("font", `bold ${Math.round(r * 1.1)}px ${FONTS.sans}`);
+  ctx.setAttr("textAlign", "center");
+  ctx.setAttr("textBaseline", "middle");
+  ctx.fillText(String(node.getAttr("number")), r, r * 1.06);
+}
+
+/** Hit area of a step badge: the circle only. */
+function hitStep(ctx: Konva.Context, node: Konva.Shape) {
+  const r = node.width() / 2;
+  ctx.beginPath();
+  ctx.arc(r, r, r, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.fillStrokeShape(node);
 }
 
 /** An ellipse inside the node's width × height box, like a rectangle. */
@@ -393,6 +458,16 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
     let bounds = imageBounds(doc);
     if (stage && shapes?.hasChildren()) {
       bounds = unionRect(bounds, shapes.getClientRect({ relativeTo: stage }));
+      // A text node measures its text only, not the box behind it or the callout pointer.
+      for (const shape of visibleShapes(doc)) {
+        if (shape.type !== "text" || (!shape.background && !shape.tail)) continue;
+        const node = findNode(shape.id);
+        if (!node) continue;
+        const r = node.getClientRect({ relativeTo: stage });
+        const pad = shape.background ? textPadding(shape.fontSize) : 0;
+        bounds = unionRect(bounds, { x: r.x - pad, y: r.y - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        if (shape.tail) bounds = unionRect(bounds, { x: shape.tail[0] - 1, y: shape.tail[1] - 1, width: 2, height: 2 });
+      }
     }
     if (!bounds) return null;
     const x = Math.floor(bounds.x);
@@ -462,8 +537,12 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
         : selected.map((s) => findNode(s.id)).filter((n): n is Konva.Node => !!n);
     transformer.nodes(nodes);
     const isText = single?.type === "text";
-    transformer.keepRatio(isText || selected.length > 1);
-    transformer.enabledAnchors(isText ? TEXT_ANCHORS : selected.length > 1 ? CORNER_ANCHORS : RECT_ANCHORS);
+    // Step badges stay round.
+    const isStep = single?.type === "step";
+    transformer.keepRatio(isText || isStep || selected.length > 1);
+    transformer.enabledAnchors(
+      isText ? TEXT_ANCHORS : isStep || selected.length > 1 ? CORNER_ANCHORS : RECT_ANCHORS,
+    );
     transformer.getLayer()?.batchDraw();
   });
 
@@ -509,6 +588,11 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
           fontSize: Math.max(6, shape.fontSize * sy),
           width: boxed ? node.width() * sx : undefined,
         };
+        // Moving one callout keeps its pointer on target; a moved or scaled
+        // selection of several shapes takes the pointer along.
+        if (shape.tail && ids.length > 1) {
+          patch.tail = [x + (shape.tail[0] - shape.x) * sx, y + (shape.tail[1] - shape.y) * sy];
+        }
       } else {
         patch = { x, y, width: Math.max(2, shape.width * sx), height: Math.max(2, shape.height * sy) };
       }
@@ -529,22 +613,91 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
         // A drag defines the box width; a click starts a box that grows with the text.
         const isBox = box.width * scale >= MIN_DRAG * 4;
         const size = SIZES[styles.text.size];
-        const shape: TextShape = {
-          id: newId(),
-          type: "text",
-          layer: activeLayer,
+        openText({
+          ...newText(styles.text, !!styles.text.background),
           x: isBox ? box.x : start.x,
           y: isBox ? box.y : start.y - (size.fontSize * LINE_HEIGHT) / 2,
           ...(isBox && { width: box.width }),
-          text: "",
-          fontSize: size.fontSize,
-          fill: styles.text.color,
-        };
-        onPreview(addShape(doc, shape));
-        onSelect([shape.id]);
-        setEditing({ id: shape.id, isNew: true });
+        });
       },
     );
+  };
+
+  /** An empty text in `style`; with `background` the colour fills a box behind it. */
+  const newText = (style: ToolStyle, background: boolean): TextShape => ({
+    id: newId(),
+    type: "text",
+    layer: activeLayer,
+    x: 0,
+    y: 0,
+    text: "",
+    fontSize: SIZES[style.size].fontSize,
+    ...(style.font && style.font !== "sans" && { font: style.font }),
+    ...(background ? { background: style.color, fill: contrastColor(style.color) } : { fill: style.color }),
+  });
+
+  /** Adds a new text as a preview and opens it for typing. */
+  const openText = (shape: TextShape) => {
+    onPreview(addShape(doc, shape));
+    onSelect([shape.id]);
+    setEditing({ id: shape.id, isNew: true });
+  };
+
+  /**
+   * Places a callout: dragging goes from the point it refers to (the pointer
+   * tip) to where the bubble goes; a click puts the bubble there with the
+   * pointer down to the left.
+   */
+  const startCallout = (start: Point) => {
+    const stage = stageRef.current!;
+    const style = styles.callout;
+    const size = SIZES[style.size];
+    const line = (p: Point): Shape => ({
+      id: "callout-draft",
+      type: "arrow",
+      layer: activeLayer,
+      points: [start.x, start.y, p.x, p.y],
+      stroke: style.color,
+      strokeWidth: 2 / scale,
+      endHead: "none",
+    });
+    setDraft(line(start));
+    trackDrag(
+      stage,
+      (p) => setDraft(line(p)),
+      (p) => {
+        setDraft(null);
+        const dragged = Math.hypot(p.x - start.x, p.y - start.y) * scale >= MIN_DRAG * 4;
+        const offset = size.fontSize * 2.5;
+        const bubble = dragged ? p : start;
+        const tip: [number, number] = dragged ? [start.x, start.y] : [start.x - offset, start.y + offset * 1.2];
+        openText({
+          ...newText(style, true),
+          x: bubble.x,
+          y: bubble.y - (size.fontSize * LINE_HEIGHT) / 2,
+          tail: tip,
+        });
+      },
+    );
+  };
+
+  /** Puts the next step badge centred on `at`. */
+  const placeStep = (at: Point) => {
+    const style = styles.step;
+    const diameter = stepDiameter(SIZES[style.size]);
+    const shape: StepShape = {
+      id: newId(),
+      type: "step",
+      layer: activeLayer,
+      x: at.x - diameter / 2,
+      y: at.y - diameter / 2,
+      width: diameter,
+      height: diameter,
+      number: nextStepNumber(doc),
+      fill: style.color,
+    };
+    onCommit(addShape(doc, shape));
+    onSelect([shape.id]);
   };
 
   const onStageMouseDown = (event: KonvaEventObject<MouseEvent>) => {
@@ -564,11 +717,11 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
     if (!start) return;
     const onShape = target.name() === "shape";
 
-    if (tool === "text") {
+    if (tool === "text" || tool === "callout") {
       // Keep the browser from moving focus away from the text box we open.
       event.evt.preventDefault();
       if (onShape && target instanceof Konva.Text) setEditing({ id: target.id(), isNew: false });
-      else if (!onShape) startText(start);
+      else if (!onShape) (tool === "text" ? startText : startCallout)(start);
       return;
     }
 
@@ -576,6 +729,11 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
     if (onShape) return;
     onSelect([]);
     onMarquee(null);
+
+    if (tool === "step") {
+      placeStep(start);
+      return;
+    }
 
     if (tool === "select") {
       trackDrag(
@@ -754,17 +912,38 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
           <KonvaText
             key={shape.id}
             {...common}
-            visible={editing?.id !== shape.id}
             x={shape.x}
             y={shape.y}
             width={shape.width}
             wrap={shape.width === undefined ? "none" : "word"}
             text={shape.text}
             fontSize={shape.fontSize}
-            fontFamily={FONT_FAMILY}
+            fontFamily={FONTS[shape.font ?? "sans"]}
             fontStyle="bold"
             lineHeight={LINE_HEIGHT}
+            // While typing, the text box shows the text; box and pointer stay.
+            fill={editing?.id === shape.id ? "transparent" : shape.fill}
+            background={shape.background}
+            tail={shape.tail}
+            sceneFunc={drawTextBox}
+          />
+        );
+      case "step":
+        return (
+          <KonvaShape
+            key={shape.id}
+            {...common}
+            x={shape.x}
+            y={shape.y}
+            width={shape.width}
+            height={shape.height}
             fill={shape.fill}
+            stroke="#ffffff"
+            strokeWidth={Math.max(1.5, shape.width * 0.06)}
+            strokeScaleEnabled={false}
+            number={shape.number}
+            sceneFunc={drawStep}
+            hitFunc={hitStep}
           />
         );
       case "blur":
@@ -788,6 +967,19 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
   };
 
   const editingShape = editing ? (doc.objects.find((s) => s.id === editing.id) as TextShape | undefined) : undefined;
+  const handle = { radius: 6 / scale, fill: "#fff", stroke: SELECTION, strokeWidth: 1.5 / scale };
+  const tailHandle =
+    single?.type === "text" && single.tail && !editing ? (
+      <Circle
+        name="anchor"
+        {...handle}
+        x={single.tail[0]}
+        y={single.tail[1]}
+        draggable
+        onDragMove={(e) => onPreview(updateShape(doc, single.id, { tail: [e.target.x(), e.target.y()] }))}
+        onDragEnd={() => onCommit(doc)}
+      />
+    ) : null;
   const anchors =
     single?.type === "arrow" && !draggingArrow
       ? [0, 1].map((end) => (
@@ -796,10 +988,7 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
             name="anchor"
             x={single.points[end * 2]}
             y={single.points[end * 2 + 1]}
-            radius={6 / scale}
-            fill="#fff"
-            stroke={SELECTION}
-            strokeWidth={1.5 / scale}
+            {...handle}
             draggable
             onDragMove={(e) => {
               const points = [...single.points] as typeof single.points;
@@ -812,7 +1001,7 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
         ))
       : null;
 
-  const cursor = panning ? "grabbing" : tool === "select" ? "default" : tool === "text" ? "text" : "crosshair";
+  const cursor = panning ? "grabbing" : tool === "select" ? "default" : tool === "text" || tool === "callout" ? "text" : "crosshair";
 
   return (
     <div className="editor-stage" style={{ cursor }}>
@@ -906,6 +1095,7 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
             onTransformEnd={() => commitNodes(selectedIds)}
           />
           {anchors}
+          {tailHandle}
         </Layer>
       </Stage>
       {editing && editingShape && (
@@ -919,9 +1109,15 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
             top: editingShape.y * scale + offsetY,
             width: editingShape.width === undefined ? undefined : editingShape.width * scale,
             fontSize: editingShape.fontSize * scale,
-            fontFamily: FONT_FAMILY,
+            fontFamily: FONTS[editingShape.font ?? "sans"],
             lineHeight: LINE_HEIGHT,
             color: editingShape.fill,
+            // The box behind the text, drawn around the input without shifting it.
+            ...(editingShape.background && {
+              background: editingShape.background,
+              boxShadow: `0 0 0 ${textPadding(editingShape.fontSize) * scale}px ${editingShape.background}`,
+              borderRadius: 2,
+            }),
           }}
           onInput={(e) => autosize(e.currentTarget)}
           onBlur={(e) => finishText(e.currentTarget.value)}

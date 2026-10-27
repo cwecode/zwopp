@@ -23,6 +23,7 @@ import {
   arrowHeads,
   type ArrowHead,
   type EditorDocument,
+  type FontFamily,
   type ImageShape,
   type Rect,
   type Shape,
@@ -32,6 +33,7 @@ import { initHistory, push, redo, undo, type History } from "./history";
 import { loadImage, renderBase } from "./render";
 import {
   COLORS,
+  FONTS,
   HEADS,
   HIGHLIGHT_COLOR,
   SIZES,
@@ -73,7 +75,9 @@ const DEFAULT_STYLES: Record<Tool, ToolStyle> = {
   line: { color: COLORS[0], size: 1, heads: { start: "none", end: "none" } },
   rect: { color: COLORS[0], size: 1, filled: false },
   ellipse: { color: COLORS[0], size: 1, filled: false },
-  text: { color: COLORS[0], size: 1 },
+  text: { color: COLORS[0], size: 1, font: "sans", background: false },
+  callout: { color: COLORS[4], size: 1, font: "sans" },
+  step: { color: COLORS[0], size: 1 },
   highlight: { color: HIGHLIGHT_COLOR, size: 1 },
   blur: { color: COLORS[0], size: 1 },
 };
@@ -250,6 +254,8 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
   const first = selected[0];
   const heads = first?.type === "arrow" ? arrowHeads(first) : style.heads;
   const filled = first?.type === "rect" || first?.type === "ellipse" ? first.fill !== undefined : style.filled;
+  const font = first?.type === "text" ? (first.font ?? "sans") : style.font;
+  const boxed = first?.type === "text" ? first.background !== undefined : style.background;
 
   const frameStyle = (s: ToolStyle) => {
     const width = SIZES[s.size].strokeWidth;
@@ -463,6 +469,9 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
   const showSize = !["highlight", "select", "image"].includes(styleKey);
   const showHeads = !block?.frame && (styleKey === "arrow" || styleKey === "line");
   const showFill = !block?.frame && (styleKey === "rect" || styleKey === "ellipse");
+  const showFont = styleKey === "text" || styleKey === "callout";
+  // A callout always has its bubble.
+  const showTextBackground = styleKey === "text";
   const images = Object.fromEntries(Object.entries(assets).map(([name, a]) => [name, a.image]));
 
   return (
@@ -557,6 +566,39 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
                 </button>
               );
             })}
+          </div>
+        )}
+
+        {showFont && (
+          <div className="tool-group" aria-label={t.editor.font}>
+            {(Object.keys(FONTS) as FontFamily[]).map((family) => (
+              <button
+                key={family}
+                className={font === family ? "tool active" : "tool"}
+                aria-pressed={font === family}
+                title={t.editor.fonts[family]}
+                style={{ fontFamily: FONTS[family] }}
+                onClick={() => changeStyle({ font: family })}
+              >
+                Ab
+              </button>
+            ))}
+          </div>
+        )}
+
+        {showTextBackground && (
+          <div className="tool-group" aria-label={t.editor.textBackground}>
+            {[false, true].map((value) => (
+              <button
+                key={String(value)}
+                className={!!boxed === value ? "tool active" : "tool"}
+                aria-pressed={!!boxed === value}
+                title={value ? t.editor.boxedText : t.editor.plainText}
+                onClick={() => changeStyle({ background: value })}
+              >
+                <span className={value ? "text-boxed" : undefined}>T</span>
+              </button>
+            ))}
           </div>
         )}
 

@@ -1,6 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { arrowHeads, loadDocument, updateShape, type ArrowShape, type RectShape } from "./document";
-import { stylePatch, toolOf } from "./tools";
+import {
+  arrowHeads,
+  contrastColor,
+  createDocument,
+  loadDocument,
+  nextStepNumber,
+  shapeBounds,
+  translateShape,
+  updateShape,
+  type ArrowShape,
+  type RectShape,
+  type StepShape,
+  type TextShape,
+} from "./document";
+import { SIZES, stepDiameter, stylePatch, toolOf } from "./tools";
 
 const arrow = (heads: Partial<ArrowShape> = {}): ArrowShape => ({
   id: "a",
@@ -73,5 +86,87 @@ describe("version 3 documents", () => {
 
   it("reject unknown versions", () => {
     expect(loadDocument({ schemaVersion: 4, objects: [arrow()] }, 100, 50).objects).toEqual([]);
+  });
+});
+
+const text = (extra: Partial<TextShape> = {}): TextShape => ({
+  id: "t",
+  layer: "L",
+  type: "text",
+  x: 100,
+  y: 100,
+  text: "Hallo",
+  fontSize: 20,
+  fill: "#e5322d",
+  ...extra,
+});
+
+const step = (number: number): StepShape => ({
+  id: `s${number}`,
+  layer: "L",
+  type: "step",
+  x: 0,
+  y: 0,
+  width: 36,
+  height: 36,
+  number,
+  fill: "#e5322d",
+});
+
+describe("text with background", () => {
+  it("contrasts with its background", () => {
+    expect(contrastColor("#ffffff")).toBe("#1d1d1b");
+    expect(contrastColor("#f2c94c")).toBe("#1d1d1b");
+    expect(contrastColor("#e5322d")).toBe("#ffffff");
+    expect(contrastColor("#1d1d1b")).toBe("#ffffff");
+  });
+
+  it("puts the colour into the background and back", () => {
+    const boxed = { ...text(), ...stylePatch(text(), { background: true }) } as TextShape;
+    expect(boxed).toMatchObject({ background: "#e5322d", fill: "#ffffff" });
+    expect(stylePatch(boxed, { color: "#f2c94c" })).toEqual({ background: "#f2c94c", fill: "#1d1d1b" });
+    expect(stylePatch(boxed, { background: false })).toEqual({ background: undefined, fill: "#e5322d" });
+  });
+
+  it("keeps its colours when only the font or size changes", () => {
+    expect(stylePatch(text({ background: "#2f80ed", fill: "#ffffff" }), { font: "mono", size: 2 })).toEqual({
+      font: "mono",
+      fontSize: SIZES[2].fontSize,
+    });
+  });
+});
+
+describe("callouts", () => {
+  const callout = text({ background: "#2f80ed", fill: "#ffffff", tail: [20, 300] });
+
+  it("are texts with a pointer", () => {
+    expect(toolOf(callout)).toBe("callout");
+    expect(toolOf(text())).toBe("text");
+  });
+
+  it("take the pointer along when moved as a whole", () => {
+    expect(translateShape(callout, 10, -5).tail).toEqual([30, 295]);
+  });
+
+  it("count the pointer and the box padding for the output", () => {
+    const bounds = shapeBounds(callout);
+    expect(bounds.x).toBeLessThanOrEqual(20);
+    expect(bounds.y + bounds.height).toBeGreaterThanOrEqual(300);
+    expect(shapeBounds(text({ background: "#fff" })).x).toBeLessThan(100);
+  });
+});
+
+describe("step numbers", () => {
+  it("count on from the highest number", () => {
+    const doc = createDocument(10, 10);
+    expect(nextStepNumber(doc)).toBe(1);
+    expect(nextStepNumber({ ...doc, objects: [step(1), step(4), text()] })).toBe(5);
+  });
+
+  it("change size around their centre", () => {
+    const patch = stylePatch(step(1), { size: 3 });
+    const diameter = stepDiameter(SIZES[3]);
+    expect(patch).toMatchObject({ width: diameter, height: diameter, x: (36 - diameter) / 2 });
+    expect(toolOf(step(1))).toBe("step");
   });
 });

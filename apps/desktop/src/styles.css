@@ -671,3 +671,12 @@ button.tool.active {
   bottom: 0;
   width: 1px;
 }
+
+/* The "coloured background" text button. */
+.text-boxed {
+  padding: 0 4px;
+  border-radius: 3px;
+  color: var(--surface);
+  background: var(--text);
+}
+

@@ -75,6 +75,9 @@ export interface EllipseShape extends ShapeBase, Rect {
   fill?: string;
 }
 
+export type FontFamily = "sans" | "serif" | "mono";
+
+/** A text box; with `background` and `tail` it is a callout (speech bubble). */
 export interface TextShape extends ShapeBase {
   type: "text";
   x: number;
@@ -83,6 +86,20 @@ export interface TextShape extends ShapeBase {
   width?: number;
   text: string;
   fontSize: number;
+  /** Text colour. */
+  fill: string;
+  /** Default "sans". */
+  font?: FontFamily;
+  /** Colour of a rounded box behind the text (padding `textPadding`); omitted = none. */
+  background?: string;
+  /** Tip of the callout's pointer, in image px; omitted = no pointer. */
+  tail?: [number, number];
+}
+
+/** A numbered badge for step-by-step instructions. */
+export interface StepShape extends ShapeBase, Rect {
+  type: "step";
+  number: number;
   fill: string;
 }
 
@@ -103,7 +120,15 @@ export interface ImageShape extends ShapeBase, Rect {
   asset: string;
 }
 
-export type Shape = ArrowShape | RectShape | EllipseShape | TextShape | HighlightShape | BlurShape | ImageShape;
+export type Shape =
+  | ArrowShape
+  | RectShape
+  | EllipseShape
+  | TextShape
+  | StepShape
+  | HighlightShape
+  | BlurShape
+  | ImageShape;
 export type ShapeType = Shape["type"];
 
 export interface EditorDocument {
@@ -134,6 +159,21 @@ export function arrowHeads(shape: ArrowShape): { start: ArrowHead; end: ArrowHea
 
 /** Length and width of an arrowhead for a line of `strokeWidth`. */
 export const headSize = (strokeWidth: number) => strokeWidth * 3 + 6;
+
+/** Space between a text and its background box. */
+export const textPadding = (fontSize: number) => Math.round(fontSize * 0.35);
+
+/** Black or white, whichever reads better on `background` (#rrggbb). */
+export function contrastColor(background: string): string {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(background.slice(i, i + 2), 16) / 255);
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return luminance > 0.6 ? "#1d1d1b" : "#ffffff";
+}
+
+/** The number for the next step badge: one more than the highest so far. */
+export function nextStepNumber(doc: EditorDocument): number {
+  return Math.max(0, ...doc.objects.map((s) => (s.type === "step" ? s.number : 0))) + 1;
+}
 
 /**
  * The bottom layer always holds the original screenshot (drawn first, below
@@ -209,6 +249,9 @@ export function translateShape<T extends Shape>(shape: T, dx: number, dy: number
   if (shape.type === "arrow") {
     const [x1, y1, x2, y2] = shape.points;
     return { ...shape, points: [x1 + dx, y1 + dy, x2 + dx, y2 + dy] };
+  }
+  if (shape.type === "text" && shape.tail) {
+    return { ...shape, x: shape.x + dx, y: shape.y + dy, tail: [shape.tail[0] + dx, shape.tail[1] + dy] };
   }
   return { ...shape, x: shape.x + dx, y: shape.y + dy };
 }
@@ -314,12 +357,16 @@ export function shapeBounds(shape: Shape): Rect {
     case "text": {
       const lines = shape.text.split("\n");
       const longest = Math.max(1, ...lines.map((l) => l.length));
-      return {
-        x: shape.x,
-        y: shape.y,
-        width: shape.width ?? longest * shape.fontSize * GLYPH_WIDTH,
-        height: lines.length * shape.fontSize * LINE_HEIGHT,
+      const pad = shape.background ? textPadding(shape.fontSize) : 0;
+      const box = {
+        x: shape.x - pad,
+        y: shape.y - pad,
+        width: (shape.width ?? longest * shape.fontSize * GLYPH_WIDTH) + pad * 2,
+        height: lines.length * shape.fontSize * LINE_HEIGHT + pad * 2,
       };
+      if (!shape.tail) return box;
+      const [tx, ty] = shape.tail;
+      return unionRect(box, { x: tx - 1, y: ty - 1, width: 2, height: 2 })!;
     }
     default:
       return { x: shape.x, y: shape.y, width: shape.width, height: shape.height };

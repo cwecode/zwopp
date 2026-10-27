@@ -28,6 +28,7 @@ const ICONS: Record<Shape["type"], string> = {
   arrow: "➚",
   rect: "▭",
   ellipse: "◯",
+  step: "①",
   text: "T",
   highlight: "▬",
   blur: "▦",
@@ -47,6 +48,8 @@ function label(t: Messages, shape: Shape) {
     return t.quote(text.length > 24 ? `${text.slice(0, 24)}…` : text);
   }
   if (shape.type === "arrow" && toolOf(shape) === "line") return t.layers.shapes.line;
+  if (shape.type === "text" && shape.tail) return t.layers.shapes.callout;
+  if (shape.type === "step") return t.layers.shapes.step(shape.number);
   return t.layers.shapes[shape.type];
 }
 
