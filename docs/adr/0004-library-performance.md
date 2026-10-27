@@ -47,10 +47,49 @@ Before the subquery and the "latest range only" loading, a jump to the end left 
 for 1–4 s. Criterion benchmarks for the core operations: `cargo bench -p screenbook-core
 --bench library` (set `SCREENBOOK_BENCH_ITEMS` for larger libraries).
 
+## Follow-ups (2026-10-27)
+
+8. **Lossy thumbnails** with libwebp (`webp` crate, quality 80). Lossless thumbnails from
+   before are recognised by their `VP8L` chunk and replaced in the background.
+   `zenwebp` (pure Rust) was ruled out by its AGPL license.
+9. **`thumb://` protocol** (`thumbs.rs`): `thumb://localhost/<id>?v=<updatedAt>`. A real
+   thumbnail is sent as `immutable`, the original shown until it exists as `no-cache`.
+   `LibraryItem` no longer carries a thumbnail path: checking which file exists cost
+   ~0.1 ms per item on Windows, i.e. 25 ms of the 27 ms a page of 200 items took.
+10. **Read pool:** one writer plus 4 read-only connections (round-robin, busy ones skipped).
+    With WAL, reads never wait for a write such as a long reindex.
+11. **Query tuning** found by the budget tests:
+    - 32 MB page cache and 256 MB mmap per connection (default 2 MB cache: a page in the
+      middle of 100 000 items took 14 ms, now < 1 ms warm, 5 ms cold).
+    - Pages walk the ordering index (`INDEXED BY`), so a search with 10 000+ hits stops
+      after one page instead of sorting all hits.
+    - All words of ≥ 3 characters go into one FTS `MATCH` (3× faster than one per word).
+    - Shorter words compare with the FTS content table: row by row when paging or when
+      long words already narrowed the rows, as one scan when only counting.
+12. **Budgets in CI** (`budgets` job, ubuntu): `crates/core/tests/budgets.rs` (release,
+    100 000 items written straight into the index) and `apps/desktop/e2e/budgets.e2e.ts`
+    (Playwright against the production build, Tauri mocked with 100 000 items).
+
+| Budget (Windows 11 dev machine) | Limit | Measured |
+|---|---|---|
+| Open + count + first page (core) | 100 ms | 25 ms |
+| Page in the middle / last page | 20 ms | 2 / 3 ms |
+| Search count + first page ("chnung", "review", "re", "login rechnung 42") | 50 ms | 15–40 ms |
+| Adding a 2560×1440 screenshot | 500 ms | 30 ms |
+| UI: open → first thumbnails | 200 ms | ~110 ms |
+| UI: longest frame while scrolling | 50 ms | 17 ms |
+| UI: scrollbar jump → no empty cards | 100 ms | 25–35 ms |
+| UI: search → results, after the 150 ms debounce | 50 ms | ~32 ms |
+| UI: DOM elements / heap growth after 40 jumps | 2000 / 10 MB | 308 / 3 MB |
+
+Timings are medians after warming up every read connection once; the first query after
+start can be a few ms slower.
+
 ## Consequences
 
 - Offset pages can shift by a few items if the library changes while scrolling; the cache is
   dropped on every change notification, so this heals itself.
-- Lossless WebP thumbnails are ~25 % smaller than PNG but larger than lossy WebP; a lossy
-  encoder (libwebp) and a dedicated `thumb://` protocol with cache headers are follow-ups.
-- Budgets are not yet enforced in CI (needs UI profiling with Playwright).
+- Short search words (1–2 characters) are the slowest case (~40 ms with 100 000 items), close
+  to the budget; if CI runners prove slower, they need an index of their own.
+- The UI budgets measure the frontend with a fixed 10 ms backend delay; the real backend is
+  covered by the core budgets, not by an end-to-end test of the Tauri app.

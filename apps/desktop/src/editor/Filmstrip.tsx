@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { fileUrl, itemPosition, listItems, type LibraryItem, type ListQuery } from "../api";
+import { itemPosition, listItems, thumbUrl, type LibraryItem, type ListQuery } from "../api";
 import { useLibraryPages } from "../library/useLibraryPages";
 
 export interface FilmstripHandle {
@@ -93,7 +93,7 @@ export const Filmstrip = forwardRef<FilmstripHandle, Props>(function Filmstrip(
                     title={item.title || new Date(item.createdAt).toLocaleString("de-DE")}
                     onClick={() => onOpen(item)}
                   >
-                    <img src={fileUrl(item.thumbPath, item.updatedAt)} alt="" loading="lazy" decoding="async" />
+                    <img src={thumbUrl(item)} alt="" loading="lazy" decoding="async" />
                   </button>
                 ) : (
                   <div className="filmstrip-item placeholder" />

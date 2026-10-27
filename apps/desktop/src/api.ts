@@ -13,7 +13,6 @@ export interface LibraryItem {
   hasAnnotations: boolean;
   originalPath: string;
   renderPath: string | null;
-  thumbPath: string;
 }
 
 export interface ListQuery {
@@ -75,6 +74,10 @@ export const saveAsset = (id: string, png: Uint8Array) =>
 export const readAsset = (id: string, name: string) => invoke<ArrayBuffer>("read_asset", { id, name });
 export const saveRender =(id: string, png: Uint8Array) =>
   invoke<LibraryItem>("save_render", png, { headers: { "item-id": id } });
+
+/** Thumbnail URL for the library grid and filmstrip (served by `thumbs.rs`). */
+export const thumbUrl = (item: LibraryItem) =>
+  `${convertFileSrc(item.id, "thumb")}?v=${encodeURIComponent(item.updatedAt)}`;
 
 /** URL for showing a library file in an <img>; `version` busts the cache after edits. */
 export const fileUrl = (path: string, version: string) =>

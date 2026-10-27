@@ -8,6 +8,7 @@ import {
   fileUrl,
   formatShortcut,
   startCapture,
+  thumbUrl,
   updateItem,
   type ItemUpdate,
   type LibraryItem,
@@ -130,7 +131,7 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
       onDoubleClick={() => onOpen(item)}
       onKeyDown={(e) => e.key === "Enter" && onOpen(item)}
     >
-      <img src={fileUrl(item.thumbPath, item.updatedAt)} alt="" loading="lazy" decoding="async" />
+      <img src={thumbUrl(item)} alt="" loading="lazy" decoding="async" />
       <button
         className={item.favorite ? "star active" : "star"}
         title={item.favorite ? "Favorit entfernen" : "Als Favorit markieren"}

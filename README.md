@@ -128,6 +128,16 @@ cargo run -p screenbook-core --release --example seed -- <library-dir> 100000
 Start the app on such a library (your own library stays untouched) by setting
 `SCREENBOOK_LIBRARY_DIR=<library-dir>` before `npm run dev`.
 
+The budgets from [docs/PLAN.md](docs/PLAN.md) (Phase 1.5) are checked in CI with
+100 000 items; run them locally with:
+
+```bash
+# Core: paging, search, adding a screenshot (release build)
+cargo test -p screenbook-core --release --test budgets -- --ignored --nocapture
+# UI: first thumbnails, scrolling, jumps, search, memory (once: npx playwright install chromium)
+npm run test:budgets -w apps/desktop
+```
+
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License

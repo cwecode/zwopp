@@ -18,12 +18,15 @@
 //!
 //! Built to stay fast with 100 000+ items (see `docs/adr/0004-library-performance.md`):
 //! pages are fetched by offset from a covering index, search uses an FTS5
-//! trigram index, and thumbnails are generated in the background.
+//! trigram index, reads run on a small pool of connections next to the one
+//! writer, and thumbnails are generated in the background.
 
 use std::collections::HashSet;
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Mutex, MutexGuard};
 
 use chrono::{DateTime, Utc};
 use image::RgbaImage;
@@ -48,6 +51,12 @@ const ASSETS: &str = "assets";
 
 /// Longest edge of generated thumbnails, in pixels.
 pub const THUMB_SIZE: u32 = 320;
+/// libwebp quality (0–100) of the lossy thumbnails; text stays readable.
+const THUMB_QUALITY: f32 = 80.0;
+
+/// Read-only connections next to the writer. With WAL they never wait for a
+/// write (e.g. a long reindex), and listing, counting and search run in parallel.
+const READERS: usize = 4;
 
 /// Current database schema, stored in SQLite's `user_version`.
 const SCHEMA_VERSION: i32 = 2;
@@ -67,8 +76,6 @@ pub struct LibraryItem {
     pub original_path: PathBuf,
     /// The annotated image, if the item was edited.
     pub render_path: Option<PathBuf>,
-    /// Preview image: the thumbnail, or the original while none exists yet.
-    pub thumb_path: PathBuf,
 }
 
 /// Filter for [`Library::list`].
@@ -92,24 +99,27 @@ pub struct ItemUpdate {
 /// The contents of `item.json`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Metadata {
-    id: Uuid,
-    created_at: DateTime<Utc>,
+pub(crate) struct Metadata {
+    pub(crate) id: Uuid,
+    pub(crate) created_at: DateTime<Utc>,
     #[serde(default)]
-    updated_at: Option<DateTime<Utc>>,
-    width: u32,
-    height: u32,
+    pub(crate) updated_at: Option<DateTime<Utc>>,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
     #[serde(default)]
-    title: String,
+    pub(crate) title: String,
     #[serde(default)]
-    favorite: bool,
+    pub(crate) favorite: bool,
     #[serde(default)]
-    tags: Vec<String>,
+    pub(crate) tags: Vec<String>,
 }
 
 pub struct Library {
     items_dir: PathBuf,
+    /// The only connection that writes; reads that must see its own
+    /// uncommitted changes use it as well.
     db: Mutex<Connection>,
+    readers: Readers,
 }
 
 impl Library {
@@ -129,7 +139,8 @@ impl Library {
         let items_dir = root.join("items");
         fs::create_dir_all(&items_dir).at(&items_dir)?;
 
-        let db = Connection::open(root.join(DATABASE))?;
+        let path = root.join(DATABASE);
+        let db = connect(&path)?;
         // WAL lets reads run while a write is in progress and makes commits cheap.
         db.pragma_update(None, "journal_mode", "WAL")?;
         db.pragma_update(None, "synchronous", "NORMAL")?;
@@ -137,6 +148,7 @@ impl Library {
         Ok(Self {
             items_dir,
             db: Mutex::new(db),
+            readers: Readers::open(&path)?,
         })
     }
 
@@ -166,7 +178,7 @@ impl Library {
 
     /// Loads a single item.
     pub fn get(&self, id: Uuid) -> Result<LibraryItem> {
-        get(&self.db.lock().unwrap(), &self.items_dir, id)
+        get(&self.readers.get(), &self.items_dir, id)
     }
 
     /// Lists all items matching `query`, newest first.
@@ -185,17 +197,20 @@ impl Library {
         offset: u64,
         limit: u32,
     ) -> Result<Vec<LibraryItem>> {
-        let filter = Filter::new(query);
+        let filter = Filter::for_page(query);
         let [limit_at, offset_at] = filter.extra();
-        let db = self.db.lock().unwrap();
+        let db = self.readers.get();
         // The offset is applied to bare rowids from the ordering index first;
         // only the rows of the page then pay for the full columns (tags).
+        // Walking the index in list order stops after one page even when a
+        // search matches tens of thousands of items; left to itself SQLite
+        // collects and sorts all matches first (4x slower for 10 000 hits).
         let mut stmt = db.prepare_cached(&format!(
             "{SELECT_ITEMS} WHERE items.rowid IN (
-                 SELECT rowid FROM items WHERE {}
+                 SELECT rowid FROM items INDEXED BY {} WHERE {}
                  ORDER BY created_at DESC, id DESC LIMIT ?{limit_at} OFFSET ?{offset_at})
              ORDER BY created_at DESC, id DESC",
-            filter.sql
+            filter.index, filter.sql
         ))?;
         let params = filter.params_with([Value::from(limit), Value::from(offset as i64)]);
         let rows = stmt.query_map(params_from_iter(params), |row| {
@@ -206,8 +221,8 @@ impl Library {
 
     /// Number of items matching `query`.
     pub fn count(&self, query: &ListQuery) -> Result<u64> {
-        let filter = Filter::new(query);
-        let db = self.db.lock().unwrap();
+        let filter = Filter::for_count(query);
+        let db = self.readers.get();
         let count: i64 = db
             .prepare_cached(&format!("SELECT COUNT(*) FROM items WHERE {}", filter.sql))?
             .query_row(params_from_iter(&filter.params), |row| row.get(0))?;
@@ -216,9 +231,9 @@ impl Library {
 
     /// Index of item `id` in the list for `query`, or None if it does not match.
     pub fn position(&self, id: Uuid, query: &ListQuery) -> Result<Option<u64>> {
-        let filter = Filter::new(query);
+        let filter = Filter::for_count(query);
         let [first, second] = filter.extra();
-        let db = self.db.lock().unwrap();
+        let db = self.readers.get();
         let id = id.to_string();
         let Some(created_at) = db
             .query_row(
@@ -246,7 +261,7 @@ impl Library {
 
     /// All tags in use, alphabetically.
     pub fn tags(&self) -> Result<Vec<String>> {
-        let db = self.db.lock().unwrap();
+        let db = self.readers.get();
         let mut stmt = db.prepare("SELECT DISTINCT tag FROM tags ORDER BY tag COLLATE NOCASE")?;
         let rows = stmt.query_map([], |row| row.get(0))?;
         Ok(rows.collect::<Result<_, _>>()?)
@@ -340,6 +355,14 @@ impl Library {
         fs::read(&path).at(&path)
     }
 
+    /// The library preview of an item: its thumbnail, or the original while
+    /// none exists yet. Needs no database access. Not part of [`LibraryItem`],
+    /// because checking the files costs ~0.1 ms per item on Windows, which
+    /// made listing a page of 200 items take 25 ms.
+    pub fn preview_path(&self, id: Uuid) -> Result<PathBuf> {
+        Ok(thumb_path(&self.existing_dir(id)?))
+    }
+
     /// The image to share or copy: the render if there is one, else the original.
     pub fn output_path(&self, id: Uuid) -> Result<PathBuf> {
         let item = self.get(id)?;
@@ -390,10 +413,11 @@ impl Library {
     }
 
     /// Creates missing thumbnails (in parallel) and returns how many were made.
+    /// Lossless thumbnails from version 0.2 are replaced by smaller lossy ones.
     /// Meant to run in the background; until then the original is shown.
     pub fn ensure_thumbnails(&self) -> Result<usize> {
         let ids: Vec<String> = {
-            let db = self.db.lock().unwrap();
+            let db = self.readers.get();
             let mut stmt = db.prepare("SELECT id FROM items ORDER BY created_at DESC")?;
             stmt.query_map([], |row| row.get(0))?
                 .collect::<Result<_, _>>()?
@@ -402,10 +426,22 @@ impl Library {
             .par_iter()
             .filter(|id| {
                 let dir = self.items_dir.join(id);
-                !dir.join(THUMB).is_file() && write_thumbnail(&dir).is_ok()
+                is_stale_thumbnail(&dir.join(THUMB)) && write_thumbnail(&dir).is_ok()
             })
             .count();
         Ok(made)
+    }
+
+    /// Adds index rows without item folders, in one transaction. Only for
+    /// synthetic test libraries; a reindex drops these rows again.
+    pub(crate) fn index_only(&self, items: &[Metadata]) -> Result<()> {
+        let mut db = self.db.lock().unwrap();
+        let tx = db.transaction()?;
+        for metadata in items {
+            upsert(&tx, metadata, false)?;
+        }
+        tx.commit()?;
+        Ok(())
     }
 
     fn dir(&self, id: Uuid) -> PathBuf {
@@ -422,6 +458,37 @@ impl Library {
     }
 }
 
+/// A fixed set of read-only connections, handed out round-robin; a busy one
+/// is skipped, so a slow query only holds up callers when all are busy.
+struct Readers {
+    connections: Vec<Mutex<Connection>>,
+    next: AtomicUsize,
+}
+
+impl Readers {
+    fn open(path: &Path) -> Result<Self> {
+        let connections = (0..READERS)
+            .map(|_| {
+                let db = connect(path)?;
+                db.pragma_update(None, "query_only", true)?;
+                Ok(Mutex::new(db))
+            })
+            .collect::<Result<_>>()?;
+        Ok(Self {
+            connections,
+            next: AtomicUsize::new(0),
+        })
+    }
+
+    fn get(&self) -> MutexGuard<'_, Connection> {
+        let start = self.next.fetch_add(1, Ordering::Relaxed);
+        let n = self.connections.len();
+        (0..n)
+            .find_map(|i| self.connections[(start + i) % n].try_lock().ok())
+            .unwrap_or_else(|| self.connections[start % n].lock().unwrap())
+    }
+}
+
 const SELECT_ITEMS: &str = "SELECT id, created_at, updated_at, width, height, title, favorite,
         has_annotations,
         (SELECT group_concat(tag, char(31)) FROM tags t WHERE t.item_id = items.id)
@@ -435,45 +502,77 @@ const MAX_SEARCH_TERMS: usize = 8;
 struct Filter {
     sql: String,
     params: Vec<Value>,
+    /// The index that yields the matching rows in list order.
+    index: &'static str,
 }
 
 impl Filter {
+    /// For reading rows in list order, which can stop after one page.
+    fn for_page(query: &ListQuery) -> Self {
+        Self::new(query, true)
+    }
+
+    /// For counting, which has to visit every match.
+    fn for_count(query: &ListQuery) -> Self {
+        Self::new(query, false)
+    }
+
     /// Every search word must occur in the title or the tags, in any order
     /// and as part of a word ("chnung 42" finds "Rechnung Lieferant 4242").
-    fn new(query: &ListQuery) -> Self {
+    fn new(query: &ListQuery, paging: bool) -> Self {
         let mut clauses = Vec::new();
         let mut params = Vec::new();
         if query.favorites_only {
             clauses.push("favorite = 1".to_owned());
         }
-        let terms = query
+        let terms: Vec<&str> = query
             .search
             .as_deref()
             .unwrap_or_default()
-            .split_whitespace();
-        for term in terms.take(MAX_SEARCH_TERMS) {
-            let n = params.len() + 1;
-            if term.chars().count() >= 3 {
-                // A quoted phrase on the trigram index matches any substring.
-                clauses.push(format!(
-                    "items.rowid IN (SELECT rowid FROM items_fts WHERE items_fts MATCH ?{n})"
-                ));
-                params.push(Value::from(format!("\"{}\"", term.replace('"', "\"\""))));
+            .split_whitespace()
+            .take(MAX_SEARCH_TERMS)
+            .collect();
+        let (long, short): (Vec<&str>, Vec<&str>) =
+            terms.into_iter().partition(|t| t.chars().count() >= 3);
+        if !long.is_empty() {
+            // Quoted phrases on the trigram index match any substring; one
+            // MATCH for all words is 3x faster than one per word.
+            let phrases: Vec<String> = long
+                .iter()
+                .map(|t| format!("\"{}\"", t.replace('"', "\"\"")))
+                .collect();
+            params.push(Value::from(phrases.join(" ")));
+            clauses.push(format!(
+                "items.rowid IN (SELECT rowid FROM items_fts WHERE items_fts MATCH ?{})",
+                params.len()
+            ));
+        }
+        for term in short {
+            // Too short for trigrams: compare with the text of the full-text
+            // index, kept in its content table (documented as `<name>_content`).
+            params.push(Value::from(like_pattern(term)));
+            let n = params.len();
+            let like = format!("c0 LIKE ?{n} ESCAPE '\\' OR c1 LIKE ?{n} ESCAPE '\\'");
+            clauses.push(if paging || !long.is_empty() {
+                // Checked row by row: cheap when a page is full after a few
+                // hundred rows or the long words already narrowed the rows.
+                format!("(SELECT {like} FROM items_fts_content WHERE id = items.rowid)")
             } else {
-                // Too short for trigrams: scan the (small) full-text table.
-                clauses.push(format!(
-                    "items.rowid IN (SELECT rowid FROM items_fts
-                                     WHERE title LIKE ?{n} ESCAPE '\\' OR tags LIKE ?{n} ESCAPE '\\')"
-                ));
-                params.push(Value::from(like_pattern(term)));
-            }
+                // Counting all rows: one scan of the content table is faster.
+                format!("items.rowid IN (SELECT id FROM items_fts_content WHERE {like})")
+            });
         }
         let sql = if clauses.is_empty() {
             "1".to_owned()
         } else {
             clauses.join(" AND ")
         };
-        Self { sql, params }
+        let index = if query.favorites_only {
+            "items_favorite"
+        } else {
+            "items_order"
+        };
+        Self { sql, params, index }
     }
 
     /// Placeholder numbers for `N` further parameters after the filter's own.
@@ -484,6 +583,18 @@ impl Filter {
     fn params_with(&self, extra: impl IntoIterator<Item = Value>) -> Vec<Value> {
         self.params.iter().cloned().chain(extra).collect()
     }
+}
+
+/// Opens a connection with caches big enough to keep the whole index of a
+/// 100 000 item library in memory. With SQLite's default 2 MB page cache,
+/// skipping to the middle of the list took 14 ms instead of under 1 ms.
+fn connect(path: &Path) -> Result<Connection> {
+    let db = Connection::open(path)?;
+    // Negative means KiB; pages are only allocated as they are used.
+    db.pragma_update(None, "cache_size", -32 * 1024)?;
+    // Maps the file, so all connections share the operating system's cache.
+    db.pragma_update(None, "mmap_size", 256 * 1024 * 1024)?;
+    Ok(db)
 }
 
 fn migrate(db: &Connection) -> Result<()> {
@@ -594,7 +705,6 @@ fn read_item(row: &Row, items_dir: &Path) -> rusqlite::Result<LibraryItem> {
         favorite: row.get(6)?,
         tags,
         has_annotations,
-        thumb_path: thumb_path(&dir),
         original_path: dir.join(ORIGINAL),
         render_path: has_annotations.then(|| dir.join(RENDER)),
     })
@@ -623,9 +733,27 @@ fn write_thumbnail(dir: &Path) -> Result<()> {
 }
 
 fn save_thumbnail(dir: &Path, image: &RgbaImage) -> Result<()> {
-    thumbnail(image).save(dir.join(THUMB))?;
+    let thumb = thumbnail(image);
+    let webp = webp::Encoder::from_rgba(thumb.as_raw(), thumb.width(), thumb.height())
+        .encode_simple(false, THUMB_QUALITY)
+        .map_err(|e| Error::Thumbnail(format!("{e:?}")))?;
+    // Written under a temporary name and renamed, so a reader never sees half a file.
+    let path = dir.join(THUMB);
+    let partial = dir.join(format!("{THUMB}.partial"));
+    fs::write(&partial, &*webp).at(&partial)?;
+    fs::rename(&partial, &path).at(&path)?;
     let _ = fs::remove_file(dir.join(LEGACY_THUMB));
     Ok(())
+}
+
+/// Whether the thumbnail is missing or one of the lossless ones written
+/// before version 0.3 (a `VP8L` chunk right after the RIFF header).
+fn is_stale_thumbnail(path: &Path) -> bool {
+    let mut header = [0u8; 16];
+    match fs::File::open(path).and_then(|mut file| file.read_exact(&mut header)) {
+        Ok(()) => &header[12..16] == b"VP8L",
+        Err(_) => true,
+    }
 }
 
 fn parse_time(row: &Row, index: usize) -> rusqlite::Result<DateTime<Utc>> {
@@ -705,7 +833,7 @@ mod tests {
         let first = library.add(&RgbaImage::new(4, 3)).unwrap();
         let second = library.add(&RgbaImage::new(8, 6)).unwrap();
         assert!(first.original_path.is_file());
-        assert!(first.thumb_path.is_file());
+        assert!(library.preview_path(first.id).unwrap().ends_with(THUMB));
         assert!(first.render_path.is_none());
 
         let ids: Vec<_> = library
@@ -898,6 +1026,22 @@ mod tests {
         assert_eq!(search("chnung buchhalt"), 1);
         assert_eq!(search("chnung angebot"), 0);
         assert_eq!(search("\"chnung"), 0);
+        // Short words (no trigram) alone and mixed with long ones; counting
+        // and paging build these differently.
+        let page = |text: &str| {
+            library
+                .list(&ListQuery {
+                    search: Some(text.into()),
+                    ..Default::default()
+                })
+                .unwrap()
+                .len() as u64
+        };
+        for text in ["re", "ng", "re liefer", "liefer re", "xy liefer", "re ng"] {
+            assert_eq!(search(text), page(text), "{text}");
+        }
+        assert_eq!(search("re ng"), 1);
+        assert_eq!(search("xy liefer"), 0);
 
         library
             .update(
@@ -964,10 +1108,47 @@ mod tests {
         let item = library.get(id).unwrap();
         assert_eq!(item.updated_at, item.created_at);
         // Until thumbnails are made in the background, the original is the preview.
-        assert_eq!(item.thumb_path, item.original_path);
+        assert_eq!(library.preview_path(id).unwrap(), item.original_path);
         assert_eq!(library.ensure_thumbnails().unwrap(), 1);
-        let item = library.get(id).unwrap();
-        assert!(item.thumb_path.ends_with("thumb.webp") && item.thumb_path.is_file());
+        assert!(library.preview_path(id).unwrap().ends_with("thumb.webp"));
+        assert_eq!(library.ensure_thumbnails().unwrap(), 0);
+    }
+
+    #[test]
+    fn reads_see_writes_and_do_not_wait_for_them() {
+        let root = tempfile::tempdir().unwrap();
+        let library = Library::open(root.path()).unwrap();
+        let item = library.add(&RgbaImage::new(1, 1)).unwrap();
+        // Committed writes are visible on every reader.
+        for _ in 0..READERS {
+            assert_eq!(library.get(item.id).unwrap().id, item.id);
+            assert_eq!(library.count(&ListQuery::default()).unwrap(), 1);
+        }
+        // An open write transaction does not block reads, which see the last commit.
+        let mut db = library.db.lock().unwrap();
+        let tx = db.transaction().unwrap();
+        tx.execute("DELETE FROM items", []).unwrap();
+        assert_eq!(library.count(&ListQuery::default()).unwrap(), 1);
+        drop(tx);
+        drop(db);
+        assert_eq!(library.list(&ListQuery::default()).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn lossless_thumbnails_are_replaced_by_lossy_ones() {
+        let root = tempfile::tempdir().unwrap();
+        let library = Library::open(root.path()).unwrap();
+        let item = library.add(&RgbaImage::new(40, 30)).unwrap();
+        let thumb = library.preview_path(item.id).unwrap();
+        assert!(!is_stale_thumbnail(&thumb));
+        let decoded = image::open(&thumb).unwrap();
+        assert_eq!((decoded.width(), decoded.height()), (40, 30));
+
+        // Version 0.2 wrote lossless WebP with the image crate.
+        RgbaImage::new(40, 30).save(&thumb).unwrap();
+        assert!(is_stale_thumbnail(&thumb));
+        assert_eq!(library.ensure_thumbnails().unwrap(), 1);
+        assert!(!is_stale_thumbnail(&thumb));
         assert_eq!(library.ensure_thumbnails().unwrap(), 0);
     }
 }

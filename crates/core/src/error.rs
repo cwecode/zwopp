@@ -37,6 +37,9 @@ pub enum Error {
 
     #[error("invalid asset name: {0}")]
     InvalidAsset(String),
+
+    #[error("could not encode thumbnail: {0}")]
+    Thumbnail(String),
 }
 
 pub(crate) trait IoContext<T> {

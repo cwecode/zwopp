@@ -8,3 +8,5 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea/
+apps/desktop/test-results/
+apps/desktop/playwright-report/

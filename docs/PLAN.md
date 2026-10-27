@@ -3,7 +3,7 @@
 > Arbeitstitel: **Screenbook** – ein schlanker, quelloffener Screenshot‑ und Annotations‑Editor
 > für Windows, macOS und Linux.
 >
-> Stand: 2026‑10‑22 · Status: Entwurf
+> Stand: 2026‑10‑27 · Status: Entwurf
 
 ---
 
@@ -253,7 +253,7 @@ eigenen Rechner gebaut wurde, gibt es weder unter Windows (SmartScreen) noch unt
 |---|---|---|
 | **0 – Setup & Spike** (≈1 Woche) | Repo, Lizenz, CI‑Gerüst; Tauri‑Skeleton; **Capture‑Spike auf allen 3 OS inkl. Wayland + Multi‑Monitor/HiDPI**; Feature‑Spec aus Nutzersicht | Technisches Risiko geklärt |
 | **1 – MVP** ✅ | Tray + Hotkey, Overlay‑Bereichsauswahl, Bibliothek (Grid, Suche, Tags, Favoriten), Editor‑Basis (Pfeil, Rechteck, Textbox, Marker, Verpixeln, Bereich löschen, Zeichnen außerhalb), Undo/Redo, Mehrfachauswahl, Kopieren/Einfügen zwischen Screenshots, Filmstreifen, Zoom | Intern nutzbar |
-| **1.5 – Performance & Skalierung** ✅ | Siehe Abschnitt 5.1 und ADR 0004 – offen als Folgearbeit: CI‑Budgets, verlustbehaftete WebP‑Thumbnails, `thumb://`‑Protokoll | Bibliothek mit 100 000 Einträgen scrollt flüssig |
+| **1.5 – Performance & Skalierung** ✅ | Siehe Abschnitt 5.1 und ADR 0004; Budgets werden in CI geprüft | Bibliothek mit 100 000 Einträgen scrollt flüssig |
 | **2 – Editor komplett** (≈3 Wochen) | Callouts/Sprechblasen, Schritt‑Nummern, Emojis/Sticker, Lupe, Quick Styles, Fenster‑Capture, Einstellungen, i18n (DE/EN) | Vollständiger Editor |
 | **3 – v1.0 Release** (≈1–2 Wochen) | Release‑Workflow mit unsignierten Downloads, README (Download + erster Start + Build aus Quellcode), Nutzer‑Doku, Git‑Tag v1.0 | Öffentliches Release mit Downloads für alle OS |
 | *später, optional* | Signing (Windows kostenlos über SignPath, Apple 99 $/Jahr), Auto‑Update, winget/Scoop/Flathub | Sobald es Nutzer gibt |
@@ -310,10 +310,11 @@ eine Datenbank‑Tabelle; nichts blockiert die Oberfläche.
 |---|---|
 | Virtualisiertes Grid und Filmstreifen (TanStack Virtual) | ✅ |
 | Seitenweises Laden, Anzahl, Position | ✅ – per Offset statt Keyset, damit die Scrollbar beliebig springen kann (siehe ADR) |
-| WebP‑Thumbnails (320 px, verlustfrei), im Hintergrund erzeugt | ✅ – eigenes `thumb://`‑Protokoll und verlustbehaftetes WebP noch offen |
-| Indizes, FTS5‑Trigramm‑Suche, WAL | ✅ – Lese‑Verbindungspool noch offen |
+| WebP‑Thumbnails (320 px, verlustbehaftet), im Hintergrund erzeugt, über `thumb://` mit Cache‑Headern | ✅ |
+| Indizes, FTS5‑Trigramm‑Suche, WAL, Lese‑Verbindungspool | ✅ – eigener Pool (4 Leser) statt `r2d2` |
 | Reindex im Hintergrund, Befehle im Blocking‑Pool | ✅ |
-| Benchmarks und Testdaten‑Generator | ✅ – Budgets als CI‑Check und UI‑Profiling noch offen |
+| Benchmarks und Testdaten‑Generator | ✅ |
+| Budgets als CI‑Check (Core in Rust, UI mit Playwright) | ✅ – Messwerte in ADR 0004 |
 
 ---
 

@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:budgets": "playwright test"
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.14.22",
@@ -20,6 +21,7 @@
     "react-konva": "^19.3.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "@tauri-apps/cli": "^2",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",

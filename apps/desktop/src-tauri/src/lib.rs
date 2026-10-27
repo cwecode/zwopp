@@ -1,6 +1,7 @@
 mod capture;
 mod commands;
 mod platform;
+mod thumbs;
 mod tray;
 
 use std::sync::{Arc, Mutex};
@@ -68,6 +69,7 @@ pub fn show_main(app: &AppHandle) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .register_asynchronous_uri_scheme_protocol(thumbs::SCHEME, thumbs::handle)
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(
             // Only the capture hotkey is ever registered.
