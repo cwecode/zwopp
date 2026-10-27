@@ -22,6 +22,9 @@ tauri-build = { version = "2", features = [] }
 screenbook-core = { path = "../../../crates/core" }
 tauri = { version = "2", features = ["tray-icon", "protocol-asset"] }
 tauri-plugin-clipboard-manager = "2"
+tauri-plugin-dialog = "2"
+# Dragging files out of the window into other apps (CrabNebula).
+tauri-plugin-drag = "2"
 tauri-plugin-global-shortcut = "2"
 image = { version = "0.25", default-features = false, features = ["png"] }
 serde = { version = "1", features = ["derive"] }

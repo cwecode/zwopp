@@ -318,6 +318,27 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
   };
 
   /** Copies the annotated image to the system clipboard (for other apps). */
+  /** Saves the annotated image as a file the user picks. */
+  const exportFile = async () => {
+    try {
+      await flush();
+      const path = await api.exportItem(item.id, t.library.exportDialog);
+      if (path) setMessage(t.library.exported(path));
+    } catch (e) {
+      setMessage(String(e));
+    }
+  };
+
+  /** Drags the annotated image into another app (from `dragstart`). */
+  const dragImage = async () => {
+    try {
+      await flush();
+      await api.dragOut(item.id);
+    } catch (e) {
+      setMessage(String(e));
+    }
+  };
+
   const copyImage = async () => {
     try {
       await flush();
@@ -431,6 +452,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
       if (mod && key === "z" && !e.shiftKey) doUndo();
       else if (mod && (key === "y" || (key === "z" && e.shiftKey))) doRedo();
       else if (mod && key === "c" && e.shiftKey) void copyImage();
+      else if (mod && key === "s" && e.shiftKey) void exportFile();
       else if (mod && key === "c") void copy();
       else if (mod && key === "v") void paste();
       else if (mod && key === "g" && e.shiftKey) dissolveBlock();
@@ -677,6 +699,20 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
         </button>
 
         <span className={`save-status ${status}`}>{t.editor.status[status]}</span>
+        <button
+          draggable
+          className="drag-out"
+          title={t.editor.dragTitle}
+          onDragStart={(e) => {
+            e.preventDefault();
+            void dragImage();
+          }}
+        >
+          ⠿ {t.editor.drag}
+        </button>
+        <button onClick={exportFile} title={`${t.editor.exportTitle} (${k("mod", "shift", "S")})`}>
+          {t.editor.export}
+        </button>
         <button className="primary" onClick={copyImage} title={`${t.editor.copyImageTitle} (${k("mod", "shift", "C")})`}>
           {t.editor.copyImage}
         </button>

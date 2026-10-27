@@ -1,4 +1,5 @@
 // Typed wrappers around the Tauri commands in `src-tauri/src/commands.rs`.
+import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 
 export interface LibraryItem {
@@ -55,6 +56,21 @@ export const updateItem = (id: string, update: ItemUpdate) =>
   invoke<LibraryItem>("update_item", { id, update });
 export const deleteItem = (id: string) => invoke<void>("delete_item", { id });
 export const copyItem = (id: string) => invoke<void>("copy_item", { id });
+
+/**
+ * Asks where to save the item and writes it as PNG, JPEG or WebP (by the
+ * chosen extension). Resolves to the path, or null if cancelled.
+ */
+export const exportItem = (id: string, title: string) => invoke<string | null>("export_item", { id, title });
+
+/**
+ * Drags the item into another app as a PNG file named after its title.
+ * Call it from `dragstart` (after `preventDefault`) while the mouse is down.
+ */
+export async function dragOut(id: string) {
+  const { file, icon } = await invoke<{ file: string; icon: string }>("drag_file", { id });
+  await startDrag({ item: [file], icon, mode: "copy" });
+}
 
 export const readOriginal = (id: string) => invoke<ArrayBuffer>("read_original", { id });
 export const loadDocument = (id: string) => invoke<unknown>("load_document", { id });

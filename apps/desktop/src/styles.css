@@ -680,3 +680,8 @@ button.tool.active {
   background: var(--text);
 }
 
+
+/* Drag handle for the image in the editor toolbar. */
+.drag-out {
+  cursor: grab;
+}

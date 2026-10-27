@@ -32,7 +32,7 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned · Phase in brackets.
 | Search, tags, favorites | Full-text search in title and tags; every word must match, in any order, also as part of a word | ✅ (1) |
 | Thumbnails | Small lossy WebP previews, generated in the background, served via `thumb://` | ✅ (1.5) |
 | Large libraries | Virtualized grid and filmstrip, pages loaded on demand; tested with 100 000 items | ✅ (1.5) |
-| Drag out | Drag an item into other apps | ⬜ (2) |
+| Drag out | Drag a card from the library, or the "Ziehen" handle in the editor, into another app; it receives a PNG named after the title (a copy, never the library's file) | ✅ (2) |
 | OCR | Search text inside screenshots | ⬜ (v2) |
 
 ## Editor
@@ -81,7 +81,7 @@ see [document-format.md](document-format.md). Changes are saved automatically.
 | Feature | Status |
 |---|---|
 | Copy annotated image to the clipboard | ✅ (1) |
-| Export to file (PNG / JPG / WebP) | ⬜ (2) |
+| Export to file (PNG / JPG / WebP): save dialog in the library preview and the editor (Ctrl+Shift+S), format by file extension, named after the title; JPG puts transparency on white, WebP is lossless | ✅ (2) |
 | CLI (`screenbook capture …`) | ⬜ (v2) |
 | Local HTTP API (loopback, token, OpenAPI) | ⬜ (v2) |
 | MCP server | ⬜ (v2) |

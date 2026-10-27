@@ -5,6 +5,7 @@
 
 pub mod capture;
 pub mod error;
+pub mod export;
 pub mod library;
 #[doc(hidden)]
 pub mod testing;

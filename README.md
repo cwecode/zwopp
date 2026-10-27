@@ -16,11 +16,13 @@ highlights, step numbers, emojis and more.
 - "Freeze first, select later": all monitors are frozen, then you drag a region
   (click = whole monitor, Esc / right-click = cancel)
 - Every capture is saved to the library, copied to the clipboard and opened in the editor
-- **Library:** thumbnails, search (title, tags), favorites, tags, copy, delete
+- **Library:** thumbnails, search (title, tags), favorites, tags, copy, export, drag into
+  other apps, delete
 - **Editor:** arrow, line, rectangle, ellipse (outlined or filled), text box (three fonts,
   optional coloured background), callout, step numbers, highlighter, pixelate; colors, sizes
   and arrowheads (filled, open, at either end);
-  move/resize; undo/redo; autosave; copy the annotated image. Draw outside the screenshot
+  move/resize; undo/redo; autosave; copy the annotated image, export it as PNG, JPG or WebP,
+  or drag it into another app. Draw outside the screenshot
   and the canvas grows (transparent background); mark an area and press Del to delete it.
   A layers panel lists every element and lets you add, hide, lock and reorder layers.
   A filmstrip shows the library; copy a whole edit or a selection and paste it into another
@@ -43,6 +45,7 @@ highlights, step numbers, emojis and more.
 | Ctrl+C | Copy selection – or, with nothing selected, the whole edit (screenshot + annotations) |
 | Ctrl+V | Paste as a block (also into another screenshot) |
 | Ctrl+Shift+C | Copy the finished image to the system clipboard |
+| Ctrl+Shift+S | Export the finished image as PNG, JPG or WebP |
 | Alt+← / Alt+→ | Previous / next screenshot from the filmstrip |
 | Ctrl+wheel, Ctrl++ / Ctrl+− | Zoom (at the cursor) |
 | Ctrl+0 / Ctrl+1 | Fit ("Einpassen", fills the window) / actual pixels (100 %) |

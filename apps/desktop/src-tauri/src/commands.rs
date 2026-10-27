@@ -3,11 +3,16 @@
 //! Commands stay thin: the actual work happens in `screenbook-core` (or in
 //! `capture` for the window handling) so a CLI or HTTP API can reuse it later.
 
+use std::path::PathBuf;
+
 use screenbook_core::capture::Rect;
+use screenbook_core::export::{self, ExportFormat};
 use screenbook_core::library::{ItemUpdate, Library, LibraryItem, ListQuery};
+use serde::Serialize;
 use tauri::ipc::{InvokeBody, Request, Response};
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 use tauri_plugin_clipboard_manager::ClipboardExt;
+use tauri_plugin_dialog::DialogExt;
 use uuid::Uuid;
 
 use crate::{AppState, capture, tray};
@@ -199,4 +204,84 @@ pub async fn copy_item(app: AppHandle, state: State<'_, AppState>, id: Uuid) -> 
     .await?;
     let clip = tauri::image::Image::new(image.as_raw(), image.width(), image.height());
     app.clipboard().write_image(&clip).map_err(err)
+}
+
+/// Asks where to save item `id` (dialog titled `title`) and writes it there
+/// as PNG, JPEG or WebP, by the chosen file extension. Returns the path, or
+/// `None` if the dialog was cancelled.
+#[tauri::command]
+pub async fn export_item(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: Uuid,
+    title: String,
+) -> CmdResult<Option<String>> {
+    let library = state.library.clone();
+    let item = library.get(id).map_err(err)?;
+    let folder = state
+        .export_dir
+        .lock()
+        .unwrap()
+        .clone()
+        .or_else(|| app.path().picture_dir().ok());
+    let mut dialog = app
+        .dialog()
+        .file()
+        .set_title(title)
+        .set_file_name(format!("{}.png", export::file_stem(&item)))
+        .add_filter("PNG", &["png"])
+        .add_filter("JPEG", &["jpg", "jpeg"])
+        .add_filter("WebP", &["webp"]);
+    if let Some(folder) = folder {
+        dialog = dialog.set_directory(folder);
+    }
+    // The dialog blocks until closed, so it must not hold an IPC worker.
+    let chosen = tauri::async_runtime::spawn_blocking(move || dialog.blocking_save_file())
+        .await
+        .map_err(err)?;
+    let Some(path) = chosen.and_then(|p| p.into_path().ok()) else {
+        return Ok(None);
+    };
+    let (path, format) = match ExportFormat::from_path(&path) {
+        Some(format) => (path, format),
+        None => {
+            let mut name = path.into_os_string();
+            name.push(".png");
+            (PathBuf::from(name), ExportFormat::Png)
+        }
+    };
+    *state.export_dir.lock().unwrap() = path.parent().map(PathBuf::from);
+    let written = path.clone();
+    blocking(&state, move |library| {
+        export::export(library, id, &written, format)
+    })
+    .await?;
+    Ok(Some(path.to_string_lossy().into_owned()))
+}
+
+/// A file to drag into another app and the image shown while dragging.
+#[derive(Serialize)]
+pub struct DragFile {
+    file: PathBuf,
+    icon: PathBuf,
+}
+
+/// Writes item `id` as a PNG named after its title into a scratch folder,
+/// so dragging it out hands other apps a copy, never the library's file.
+#[tauri::command]
+pub async fn drag_file(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: Uuid,
+) -> CmdResult<DragFile> {
+    let dir = app.path().app_cache_dir().map_err(err)?.join("drag");
+    blocking(&state, move |library| {
+        // Only the latest drag is needed; older copies would pile up.
+        let _ = std::fs::remove_dir_all(&dir);
+        Ok(DragFile {
+            file: export::export_into(library, id, &dir, ExportFormat::Png)?,
+            icon: library.preview_path(id)?,
+        })
+    })
+    .await
 }

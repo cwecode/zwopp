@@ -5,6 +5,8 @@ import {
   captureShortcut,
   copyItem,
   deleteItem,
+  dragOut,
+  exportItem,
   fileUrl,
   startCapture,
   thumbUrl,
@@ -126,6 +128,15 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
       .catch(report);
   };
 
+  const exportFile = async (id: string) => {
+    try {
+      const path = await exportItem(id, t.library.exportDialog);
+      if (path) setMessage(t.library.exported(path));
+    } catch (e) {
+      report(e);
+    }
+  };
+
   const gridStyle = useMemo(
     () => ({ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gap: GAP }),
     [columns],
@@ -140,6 +151,13 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
       onClick={() => setSelected(item)}
       onDoubleClick={() => onOpen(item)}
       onKeyDown={(e) => e.key === "Enter" && onOpen(item)}
+      // Dragging a card hands other apps a PNG file (the OS drag, not the browser's).
+      draggable
+      title={t.library.dragOut}
+      onDragStart={(e) => {
+        e.preventDefault();
+        dragOut(item.id).catch(report);
+      }}
     >
       {/* Not `loading="lazy"`: only rows near the view exist, and lazy
           loading would wait for layout before requesting the image. */}
@@ -273,6 +291,7 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
                 {t.library.edit}
               </button>
               <button onClick={() => copy(selected.id)}>{t.library.copy}</button>
+              <button onClick={() => exportFile(selected.id)}>{t.library.export}</button>
               <span className="spacer" />
               <button className="danger" onClick={() => remove(selected.id)}>
                 {t.library.delete}

@@ -23,6 +23,8 @@ pub struct AppState {
     pub session: Mutex<Option<capture::Session>>,
     /// The registered capture hotkey, if any could be registered.
     pub capture_shortcut: Option<&'static str>,
+    /// Folder of the last export, offered again by the next one.
+    pub export_dir: Mutex<Option<std::path::PathBuf>>,
 }
 
 fn register_capture_shortcut(app: &AppHandle) -> Option<&'static str> {
@@ -71,6 +73,8 @@ pub fn run() {
     tauri::Builder::default()
         .register_asynchronous_uri_scheme_protocol(thumbs::SCHEME, thumbs::handle)
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_drag::init())
         .plugin(
             // Only the capture hotkey is ever registered.
             tauri_plugin_global_shortcut::Builder::new()
@@ -100,6 +104,7 @@ pub fn run() {
                 library,
                 session: Mutex::default(),
                 capture_shortcut,
+                export_dir: Mutex::default(),
             });
             if let Some(main) = app.get_webview_window("main") {
                 platform::disable_hide_animation(&main);
@@ -136,6 +141,8 @@ pub fn run() {
             commands::save_asset,
             commands::read_asset,
             commands::copy_item,
+            commands::export_item,
+            commands::drag_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
