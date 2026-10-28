@@ -1,18 +1,84 @@
 name: Release
 
-# Builds unsigned installers for every OS when a version tag is pushed
-# and attaches them to a draft GitHub release.
+# A version tag (v1.0.0, or v1.0.0-rc.1 for a test run) builds unsigned
+# installers for every OS and attaches them, with SHA-256 checksums, to a
+# draft GitHub release. Publishing the draft is a manual step.
 on:
   push:
     tags: ["v*"]
-  workflow_dispatch:
 
 permissions:
   contents: write
 
+env:
+  TAG: ${{ github.ref_name }}
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
+  create:
+    name: create draft
+    runs-on: ubuntu-24.04
+    outputs:
+      release-id: ${{ steps.release.outputs.id }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Tag matches the app version
+        run: |
+          version="${TAG#v}"
+          base="${version%%-*}"
+          for found in \
+            "$(jq -r .version apps/desktop/package.json)" \
+            "$(jq -r .version apps/desktop/src-tauri/tauri.conf.json)" \
+            "$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)"; do
+            if [ "$found" != "$base" ]; then
+              echo "::error::tag $TAG does not match version $found"
+              exit 1
+            fi
+          done
+
+      - name: Release notes from CHANGELOG.md
+        run: |
+          version="${TAG#v}"
+          base="${version%%-*}"
+          # The section between "## <version>" and the next "## " heading.
+          awk -v v="$base" '$0 == "## " v {on=1; next} /^## / {on=0} on' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "::error::CHANGELOG.md has no section '## $base'"
+            exit 1
+          fi
+          cat >> notes.md <<'EOF'
+
+          ### Downloads
+
+          | | |
+          |---|---|
+          | Windows | `Screenbook_*_x64-setup.exe` (or the `.msi`) |
+          | macOS | `Screenbook_*_aarch64.dmg` (Apple silicon) or `Screenbook_*_x64.dmg` (Intel) |
+          | Linux | `.AppImage`, `.deb` or `.rpm` (Ubuntu 24.04, Debian 13 or newer) |
+
+          The downloads are not signed, so the first start asks once:
+
+          - **Windows:** "Windows protected your PC" → *More info* → *Run anyway*.
+          - **macOS:** right-click the app → *Open*, or *System Settings → Privacy & Security →
+            Open Anyway*. Then allow *Screen Recording* for Screenbook.
+
+          Check a download against `SHA256SUMS.txt`, e.g. `sha256sum -c SHA256SUMS.txt --ignore-missing`.
+          EOF
+
+      - name: Create the draft
+        id: release
+        run: |
+          prerelease=""
+          case "$TAG" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "$TAG" --draft $prerelease --title "Screenbook $TAG" --notes-file notes.md
+          # Drafts are not found by tag, so the builds attach to the id.
+          id=$(gh api "repos/${{ github.repository }}/releases" --jq ".[] | select(.tag_name == \"$TAG\") | .id" | head -n1)
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
   build:
     name: ${{ matrix.name }}
+    needs: create
     strategy:
       fail-fast: false
       matrix:
@@ -46,6 +112,8 @@ jobs:
         with:
           targets: ${{ runner.os == 'macOS' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
       - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.name }}
 
       - uses: actions/setup-node@v7
         with:
@@ -58,11 +126,18 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: apps/desktop
-          tagName: ${{ github.ref_name }}
-          releaseName: Screenbook ${{ github.ref_name }}
-          releaseBody: |
-            Unsigned builds. On first start:
-            - Windows: "Windows protected your PC" → More info → Run anyway
-            - macOS: right-click the app → Open
-          releaseDraft: true
+          releaseId: ${{ needs.create.outputs.release-id }}
           args: ${{ matrix.args }}
+
+  checksums:
+    name: checksums
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: SHA256SUMS.txt for all downloads
+        run: |
+          mkdir dist && cd dist
+          gh release download "$TAG" --repo "${{ github.repository }}"
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          gh release upload "$TAG" SHA256SUMS.txt --repo "${{ github.repository }}" --clobber

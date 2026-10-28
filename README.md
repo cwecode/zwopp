@@ -4,9 +4,9 @@ A lean, open-source screenshot tool for **Windows, macOS and Linux**: select a r
 the screenshot lands in a **library**, and an **editor** lets you add arrows, callouts,
 highlights, step numbers, emojis and more.
 
-> **Status: Phase 2.** Capture, library, the full editor and the settings work; the library
-> stays fast with 100 000 screenshots. Next: the first release (v1.0).
-> See the [project plan](docs/PLAN.md) (German) and the [feature list](docs/spec/features.md).
+> **Version 1.0.** Capture, library, the full editor and the settings; the library stays
+> fast with 100 000 screenshots. See the [user guide](docs/user-guide.md), the
+> [feature list](docs/spec/features.md) and the [project plan](docs/PLAN.md) (German).
 
 ## Features (current)
 
@@ -64,13 +64,19 @@ highlights, step numbers, emojis and more.
 
 ## Install
 
-Pre-built downloads (unsigned) will be published on the
-[Releases](../../releases) page starting with the first tagged version.
+Download the installer for your system from the [Releases](../../releases) page. The
+downloads are not signed, so the first start asks once:
 
-- **Windows:** SmartScreen shows "Windows protected your PC" → *More info* → *Run anyway*.
-- **macOS:** right-click the app → *Open*, or *System Settings → Privacy & Security → Open Anyway*.
-- **Linux:** AppImage or `.deb`, no extra steps. Needs Ubuntu 24.04, Debian 13 or a
+- **Windows** (`…_x64-setup.exe` or `.msi`): SmartScreen shows "Windows protected your PC" →
+  *More info* → *Run anyway*.
+- **macOS** (`…_aarch64.dmg` for Apple silicon, `…_x64.dmg` for Intel): right-click the app →
+  *Open*, or *System Settings → Privacy & Security → Open Anyway*.
+- **Linux** (AppImage, `.deb` or `.rpm`): no extra steps. Needs Ubuntu 24.04, Debian 13 or a
   similarly recent distribution (PipeWire ≥ 1.0).
+
+Each release lists SHA-256 checksums in `SHA256SUMS.txt`. The [user guide](docs/user-guide.md)
+explains everything from the first capture to the settings; [CHANGELOG.md](CHANGELOG.md) lists
+what changed.
 
 ## Run from source
 

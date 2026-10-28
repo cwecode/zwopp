@@ -325,7 +325,7 @@ eine Datenbank‑Tabelle; nichts blockiert die Oberfläche.
 
 | Frage | Stand |
 |---|---|
-| **Name** – „Screenbook“ ok? | ⬜ offen: Marken‑/Domain‑Check vor dem ersten öffentlichen Release |
+| **Name** – „Screenbook“ ok? | ⬜ Websuche (Okt. 2026) ohne gleichnamige Software; Prüfung der Markenregister (DPMA, EUIPO, USPTO) steht vor dem öffentlichen Release noch aus |
 | **Lizenz** | ✅ MIT oder Apache‑2.0 nach Wahl |
 | **Frontend** | ✅ React |
 | **Neubau vs. Beitrag zu ksnip** | ✅ Neubau |
@@ -337,6 +337,6 @@ eine Datenbank‑Tabelle; nichts blockiert die Oberfläche.
 
 ## 7. Nächste Schritte
 
-1. Phase 2 planen und umsetzen (Editor komplett, siehe Roadmap und `docs/spec/features.md`).
-2. Die UI‑Budgets auf dem CI‑Runner im Blick behalten (ADR 0004).
-3. Vor v1.0: Namens‑Check, Repository öffentlich, Release‑Workflow mit einem Test‑Tag ausprobieren.
+1. Release‑Workflow mit einem Test‑Tag (`v1.0.0-rc.1`) ausprobieren, Downloads auf allen OS starten.
+2. Markenregister prüfen, Repository öffentlich machen, Tag `v1.0.0` setzen, Entwurf veröffentlichen.
+3. Die UI‑Budgets auf dem CI‑Runner im Blick behalten (ADR 0004).

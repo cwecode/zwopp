@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Source of all app icons: `npx tauri icon icons/icon.svg` (in apps/desktop). -->
+  <rect x="32" y="32" width="960" height="960" rx="216" fill="#1d1d1b"/>
+  <!-- Selection corners -->
+  <g fill="none" stroke="#e5322d" stroke-width="64" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M190 340 V190 H340"/>
+    <path d="M684 190 H834 V340"/>
+    <path d="M834 684 V834 H684"/>
+    <path d="M340 834 H190 V684"/>
+  </g>
+  <!-- Open book -->
+  <path d="M512 372 C452 330 372 316 300 324 V676 C372 668 452 682 512 724 Z" fill="#ffffff"/>
+  <path d="M512 372 C572 330 652 316 724 324 V676 C652 668 572 682 512 724 Z" fill="#d9d9d4"/>
+</svg>
