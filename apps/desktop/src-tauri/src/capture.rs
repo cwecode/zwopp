@@ -1,5 +1,8 @@
 //! Region capture: freeze all monitors, show one selection overlay per monitor,
 //! then cut the selected region out of the frozen frames (also across monitors).
+//!
+//! The overlay windows are created once and only hidden between captures, so
+//! a capture does not wait for webviews to start and load the UI.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -11,9 +14,11 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 
-use crate::AppState;
+use crate::{AppState, platform};
 
 pub const OVERLAY_PREFIX: &str = "overlay-";
+/// Tells the (already loaded) overlays that a new capture is ready.
+const START_EVENT: &str = "capture:start";
 
 /// A frozen monitor image and its top-left corner in desktop pixels.
 pub struct Frozen {
@@ -25,9 +30,12 @@ pub struct Frozen {
 /// An ongoing capture. `frames[i]` belongs to the window `overlay-{i}`.
 pub struct Session {
     pub frames: Vec<Frozen>,
+    /// `frames` as PNG for the overlays, encoded right after the freeze.
+    pub previews: Vec<Arc<Vec<u8>>>,
     /// Visible windows at the moment of the capture, topmost first.
     windows: Vec<DesktopRect>,
-    main_was_visible: bool,
+    /// The main window was hidden for the capture and comes back afterwards.
+    main_hidden: bool,
 }
 
 /// Where the monitors and windows were, for the overlays (desktop pixels).
@@ -55,21 +63,30 @@ pub async fn start(app: &AppHandle, delay: Duration) -> Result<(), String> {
         return Ok(());
     }
 
-    // Keep our own window out of the screenshot. The hide animation is disabled
-    // (see `platform`); the pause only lets the compositor repaint the desktop.
-    let main = app.get_webview_window("main");
-    let main_was_visible = main
-        .as_ref()
-        .is_some_and(|w| w.is_visible().unwrap_or(false));
-    if let Some(main) = main.filter(|_| main_was_visible) {
+    // Keep our own window out of the screenshot. Where the OS can leave it out
+    // of captures, it stays open (and awake for the editor) for that moment;
+    // otherwise, and with a delay to clear the view, it hides. The hide
+    // animation is disabled (see `platform`); the pauses let the compositor
+    // apply the change before the freeze.
+    let main = app
+        .get_webview_window("main")
+        .filter(|w| w.is_visible().unwrap_or(false));
+    let excluded = delay.is_zero()
+        && main
+            .as_ref()
+            .is_some_and(|w| platform::exclude_from_capture(w, true));
+    let main_hidden = main.is_some() && !excluded;
+    if let Some(main) = main.as_ref().filter(|_| main_hidden) {
         main.hide().map_err(err)?;
     }
-    let repaint = if main_was_visible {
+    let settle = if main_hidden {
         Duration::from_millis(200)
+    } else if excluded {
+        Duration::from_millis(50)
     } else {
         Duration::ZERO
     };
-    pause(delay.max(repaint)).await;
+    pause(delay.max(settle)).await;
 
     let monitors = app.available_monitors().map_err(err)?;
     let frames = monitors
@@ -83,34 +100,66 @@ pub async fn start(app: &AppHandle, delay: Duration) -> Result<(), String> {
                 y: position.y,
             })
         })
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(err)?;
+        .collect::<Result<Vec<_>, _>>();
+    // Visible to screen sharing and other tools again.
+    if let Some(main) = main.as_ref().filter(|_| excluded) {
+        platform::exclude_from_capture(main, false);
+    }
+    let frames = frames.map_err(err)?;
     let windows = capture::windows(std::process::id());
+    // All monitors at once: the overlays ask for these first.
+    let previews = std::thread::scope(|scope| {
+        let jobs: Vec<_> = frames
+            .iter()
+            .map(|frame| scope.spawn(|| capture::preview_png(&frame.image)))
+            .collect();
+        jobs.into_iter()
+            .map(|job| job.join().expect("preview encoder panicked").map(Arc::new))
+            .collect::<Result<Vec<_>, _>>()
+    })
+    .map_err(err)?;
 
     *state.session.lock().unwrap() = Some(Session {
         frames,
+        previews,
         windows,
-        main_was_visible,
+        main_hidden,
     });
 
+    prepare_overlays(app, &monitors)?;
+    // Hidden overlays load the new frame and show themselves once it is painted.
+    app.emit(START_EVENT, ()).map_err(err)
+}
+
+/// Makes sure there is one hidden overlay window per monitor, placed on it.
+/// Called at startup too, so even the first capture finds them loaded.
+pub fn prepare_overlays(app: &AppHandle, monitors: &[tauri::Monitor]) -> Result<(), String> {
     for (index, monitor) in monitors.iter().enumerate() {
-        // Created hidden; the overlay shows itself once the frozen frame is painted.
-        let window = WebviewWindowBuilder::new(
-            app,
-            format!("{OVERLAY_PREFIX}{index}"),
-            WebviewUrl::default(),
-        )
-        .title("Screenbook")
-        .decorations(false)
-        .resizable(false)
-        .always_on_top(true)
-        .skip_taskbar(true)
-        .shadow(false)
-        .visible(false)
-        .build()
-        .map_err(err)?;
+        let label = format!("{OVERLAY_PREFIX}{index}");
+        let window = match app.get_webview_window(&label) {
+            Some(window) => window,
+            None => WebviewWindowBuilder::new(app, label, WebviewUrl::default())
+                .title("Screenbook")
+                .decorations(false)
+                .resizable(false)
+                .always_on_top(true)
+                .skip_taskbar(true)
+                .shadow(false)
+                .visible(false)
+                .build()
+                .map_err(err)?,
+        };
         window.set_position(*monitor.position()).map_err(err)?;
         window.set_size(*monitor.size()).map_err(err)?;
+    }
+    // Monitors that were unplugged.
+    for (label, window) in app.webview_windows() {
+        let index = label
+            .strip_prefix(OVERLAY_PREFIX)
+            .and_then(|i| i.parse::<usize>().ok());
+        if index.is_some_and(|i| i >= monitors.len()) {
+            let _ = window.destroy();
+        }
     }
     Ok(())
 }
@@ -157,23 +206,6 @@ pub fn layout(app: &AppHandle) -> Result<Layout, String> {
     })
 }
 
-/// Encodes a frozen frame as PNG for the overlay. Speed matters more than size here.
-pub fn preview_png(image: &RgbaImage) -> Result<Vec<u8>, String> {
-    use image::ImageEncoder;
-    use image::codecs::png::{CompressionType, FilterType, PngEncoder};
-
-    let mut png = Vec::new();
-    PngEncoder::new_with_quality(&mut png, CompressionType::Fast, FilterType::NoFilter)
-        .write_image(
-            image.as_raw(),
-            image.width(),
-            image.height(),
-            image::ExtendedColorType::Rgba8,
-        )
-        .map_err(err)?;
-    Ok(png)
-}
-
 /// Saves the selected region (desktop pixels, may span monitors) to the
 /// library and copies it to the clipboard.
 pub fn complete(app: &AppHandle, rect: DesktopRect) -> Result<LibraryItem, String> {
@@ -192,28 +224,32 @@ pub fn complete(app: &AppHandle, rect: DesktopRect) -> Result<LibraryItem, Strin
             .collect();
         capture::compose(&frames, rect).map_err(err)?
     };
-    let item = state.library.add(&image).map_err(err)?;
-
-    let clip = tauri::image::Image::new(image.as_raw(), image.width(), image.height());
-    if let Err(e) = app.clipboard().write_image(&clip) {
-        eprintln!("could not copy to clipboard: {e}");
-    }
-
+    // The overlays go first, so the screen answers the click at once.
     finish(app);
+    let item = state.library.add(&image).map_err(err)?;
     crate::show_main(app);
     let _ = app.emit("library:changed", &item);
+
+    // Nobody waits for the clipboard; converting a large image takes a moment.
+    let clipboard = app.clone();
+    std::thread::spawn(move || {
+        let clip = tauri::image::Image::new(image.as_raw(), image.width(), image.height());
+        if let Err(e) = clipboard.clipboard().write_image(&clip) {
+            eprintln!("could not copy to clipboard: {e}");
+        }
+    });
     Ok(item)
 }
 
-/// Ends the session and closes all overlays.
+/// Ends the session and hides the overlays for the next capture.
 pub fn finish(app: &AppHandle) {
     let session = app.state::<AppState>().session.lock().unwrap().take();
     for (label, window) in app.webview_windows() {
         if label.starts_with(OVERLAY_PREFIX) {
-            let _ = window.destroy();
+            let _ = window.hide();
         }
     }
-    if session.is_some_and(|s| s.main_was_visible) {
+    if session.is_some_and(|s| s.main_hidden) {
         crate::show_main(app);
     }
 }

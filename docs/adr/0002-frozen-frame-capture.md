@@ -44,3 +44,23 @@ center point; on macOS the point is converted from physical pixels to points.
   whole monitor.
 - **Delay** (3/5/10 s): our window hides at once, the freeze follows after the delay.
 - **Magnifier**: 15 × 15 pixels around the cursor at 8×, with position and colour.
+## Update 2026-10-28: speed
+
+A capture in `npm run dev` took 1–2 s until the overlay appeared and about 1 s from the
+click to the editor. Measured causes and fixes:
+
+- **Unoptimized dependencies** in dev builds: PNG/WebP encoding and screen capture were
+  10–70× slower than in release. Dependencies and `screenbook-core` are now built with
+  `opt-level = 3` in dev too (`Cargo.toml`); the app crate stays unoptimized for fast rebuilds.
+- **New overlay windows per capture**: starting a webview and loading the UI took ~1 s.
+  The overlays are created once (at startup) and only hidden between captures; the backend
+  emits `capture:start` and they load the new frame.
+- **Previews** are PNG-encoded once, right after the freeze and in parallel for all monitors.
+- **The hidden main window** is throttled by WebView2 and took ~1 s to open the editor.
+  On Windows it now stays visible: for the moment of the freeze it is excluded from
+  captures (`SetWindowDisplayAffinity`), then shown to screen sharing again. Elsewhere, and
+  with a delay, it is still hidden.
+- The clipboard copy runs after the editor opens.
+
+Result (debug build, 3440×1440 + 1920×1080): hotkey → overlays have their frames 0.23 s
+(was 1.1–1.6 s), click → editor loads the screenshot 0.22 s (was 0.96 s).

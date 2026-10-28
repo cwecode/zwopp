@@ -15,6 +15,8 @@ const CLICK_THRESHOLD = 4;
 const LOUPE_PIXELS = 15;
 const ZOOM = 8;
 /** Every overlay draws the selection and the hovered target, whichever overlay has the mouse. */
+/** Sent by the backend when a new capture is ready (see capture.rs). */
+const START_EVENT = "capture:start";
 const SELECTION_EVENT = "capture:selection";
 const TARGET_EVENT = "capture:target";
 
@@ -55,16 +57,30 @@ export function Overlay({ index }: { index: number }) {
   const sampler = useRef<CanvasRenderingContext2D | null>(null);
   const busy = useRef(false);
 
+  // The window lives on between captures (hidden); every capture starts here.
   useEffect(() => {
     let url: string | undefined;
-    Promise.all([overlayFrame(index), captureLayout()])
-      .then(([bytes, layout]) => {
-        url = URL.createObjectURL(new Blob([bytes], { type: "image/png" }));
-        setLayout(layout);
-        setSrc(url);
-      })
-      .catch(() => cancelCapture());
+    const load = (initial: boolean) => {
+      drag.current = null;
+      busy.current = false;
+      setSelection(null);
+      setTarget(null);
+      setPointer(null);
+      Promise.all([overlayFrame(index), captureLayout()])
+        .then(([bytes, layout]) => {
+          if (url) URL.revokeObjectURL(url);
+          url = URL.createObjectURL(new Blob([bytes], { type: "image/png" }));
+          setLayout(layout);
+          setSrc(url);
+        })
+        // Created at startup there is no capture yet; that is fine.
+        .catch(() => {
+          if (!initial) void cancelCapture();
+        });
+    };
+    load(true);
     const unlisten = Promise.all([
+      listen(START_EVENT, () => load(false)),
       listen<Rect | null>(SELECTION_EVENT, (e) => setSelection(e.payload)),
       listen<Rect | null>(TARGET_EVENT, (e) => setTarget(e.payload)),
     ]);
@@ -209,7 +225,8 @@ export function Overlay({ index }: { index: number }) {
       onPointerLeave={() => setPointer(null)}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {src && <img ref={image} src={src} onLoad={onLoad} className="overlay-frame" draggable={false} />}
+      {/* A new element per frame, so `onLoad` (which shows the window) fires for each capture. */}
+      {src && <img key={src} ref={image} src={src} onLoad={onLoad} className="overlay-frame" draggable={false} />}
       {/* The dimming is the highlight's shadow, which only reaches this monitor if the highlight touches it. */}
       {selection ? (
         onThisMonitor(selection) ? (

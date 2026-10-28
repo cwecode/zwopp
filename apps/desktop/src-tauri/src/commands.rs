@@ -53,17 +53,17 @@ pub async fn capture_layout(app: AppHandle) -> CmdResult<capture::Layout> {
     capture::layout(&app)
 }
 
-/// The frozen frame for overlay `index`, as PNG bytes.
+/// The frozen frame for overlay `index`, as PNG bytes (encoded at the freeze).
 #[tauri::command]
 pub async fn overlay_frame(state: State<'_, AppState>, index: usize) -> CmdResult<Response> {
-    let frame = state
+    let png = state
         .session
         .lock()
         .unwrap()
         .as_ref()
-        .and_then(|session| session.frames.get(index).map(|frame| frame.image.clone()))
+        .and_then(|session| session.previews.get(index).cloned())
         .ok_or("no capture in progress")?;
-    Ok(Response::new(capture::preview_png(&frame)?))
+    Ok(Response::new(png.as_ref().clone()))
 }
 
 /// Saves the selected region; `rect` is in desktop pixels and may span monitors.

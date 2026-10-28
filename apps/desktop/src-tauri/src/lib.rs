@@ -100,16 +100,21 @@ pub fn run() {
             let capture_shortcut = register_capture_shortcut(app.handle());
             let library = Arc::new(Library::open_index(root)?);
             maintain_library(app.handle().clone(), library.clone());
+            if let Some(main) = app.get_webview_window("main") {
+                platform::disable_hide_animation(&main);
+            }
             app.manage(AppState {
                 library,
                 session: Mutex::default(),
                 capture_shortcut,
                 export_dir: Mutex::default(),
             });
-            if let Some(main) = app.get_webview_window("main") {
-                platform::disable_hide_animation(&main);
-            }
             tray::create(app.handle(), capture_shortcut)?;
+            // Loaded now, so the first capture does not wait for webviews to start.
+            let monitors = app.available_monitors()?;
+            if let Err(e) = capture::prepare_overlays(app.handle(), &monitors) {
+                eprintln!("could not prepare the capture overlays: {e}");
+            }
             Ok(())
         })
         .on_window_event(|window, event| {

@@ -204,6 +204,23 @@ pub fn windows(exclude_pid: u32) -> Vec<DesktopRect> {
         .collect()
 }
 
+/// Encodes a frozen frame as PNG for the selection overlay. Speed matters
+/// more than size: it only travels to the webview on the same machine.
+pub fn preview_png(image: &RgbaImage) -> Result<Vec<u8>> {
+    use image::ImageEncoder;
+    use image::codecs::png::{CompressionType, FilterType, PngEncoder};
+
+    let mut png = Vec::new();
+    PngEncoder::new_with_quality(&mut png, CompressionType::Fast, FilterType::NoFilter)
+        .write_image(
+            image.as_raw(),
+            image.width(),
+            image.height(),
+            image::ExtendedColorType::Rgba8,
+        )?;
+    Ok(png)
+}
+
 /// Cuts `rect` out of `image`, clamped to the image bounds.
 pub fn crop(image: &RgbaImage, rect: Rect) -> Result<RgbaImage> {
     let x = rect.x.min(image.width());

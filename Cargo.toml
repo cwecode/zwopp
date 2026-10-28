@@ -9,6 +9,16 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/cwecode/screenbook"
 rust-version = "1.90"
 
+# Dependencies are optimized in dev builds too: image encoding and screen
+# capture are 10-70x slower unoptimized (a capture took seconds in `npm run dev`).
+# The core as well: the encoders are generic and get compiled where they are
+# used. The desktop app crate stays at opt-level 0, so it rebuilds fast.
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.dev.package.screenbook-core]
+opt-level = 3
+
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]
 codegen-units = 1
