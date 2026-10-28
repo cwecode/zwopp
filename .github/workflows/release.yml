@@ -69,11 +69,17 @@ jobs:
       - name: Create the draft
         id: release
         run: |
-          prerelease=""
-          case "$TAG" in *-*) prerelease="--prerelease" ;; esac
-          gh release create "$TAG" --draft $prerelease --title "Screenbook $TAG" --notes-file notes.md
-          # Drafts are not found by tag, so the builds attach to the id.
-          id=$(gh api "repos/${{ github.repository }}/releases" --jq ".[] | select(.tag_name == \"$TAG\") | .id" | head -n1)
+          prerelease=false
+          case "$TAG" in *-*) prerelease=true ;; esac
+          # Drafts are not found by tag (and a fresh one not even in the
+          # release list yet), so the builds attach to the id it returns.
+          id=$(gh api "repos/${{ github.repository }}/releases" \
+            -f tag_name="$TAG" -f name="Screenbook $TAG" -F body=@notes.md \
+            -F draft=true -F prerelease="$prerelease" --jq .id)
+          if [ -z "$id" ]; then
+            echo "::error::could not create the draft release"
+            exit 1
+          fi
           echo "id=$id" >> "$GITHUB_OUTPUT"
 
   build:
