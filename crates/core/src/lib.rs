@@ -7,6 +7,7 @@ pub mod capture;
 pub mod error;
 pub mod export;
 pub mod library;
+pub mod settings;
 #[doc(hidden)]
 pub mod testing;
 

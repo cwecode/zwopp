@@ -10,6 +10,7 @@ use std::time::Duration;
 use screenbook_core::capture::DesktopRect;
 use screenbook_core::export::{self, ExportFormat};
 use screenbook_core::library::{ItemUpdate, Library, LibraryItem, ListQuery};
+use screenbook_core::settings::Settings;
 use serde::Serialize;
 use tauri::ipc::{InvokeBody, Request, Response};
 use tauri::{AppHandle, Manager, State};
@@ -17,7 +18,7 @@ use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::DialogExt;
 use uuid::Uuid;
 
-use crate::{AppState, capture, tray};
+use crate::{AppState, capture, settings, tray};
 
 type CmdResult<T> = Result<T, String>;
 
@@ -79,8 +80,88 @@ pub async fn cancel_capture(app: AppHandle) {
 
 /// The registered capture hotkey (e.g. `CommandOrControl+Shift+X`), if any.
 #[tauri::command]
-pub fn capture_shortcut(state: State<'_, AppState>) -> Option<&'static str> {
-    state.capture_shortcut
+pub fn capture_shortcut(state: State<'_, AppState>) -> Option<String> {
+    state.capture_shortcut.lock().unwrap().clone()
+}
+
+#[tauri::command]
+pub fn get_settings(app: AppHandle) -> CmdResult<settings::SettingsInfo> {
+    settings::info(&app).map_err(err)
+}
+
+/// Applies and stores the settings. Fails, keeping the old hotkey, if the new
+/// one is taken.
+#[tauri::command]
+pub async fn save_settings(
+    app: AppHandle,
+    settings: Settings,
+) -> CmdResult<settings::SettingsInfo> {
+    settings::save(&app, settings)
+}
+
+/// Asks for a folder, starting in `start`; `None` if cancelled.
+#[tauri::command]
+pub async fn pick_folder(
+    app: AppHandle,
+    title: String,
+    start: Option<PathBuf>,
+) -> CmdResult<Option<PathBuf>> {
+    let mut dialog = app.dialog().file().set_title(title);
+    if let Some(start) = start {
+        dialog = dialog.set_directory(start);
+    }
+    let chosen = tauri::async_runtime::spawn_blocking(move || dialog.blocking_pick_folder())
+        .await
+        .map_err(err)?;
+    Ok(chosen.and_then(|p| p.into_path().ok()))
+}
+
+/// Asks where to save a JSON file named `name` and writes `contents` there.
+/// Returns the path, or `None` if cancelled.
+#[tauri::command]
+pub async fn save_text_file(
+    app: AppHandle,
+    title: String,
+    name: String,
+    contents: String,
+) -> CmdResult<Option<String>> {
+    let dialog = app
+        .dialog()
+        .file()
+        .set_title(title)
+        .set_file_name(name)
+        .add_filter("JSON", &["json"]);
+    let chosen = tauri::async_runtime::spawn_blocking(move || dialog.blocking_save_file())
+        .await
+        .map_err(err)?;
+    let Some(path) = chosen.and_then(|p| p.into_path().ok()) else {
+        return Ok(None);
+    };
+    std::fs::write(&path, contents).map_err(err)?;
+    Ok(Some(path.to_string_lossy().into_owned()))
+}
+
+/// Asks for a JSON file and returns its contents, or `None` if cancelled.
+#[tauri::command]
+pub async fn open_text_file(app: AppHandle, title: String) -> CmdResult<Option<String>> {
+    let dialog = app
+        .dialog()
+        .file()
+        .set_title(title)
+        .add_filter("JSON", &["json"]);
+    let chosen = tauri::async_runtime::spawn_blocking(move || dialog.blocking_pick_file())
+        .await
+        .map_err(err)?;
+    let Some(path) = chosen.and_then(|p| p.into_path().ok()) else {
+        return Ok(None);
+    };
+    std::fs::read_to_string(path).map(Some).map_err(err)
+}
+
+/// Restarts the app, e.g. to open another library folder.
+#[tauri::command]
+pub fn restart(app: AppHandle) {
+    app.restart();
 }
 
 /// The UI language ("de", "en") as the web UI picked it, for the tray menu.

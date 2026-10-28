@@ -96,6 +96,22 @@ export interface ToolStyle {
   round?: boolean;
 }
 
+/** Each tool's style until the user changes it. */
+export const DEFAULT_STYLES: Record<Tool, ToolStyle> = {
+  select: { color: COLORS[0], size: 1 },
+  arrow: { color: COLORS[0], size: 1, heads: { start: "none", end: "filled" } },
+  line: { color: COLORS[0], size: 1, heads: { start: "none", end: "none" } },
+  rect: { color: COLORS[0], size: 1, filled: false },
+  ellipse: { color: COLORS[0], size: 1, filled: false },
+  text: { color: COLORS[0], size: 1, font: "sans", background: false },
+  callout: { color: COLORS[4], size: 1, font: "sans" },
+  step: { color: COLORS[0], size: 1 },
+  emoji: { color: COLORS[0], size: 1, emoji: EMOJIS[0] },
+  magnify: { color: COLORS[0], size: 0, round: false },
+  highlight: { color: HIGHLIGHT_COLOR, size: 1 },
+  blur: { color: COLORS[0], size: 1 },
+};
+
 /** The tool whose style a shape follows: a line without heads is a "line". */
 export function toolOf(shape: Shape): Tool | null {
   switch (shape.type) {

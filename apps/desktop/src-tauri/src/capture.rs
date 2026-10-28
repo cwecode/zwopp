@@ -207,7 +207,8 @@ pub fn layout(app: &AppHandle) -> Result<Layout, String> {
 }
 
 /// Saves the selected region (desktop pixels, may span monitors) to the
-/// library and copies it to the clipboard.
+/// library and, as set in the settings, opens it in the editor and copies
+/// it to the clipboard.
 pub fn complete(app: &AppHandle, rect: DesktopRect) -> Result<LibraryItem, String> {
     let state = app.state::<AppState>();
     let image = {
@@ -227,8 +228,18 @@ pub fn complete(app: &AppHandle, rect: DesktopRect) -> Result<LibraryItem, Strin
     // The overlays go first, so the screen answers the click at once.
     finish(app);
     let item = state.library.add(&image).map_err(err)?;
-    crate::show_main(app);
+    let (edit, copy) = {
+        let settings = state.settings.lock().unwrap();
+        (settings.edit_after_capture, settings.copy_after_capture)
+    };
     let _ = app.emit("library:changed", &item);
+    if edit {
+        crate::show_main(app);
+        let _ = app.emit_to("main", "capture:edit", &item);
+    }
+    if !copy {
+        return Ok(item);
+    }
 
     // Nobody waits for the clipboard; converting a large image takes a moment.
     let clipboard = app.clone();

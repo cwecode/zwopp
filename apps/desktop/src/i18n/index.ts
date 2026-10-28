@@ -18,9 +18,17 @@ export function detectLanguage(preferred: readonly string[]): Language {
   return "en";
 }
 
+/** The language for a setting ("de", "en", or null for the system's). */
+export function resolveLanguage(setting: string | null, preferred: readonly string[]): Language {
+  return setting && setting in MESSAGES ? (setting as Language) : detectLanguage(preferred);
+}
+
 // Unit tests run in Node, without a document.
 const inBrowser = typeof document !== "undefined";
-let language = inBrowser ? detectLanguage(navigator.languages.length ? navigator.languages : [navigator.language]) : "de";
+/** The system's preferred languages, most preferred first. */
+export const systemLanguages = (): readonly string[] =>
+  inBrowser ? (navigator.languages.length ? navigator.languages : [navigator.language]) : [];
+let language = inBrowser ? detectLanguage(systemLanguages()) : "de";
 const listeners = new Set<() => void>();
 if (inBrowser) document.documentElement.lang = language;
 

@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use tauri::menu::{Menu, MenuItem, Submenu};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager, Wry};
+use tauri::{AppHandle, Emitter, Manager, Wry};
 
 use crate::{capture, show_main};
 
@@ -15,6 +15,7 @@ pub struct TrayMenu {
     delayed: Submenu<Wry>,
     delays: Vec<MenuItem<Wry>>,
     library: MenuItem<Wry>,
+    settings: MenuItem<Wry>,
     quit: MenuItem<Wry>,
 }
 
@@ -24,6 +25,7 @@ struct Texts {
     delayed: &'static str,
     seconds: fn(u64) -> String,
     library: &'static str,
+    settings: &'static str,
     quit: &'static str,
 }
 
@@ -35,6 +37,7 @@ fn texts(language: &str) -> Texts {
             delayed: "Verzögert aufnehmen",
             seconds: |s| format!("In {s} Sekunden"),
             library: "Bibliothek öffnen",
+            settings: "Einstellungen",
             quit: "Beenden",
         },
         _ => Texts {
@@ -42,6 +45,7 @@ fn texts(language: &str) -> Texts {
             delayed: "Take screenshot with delay",
             seconds: |s| format!("In {s} seconds"),
             library: "Open library",
+            settings: "Settings",
             quit: "Quit",
         },
     }
@@ -67,8 +71,9 @@ pub fn create(app: &AppHandle, capture_shortcut: Option<&str>) -> tauri::Result<
         delays.iter().map(|item| item as _).collect();
     let delayed = Submenu::with_items(app, text.delayed, true, &delay_refs)?;
     let library = MenuItem::with_id(app, "library", text.library, true, None::<&str>)?;
+    let settings = MenuItem::with_id(app, "settings", text.settings, true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", text.quit, true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&capture, &delayed, &library, &quit])?;
+    let menu = Menu::with_items(app, &[&capture, &delayed, &library, &settings, &quit])?;
 
     let mut tray = TrayIconBuilder::with_id("main")
         .tooltip("Screenbook")
@@ -77,6 +82,10 @@ pub fn create(app: &AppHandle, capture_shortcut: Option<&str>) -> tauri::Result<
         .on_menu_event(|app, event| match event.id.as_ref() {
             "capture" => capture::start_in_background(app.clone(), Duration::ZERO),
             "library" => show_main(app),
+            "settings" => {
+                show_main(app);
+                let _ = app.emit_to("main", "app:settings", ());
+            }
             "quit" => app.exit(0),
             id => {
                 if let Some(seconds) = id.strip_prefix("delay-").and_then(|s| s.parse().ok()) {
@@ -103,6 +112,7 @@ pub fn create(app: &AppHandle, capture_shortcut: Option<&str>) -> tauri::Result<
         delayed,
         delays,
         library,
+        settings,
         quit,
     });
     Ok(())
@@ -117,5 +127,11 @@ pub fn set_language(menu: &TrayMenu, language: &str) -> tauri::Result<()> {
         item.set_text((text.seconds)(seconds))?;
     }
     menu.library.set_text(text.library)?;
+    menu.settings.set_text(text.settings)?;
     menu.quit.set_text(text.quit)
+}
+
+/// Shows the capture hotkey next to the capture entry.
+pub fn set_shortcut(menu: &TrayMenu, accelerator: Option<&str>) -> tauri::Result<()> {
+    menu.capture.set_accelerator(accelerator)
 }

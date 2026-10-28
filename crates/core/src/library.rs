@@ -152,6 +152,11 @@ impl Library {
         })
     }
 
+    /// The library folder.
+    pub fn root(&self) -> &Path {
+        self.items_dir.parent().unwrap_or(&self.items_dir)
+    }
+
     /// Stores a new screenshot and returns its metadata.
     pub fn add(&self, image: &RgbaImage) -> Result<LibraryItem> {
         let now = Utc::now();

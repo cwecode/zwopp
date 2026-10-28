@@ -46,7 +46,7 @@ const parseTags = (text: string) =>
     .map((t) => t.trim())
     .filter(Boolean);
 
-export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
+export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): void; onSettings(): void }) {
   const t = useT();
   const [search, setSearch] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
@@ -75,9 +75,13 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
     return () => window.clearTimeout(timer);
   }, [search, favoritesOnly]);
 
-  // The background index sync and thumbnail generation can change the list.
+  // The background index sync, thumbnail generation and new captures change the list.
   useEffect(() => {
-    const unlisten = Promise.all([listen("library:indexed", refresh), listen("library:thumbnails", refresh)]);
+    const unlisten = Promise.all([
+      listen("library:indexed", refresh),
+      listen("library:thumbnails", refresh),
+      listen("library:changed", refresh),
+    ]);
     return () => void unlisten.then((fns) => fns.forEach((fn) => fn()));
   }, []);
 
@@ -248,6 +252,9 @@ export function Library({ onOpen }: { onOpen(item: LibraryItem): void }) {
           ))}
         </select>
         {shortcut && <kbd>{shortcut}</kbd>}
+        <button className="tool" onClick={onSettings} title={t.library.settings} aria-label={t.library.settings}>
+          ⚙
+        </button>
       </header>
 
       {message && (

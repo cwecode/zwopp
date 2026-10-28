@@ -74,6 +74,20 @@ export function tauriMock({ items, latencyMs }: MockOptions) {
   const commands: Record<string, (args: Args) => unknown> = {
     capture_shortcut: () => "CommandOrControl+Shift+X",
     set_language: () => null,
+    get_settings: () => ({
+      settings: {
+        language: null,
+        captureHotkey: null,
+        libraryDir: null,
+        copyAfterCapture: true,
+        editAfterCapture: true,
+        editor: {},
+      },
+      libraryDir: "/library",
+      defaultLibraryDir: "/library",
+      libraryDirFromEnv: false,
+      captureShortcut: "CommandOrControl+Shift+X",
+    }),
     list_tags: () => TAGS,
     count_items: ({ query }) => total(filter(query)),
     list_items: ({ query, offset, limit }) => {

@@ -37,6 +37,41 @@ export interface Rect {
 /** Tells the backend the UI language, for the tray menu. */
 export const setLanguage = (language: string) => invoke<void>("set_language", { language });
 
+/** The user settings (`screenbook_core::settings::Settings`). */
+export interface Settings {
+  /** "de" or "en"; null follows the system. */
+  language: string | null;
+  /** Tauri accelerator, e.g. "CommandOrControl+Shift+X"; null = first free default. */
+  captureHotkey: string | null;
+  /** null = the default folder. */
+  libraryDir: string | null;
+  copyAfterCapture: boolean;
+  editAfterCapture: boolean;
+  /** Owned by the editor (see `editor/quickStyles.ts`). */
+  editor: Record<string, unknown>;
+}
+
+export interface SettingsInfo {
+  settings: Settings;
+  /** The library folder in use; a changed setting applies after a restart. */
+  libraryDir: string;
+  defaultLibraryDir: string;
+  /** SCREENBOOK_LIBRARY_DIR is set and wins over the setting. */
+  libraryDirFromEnv: boolean;
+  captureShortcut: string | null;
+}
+
+export const getSettings = () => invoke<SettingsInfo>("get_settings");
+/** Applies and stores the settings; rejects (keeping the old hotkey) if the hotkey is taken. */
+export const saveSettings = (settings: Settings) => invoke<SettingsInfo>("save_settings", { settings });
+export const pickFolder = (title: string, start?: string) => invoke<string | null>("pick_folder", { title, start });
+/** Asks where to save a JSON file; resolves to the path, or null if cancelled. */
+export const saveTextFile = (title: string, name: string, contents: string) =>
+  invoke<string | null>("save_text_file", { title, name, contents });
+/** Asks for a JSON file; resolves to its contents, or null if cancelled. */
+export const openTextFile = (title: string) => invoke<string | null>("open_text_file", { title });
+export const restart = () => invoke<void>("restart");
+
 export const captureShortcut = () => invoke<string | null>("capture_shortcut");
 /** Starts a capture, after `delay` seconds if given. */
 export const startCapture = (delay?: number) => invoke<void>("start_capture", { delay });

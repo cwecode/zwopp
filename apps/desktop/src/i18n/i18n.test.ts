@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectLanguage, formatAccelerator, keys, MESSAGES } from ".";
+import { detectLanguage, formatAccelerator, keys, MESSAGES, resolveLanguage } from ".";
 
 const { de, en } = MESSAGES;
 
@@ -21,6 +21,12 @@ describe("i18n", () => {
     expect(detectLanguage(["en-GB", "de"])).toBe("en");
     expect(detectLanguage(["fr", "it"])).toBe("en");
     expect(detectLanguage([])).toBe("en");
+  });
+
+  it("follows the language setting, else the system", () => {
+    expect(resolveLanguage("en", ["de-DE"])).toBe("en");
+    expect(resolveLanguage(null, ["de-DE"])).toBe("de");
+    expect(resolveLanguage("fr", ["de-DE"])).toBe("de");
   });
 
   it("names key combinations", () => {

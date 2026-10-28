@@ -17,8 +17,8 @@ before Phase 2 touches ~90 texts; switching after it would touch twice as many.
    plurals and number formats without a message syntax. Two languages and ~100 texts do
    not justify i18next (~40 kB) or ICU message parsing.
 2. **Language from the system**, the first supported one among `navigator.languages`,
-   else English. `setLanguage` switches at runtime (for the settings page in Phase 2);
-   components read texts with `useT()`.
+   else English, unless the settings name a language (see ADR 0006). `setLanguage`
+   switches at runtime; components read texts with `useT()`.
 3. **Key names are translated in one place**: `keys(t, ["mod", "Z"])` gives "Strg+Z",
    "Ctrl+Z" or "⌘Z" on macOS. Tooltips no longer hard-code "Strg".
 4. **The web UI owns the language.** The tray menu (Rust) starts in English and is

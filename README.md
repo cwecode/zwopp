@@ -4,15 +4,15 @@ A lean, open-source screenshot tool for **Windows, macOS and Linux**: select a r
 the screenshot lands in a **library**, and an **editor** lets you add arrows, callouts,
 highlights, step numbers, emojis and more.
 
-> **Status: Phase 1.5.** Capture, library and the basic editor work; the library stays fast
-> with 100 000 screenshots.
+> **Status: Phase 2.** Capture, library, the full editor and the settings work; the library
+> stays fast with 100 000 screenshots. Next: the first release (v1.0).
 > See the [project plan](docs/PLAN.md) (German) and the [feature list](docs/spec/features.md).
 
 ## Features (current)
 
 - Global hotkey **Ctrl+Shift+X** (macOS: **⌘⇧X**) or tray menu → region capture.
   If another app owns that key, Screenbook falls back to Ctrl+Alt+X, then Ctrl+Shift+2;
-  the active one is shown in the library toolbar
+  the active one is shown in the library toolbar. Pick your own in the settings
 - "Freeze first, select later": all monitors are frozen, then you drag a region, also across
   monitors, with a magnifier at the cursor. Click = the window under the mouse,
   Shift+click = whole monitor, Esc / right-click = cancel. Optional delay of 3/5/10 s.
@@ -30,6 +30,10 @@ highlights, step numbers, emojis and more.
   A filmstrip shows the library; copy a whole edit or a selection and paste it into another
   screenshot as a movable block.
   Annotations stay editable ([format](docs/spec/document-format.md)), the original is never changed
+- **Quick styles:** save a tool's colour, size and shape with "+", apply it with a click or
+  1–9, share them as a file. Every tool starts with its style from last time
+- **Settings** (⚙ in the library or the tray menu): language, capture hotkey, library folder,
+  whether a capture is copied and opened in the editor
 - Runs in the system tray; closing the window keeps it running
 
 ### Editor shortcuts
@@ -40,6 +44,7 @@ highlights, step numbers, emojis and more.
 | T / C / N | Text / Callout / Step number |
 | S / M | Emoji sticker / Magnifier |
 | H / B | Highlighter / Pixelate |
+| 1 – 9 | Apply the tool's first nine quick styles |
 | Ctrl+Z, Ctrl+Y | Undo, redo |
 | Drag on empty area (V) | Mark an area |
 | Del | Delete marked area, or the selected shapes |

@@ -67,14 +67,14 @@ see [document-format.md](document-format.md). Changes are saved automatically.
 | Step numbers | Each click places the next number in a round badge (N) | ✅ (2) |
 | Emoji / stickers | 40 emojis to pick from (S); click places one, sized by S/M/L/XL, scaled freely | ✅ (2) |
 | Magnify | Drag over an area (M): a framed inset twice as large appears next to it, round or square, joined to the marked source; inset and source move on their own. Shows blurred areas pixelated, never the hidden pixels | ✅ (2) |
-| Quick styles | Saved tool presets | ⬜ (2) |
+| Quick styles | Save the current style with "+", apply with a click or 1–9; rename, delete, export and import them in the settings. Every tool also starts with its style from last time | ✅ (2) |
 
 ## General
 
 | Feature | Description | Status |
 |---|---|---|
-| Language | German and English, picked from the system language; tooltips name keys as on the keyboard (Strg / Ctrl / ⌘) | ✅ (2) |
-| Settings | Language, hotkey, library folder, defaults | ⬜ (2) |
+| Language | German and English, picked from the system language or set in the settings; tooltips name keys as on the keyboard (Strg / Ctrl / ⌘) | ✅ (2) |
+| Settings | Language, capture hotkey (press to record), library folder (after a restart), copy / open in the editor after a capture, reset tool styles, quick styles; also from the tray menu | ✅ (2) |
 
 ## Export & automation
 

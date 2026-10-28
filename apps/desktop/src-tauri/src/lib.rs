@@ -1,45 +1,25 @@
 mod capture;
 mod commands;
 mod platform;
+mod settings;
 mod thumbs;
 mod tray;
 
 use std::sync::{Arc, Mutex};
 
 use screenbook_core::library::Library;
+use screenbook_core::settings::Settings;
 use tauri::{AppHandle, Emitter, Manager, WindowEvent};
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
-
-/// Global hotkeys that start a region capture, in order of preference. Another
-/// app may own one already, so the first free one is used.
-const CAPTURE_SHORTCUTS: &[&str] = &[
-    "CommandOrControl+Shift+X",
-    "CommandOrControl+Alt+X",
-    "CommandOrControl+Shift+2",
-];
+use tauri_plugin_global_shortcut::ShortcutState;
 
 pub struct AppState {
     pub library: Arc<Library>,
     pub session: Mutex<Option<capture::Session>>,
+    pub settings: Mutex<Settings>,
     /// The registered capture hotkey, if any could be registered.
-    pub capture_shortcut: Option<&'static str>,
+    pub capture_shortcut: Mutex<Option<String>>,
     /// Folder of the last export, offered again by the next one.
     pub export_dir: Mutex<Option<std::path::PathBuf>>,
-}
-
-fn register_capture_shortcut(app: &AppHandle) -> Option<&'static str> {
-    CAPTURE_SHORTCUTS.iter().copied().find(|accelerator| {
-        let Ok(shortcut) = accelerator.parse::<Shortcut>() else {
-            return false;
-        };
-        match app.global_shortcut().register(shortcut) {
-            Ok(()) => true,
-            Err(err) => {
-                eprintln!("could not register {accelerator}: {err}");
-                false
-            }
-        }
-    })
 }
 
 /// Syncs the index with the item folders and creates missing thumbnails,
@@ -86,30 +66,38 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
+            let settings = settings::load(app.handle())?;
             // SCREENBOOK_LIBRARY_DIR points the app at another library, e.g. a
-            // generated one for performance tests (see README).
-            let root = match std::env::var_os("SCREENBOOK_LIBRARY_DIR") {
+            // generated one for performance tests (see README); it wins over
+            // the folder from the settings.
+            let custom = std::env::var_os("SCREENBOOK_LIBRARY_DIR")
+                .map(std::path::PathBuf::from)
+                .or_else(|| settings.library_dir.clone());
+            let root = match custom {
                 Some(dir) => {
-                    let dir = std::path::PathBuf::from(dir);
+                    // The asset protocol only serves the default folder by itself.
                     app.asset_protocol_scope().allow_directory(&dir, true)?;
                     dir
                 }
-                None => app.path().app_data_dir()?.join("library"),
+                None => settings::default_library_dir(app.handle())?,
             };
-            // Without a hotkey the tray menu and the library button still work.
-            let capture_shortcut = register_capture_shortcut(app.handle());
+            let capture_shortcut = settings::register_capture_shortcut(
+                app.handle(),
+                settings.capture_hotkey.as_deref(),
+            );
             let library = Arc::new(Library::open_index(root)?);
             maintain_library(app.handle().clone(), library.clone());
             if let Some(main) = app.get_webview_window("main") {
                 platform::disable_hide_animation(&main);
             }
+            tray::create(app.handle(), capture_shortcut.as_deref())?;
             app.manage(AppState {
                 library,
                 session: Mutex::default(),
-                capture_shortcut,
+                settings: Mutex::new(settings),
+                capture_shortcut: Mutex::new(capture_shortcut),
                 export_dir: Mutex::default(),
             });
-            tray::create(app.handle(), capture_shortcut)?;
             // Loaded now, so the first capture does not wait for webviews to start.
             let monitors = app.available_monitors()?;
             if let Err(e) = capture::prepare_overlays(app.handle(), &monitors) {
@@ -134,6 +122,12 @@ pub fn run() {
             commands::cancel_capture,
             commands::capture_shortcut,
             commands::set_language,
+            commands::get_settings,
+            commands::save_settings,
+            commands::pick_folder,
+            commands::save_text_file,
+            commands::open_text_file,
+            commands::restart,
             commands::list_items,
             commands::count_items,
             commands::item_position,

@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import * as api from "../api";
 import type { LibraryItem } from "../api";
 import { getClipboard, nextPasteOffset, setClipboard } from "./clipboard";
@@ -22,7 +22,6 @@ import {
   setGroupFrame,
   ungroup,
   arrowHeads,
-  type ArrowHead,
   type EditorDocument,
   type FontFamily,
   type ImageShape,
@@ -37,15 +36,23 @@ import {
   EMOJIS,
   FONTS,
   HEADS,
-  HIGHLIGHT_COLOR,
   SIZES,
   TOOLS,
   stylePatch,
   toolOf,
-  type ArrowHeads,
   type Tool,
   type ToolStyle,
 } from "./tools";
+import {
+  QUICK_STYLE_KEYS,
+  initialStyles,
+  quickStylesFor,
+  readEditorSettings,
+  sameStyle,
+  styleFor,
+} from "./quickStyles";
+import { HeadsIcon, StyleSwatch } from "./StyleIcons";
+import { getSettings, updateEditorSettings, useSettings } from "../settings/store";
 
 export interface EditorHandle {
   /** Saves pending changes; call before leaving the editor. */
@@ -70,21 +77,6 @@ interface Asset {
 const AUTOSAVE_DELAY = 700;
 /** Clipboard key of the base screenshot in a "copy everything" block. */
 const BASE_ASSET = "base";
-
-const DEFAULT_STYLES: Record<Tool, ToolStyle> = {
-  select: { color: COLORS[0], size: 1 },
-  arrow: { color: COLORS[0], size: 1, heads: { start: "none", end: "filled" } },
-  line: { color: COLORS[0], size: 1, heads: { start: "none", end: "none" } },
-  rect: { color: COLORS[0], size: 1, filled: false },
-  ellipse: { color: COLORS[0], size: 1, filled: false },
-  text: { color: COLORS[0], size: 1, font: "sans", background: false },
-  callout: { color: COLORS[4], size: 1, font: "sans" },
-  step: { color: COLORS[0], size: 1 },
-  emoji: { color: COLORS[0], size: 1, emoji: EMOJIS[0] },
-  magnify: { color: COLORS[0], size: 0, round: false },
-  highlight: { color: HIGHLIGHT_COLOR, size: 1 },
-  blur: { color: COLORS[0], size: 1 },
-};
 
 /** A button showing the chosen emoji; opens a grid to pick another. */
 function EmojiPicker({ label, value, onPick }: { label: string; value?: string; onPick(emoji: string): void }) {
@@ -135,27 +127,6 @@ function EmojiPicker({ label, value, onPick }: { label: string; value?: string; 
   );
 }
 
-/** A tiny line with the given heads, for the line-ends buttons. */
-function HeadsIcon({ start, end }: ArrowHeads) {
-  const head = (kind: ArrowHead, tip: number, dir: 1 | -1) =>
-    kind === "none" ? null : (
-      <path
-        d={`M ${tip - dir * 7} 3 L ${tip} 8 L ${tip - dir * 7} 13${kind === "filled" ? " Z" : ""}`}
-        fill={kind === "filled" ? "currentColor" : "none"}
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-    );
-  return (
-    <svg width="26" height="16" viewBox="0 0 26 16" aria-hidden>
-      <line x1="2" y1="8" x2="24" y2="8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      {head(start, 2, -1)}
-      {head(end, 24, 1)}
-    </svg>
-  );
-}
-
 function isTyping(event: KeyboardEvent) {
   const target = event.target as HTMLElement | null;
   return target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
@@ -170,7 +141,10 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
   const [history, setHistory] = useState<History<EditorDocument>>();
   const [live, setLive] = useState<EditorDocument | null>(null);
   const [tool, setTool] = useState<Tool>("arrow");
-  const [styles, setStyles] = useState(DEFAULT_STYLES);
+  // Each tool starts with its style from last time.
+  const [styles, setStyles] = useState(() => initialStyles(readEditorSettings(getSettings().editor).toolStyles));
+  const editorSettings = useSettings().editor;
+  const quickStyles = useMemo(() => readEditorSettings(editorSettings).quickStyles, [editorSettings]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [marquee, setMarquee] = useState<Rect | null>(null);
   const [status, setStatus] = useState<SaveStatus>("saved");
@@ -317,14 +291,37 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
     return { stroke: s.color, strokeWidth: width, padding: 8 + width * 2 };
   };
 
+  /** What the style controls show, as one style of the current tool. */
+  const shownStyle: ToolStyle = { ...style, heads, filled, emoji, round, font, background: boxed };
+  const toolQuickStyles = styleKey === "image" || styleKey === "select" ? [] : quickStylesFor(quickStyles, styleKey);
+
   const changeStyle = (patch: Partial<ToolStyle>) => {
-    if (styleKey !== "image") setStyles((s) => ({ ...s, [styleKey]: { ...s[styleKey], ...patch } }));
+    if (styleKey !== "image") {
+      const next = { ...styles, [styleKey]: { ...styles[styleKey], ...patch } };
+      setStyles(next);
+      // Remembered for the next shape, also after a restart.
+      const { select: _, ...toolStyles } = next;
+      updateEditorSettings({ toolStyles }).catch((e) => setMessage(String(e)));
+    }
     if (!doc) return;
     if (block?.frame) {
       commit(setGroupFrame(doc, block.id, frameStyle({ ...styles.rect, ...patch })));
     } else if (selected.length) {
       commit(selected.reduce((d, shape) => updateShape(d, shape.id, stylePatch(shape, patch)), doc));
     }
+  };
+
+  /** Saves what the style controls show as a new quick style of the current tool. */
+  const saveQuickStyle = () => {
+    if (styleKey === "image" || styleKey === "select") return;
+    const names = new Set(quickStyles.map((q) => q.name));
+    let n = toolQuickStyles.length + 1;
+    while (names.has(t.editor.quickStyleName(t.tools[styleKey], n))) n++;
+    const name = t.editor.quickStyleName(t.tools[styleKey], n);
+    const added = { id: newId(), name, tool: styleKey, style: styleFor(styleKey, shownStyle) };
+    updateEditorSettings({ quickStyles: [...quickStyles, added] })
+      .then(() => setMessage(t.editor.quickStyleSaved(name)))
+      .catch((e) => setMessage(String(e)));
   };
 
   const makeBlock = () => {
@@ -549,6 +546,10 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
         setSelectedIds([]);
         setMarquee(null);
         setTool("select");
+      } else if (!mod && !e.altKey && /^[1-9]$/.test(e.key)) {
+        const quick = toolQuickStyles[Number(e.key) - 1];
+        if (quick) changeStyle(quick.style);
+        else return;
       } else if (!mod && !e.altKey) {
         const match = TOOLS.find((entry) => entry.key === key);
         if (match) chooseTool(match.id);
@@ -730,6 +731,28 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
                 {styleKey === "ellipse" ? (value ? "●" : "○") : value ? "■" : "□"}
               </button>
             ))}
+          </div>
+        )}
+
+        {styleKey !== "image" && styleKey !== "select" && (
+          <div className="tool-group quick-styles" aria-label={t.editor.quickStyles}>
+            {toolQuickStyles.map((quick, index) => {
+              const active = sameStyle(styleKey, shownStyle, quick.style);
+              return (
+                <button
+                  key={quick.id}
+                  className={active ? "tool active" : "tool"}
+                  aria-pressed={active}
+                  title={index < QUICK_STYLE_KEYS ? t.editor.applyQuickStyle(quick.name, String(index + 1)) : quick.name}
+                  onClick={() => changeStyle(quick.style)}
+                >
+                  <StyleSwatch tool={styleKey} style={quick.style} />
+                </button>
+              );
+            })}
+            <button className="tool" title={t.editor.saveQuickStyle} aria-label={t.editor.saveQuickStyle} onClick={saveQuickStyle}>
+              +
+            </button>
           </div>
         )}
 
