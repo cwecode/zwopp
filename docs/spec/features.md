@@ -65,8 +65,8 @@ see [document-format.md](document-format.md). Changes are saved automatically.
 | Text background, fonts | Sans serif, serif or monospace; optional coloured box behind the text, the text contrasting in black or white | ✅ (2) |
 | Callout / speech bubble | Text in a coloured bubble with a pointer: drag from the point it refers to to where the bubble goes (C); the pointer stays on target when the bubble moves and has its own handle | ✅ (2) |
 | Step numbers | Each click places the next number in a round badge (N) | ✅ (2) |
-| Emoji / stickers | | ⬜ (2) |
-| Magnify | Enlarged inset of a region | ⬜ (2) |
+| Emoji / stickers | 40 emojis to pick from (S); click places one, sized by S/M/L/XL, scaled freely | ✅ (2) |
+| Magnify | Drag over an area (M): a framed inset twice as large appears next to it, round or square, joined to the marked source; inset and source move on their own. Shows blurred areas pixelated, never the hidden pixels | ✅ (2) |
 | Quick styles | Saved tool presets | ⬜ (2) |
 
 ## General

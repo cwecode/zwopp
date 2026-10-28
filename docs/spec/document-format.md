@@ -47,7 +47,7 @@ rendered and do not count for the output area.
 named "Ebene 1" (early version 2 documents) is renamed to "Original".
 
 **Version 3** only added optional fields (`startHead`, `endHead`, `fill`; for text `font`,
-`background`, `tail`) and the `ellipse` and `step` types. Their defaults reproduce version 2, so version 2 documents need no migration; they are
+`background`, `tail`) and the `ellipse`, `step`, `emoji` and `magnify` types. Their defaults reproduce version 2, so version 2 documents need no migration; they are
 saved as version 3 on the next change.
 
 `Rect` = `{ x, y, width, height }`.
@@ -64,6 +64,8 @@ optionally the `group` id of its block.
 | `ellipse` | `Rect`, `stroke`, `strokeWidth`, optional `fill` | Ellipse inscribed in the rectangle; with `fill` also filled |
 | `text` | `x`, `y` (top-left), `text`, `fontSize`, `fill`, optional `width`, `font`, `background`, `tail` | Bold, line height 1.2, multi-line via `\n`; with `width` the text wraps at word boundaries. `font`: `"sans"` (default), `"serif"` or `"mono"`. `background`: colour of a box behind the text with padding and corner radius `round(fontSize × 0.35)`. `tail: [x, y]`: a callout — a triangle in the background colour from the middle of the box to that point |
 | `step` | `Rect` (a square), `number`, `fill` | Circle filled with `fill`, white rim of `max(1.5, width × 0.06)`, the number centred in bold, black or white (whichever contrasts with `fill`) |
+| `emoji` | `Rect` (a square), `emoji` | The emoji filling the square, in the system's colour emoji font (so it looks slightly different on Windows, macOS and Linux) |
+| `magnify` | `Rect`, `source: Rect`, `stroke`, `strokeWidth`, optional `round` | The area `source` of the screenshot — with blurred areas pixelated and deleted areas transparent — scaled into the rectangle, clipped to a rounded rectangle (or an ellipse with `round`) and framed in `stroke`. The source is outlined and joined to the inset by a line, both at half the stroke width. Copied into another screenshot it becomes an `image` |
 | `highlight` | `Rect`, `fill` | Filled rectangle, blend mode *multiply* |
 | `blur` | `Rect`, `pixelSize` | The original pixels under the rectangle, pixelated in blocks of `pixelSize` |
 | `image` | `Rect`, `asset` | The PNG `assets/<asset>` of the same item, scaled to the rectangle. Used for content pasted from another screenshot |

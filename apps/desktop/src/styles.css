@@ -722,3 +722,42 @@ button.tool.active {
 .drag-out {
   cursor: grab;
 }
+
+/* Emoji picker in the editor toolbar. */
+.emoji-picker {
+  position: relative;
+}
+
+.emoji-current {
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+}
+
+.emoji-grid {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(8, 32px);
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.25);
+}
+
+.emoji-grid button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  font: 20px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+}
+
+.emoji-grid button:hover,
+.emoji-grid button.active {
+  background: var(--bg);
+}

@@ -29,6 +29,8 @@ const ICONS: Record<Shape["type"], string> = {
   rect: "▭",
   ellipse: "◯",
   step: "①",
+  emoji: "☺",
+  magnify: "⌕",
   text: "T",
   highlight: "▬",
   blur: "▦",
@@ -50,6 +52,7 @@ function label(t: Messages, shape: Shape) {
   if (shape.type === "arrow" && toolOf(shape) === "line") return t.layers.shapes.line;
   if (shape.type === "text" && shape.tail) return t.layers.shapes.callout;
   if (shape.type === "step") return t.layers.shapes.step(shape.number);
+  if (shape.type === "emoji") return t.layers.shapes.emoji(shape.emoji);
   return t.layers.shapes[shape.type];
 }
 

@@ -19,6 +19,7 @@ import {
   arrowHeads,
   contrastColor,
   headSize,
+  magnifierFor,
   nextStepNumber,
   textPadding,
   contentBounds,
@@ -33,6 +34,8 @@ import {
   type ArrowHead,
   type ArrowShape,
   type BlurShape,
+  type EmojiShape,
+  type MagnifyShape,
   type EditorDocument,
   type Rect,
   type Shape,
@@ -40,8 +43,8 @@ import {
   type TextShape,
 } from "./document";
 import { MipImage } from "./MipImage";
-import { pixelBlocks } from "./render";
-import { FONTS, SIZES, stepDiameter, type Tool, type ToolStyle } from "./tools";
+import { cleanImage, drawMagnifier, pixelBlocks } from "./render";
+import { EMOJIS, FONTS, SIZES, emojiSize, stepDiameter, type Tool, type ToolStyle } from "./tools";
 
 export interface CanvasHandle {
   /** Renders image and shapes at full resolution, transparent where empty. */
@@ -102,6 +105,8 @@ interface Point {
 /** Free space around the content so shapes can be drawn outside the image. */
 const MARGIN = 80;
 const SELECTION = "#2f80ed";
+/** Colour emoji fonts of Windows, macOS and Linux. */
+const EMOJI_FONT = "'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif";
 /** Minimum drag distance in screen px before a drag counts. */
 const MIN_DRAG = 4;
 const RECT_ANCHORS = [
@@ -126,6 +131,7 @@ function makeShape(
   a: Point,
   b: Point,
   style: ToolStyle,
+  imageWidth: number,
 ): Shape | null {
   const size = SIZES[style.size];
   const rect = rectFromPoints(a.x, a.y, b.x, b.y);
@@ -152,6 +158,16 @@ function makeShape(
         stroke: style.color,
         strokeWidth: size.strokeWidth,
         ...(style.filled && { fill: style.color }),
+      };
+    case "magnify":
+      return {
+        ...base,
+        type: "magnify",
+        ...magnifierFor(rect, imageWidth),
+        source: rect,
+        stroke: style.color,
+        strokeWidth: size.strokeWidth,
+        ...(style.round && { round: true }),
       };
     case "highlight":
       return { ...base, type: "highlight", ...rect, fill: style.color };
@@ -249,6 +265,24 @@ function drawTextBox(ctx: Konva.Context, node: Konva.Shape) {
     }
   }
   (Konva.Text.prototype as unknown as { _sceneFunc(ctx: Konva.Context): void })._sceneFunc.call(node, ctx);
+}
+
+/** An emoji filling the node's square, in the system's colour emoji font. */
+function drawEmoji(ctx: Konva.Context, node: Konva.Shape) {
+  const [w, h] = [node.width(), node.height()];
+  ctx.setAttr("font", `${Math.round(h * 0.82)}px ${EMOJI_FONT}`);
+  ctx.setAttr("textAlign", "center");
+  ctx.setAttr("textBaseline", "middle");
+  ctx.setAttr("fillStyle", "#000");
+  ctx.fillText(String(node.getAttr("emoji")), w / 2, h * 0.54);
+}
+
+/** Hit area: the whole box. */
+function hitBox(ctx: Konva.Context, node: Konva.Shape) {
+  ctx.beginPath();
+  ctx.rect(0, 0, node.width(), node.height());
+  ctx.closePath();
+  ctx.fillShape(node);
 }
 
 /** A filled circle with a white rim and the step number in the middle. */
@@ -421,6 +455,10 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
   const selected = doc.objects.filter((s) => selectedIds.includes(s.id));
   const single = selected.length === 1 ? selected[0] : null;
   const locked = new Set(doc.layers.filter((l) => l.locked).map((l) => l.id));
+  // What magnifiers show: the screenshot with blurs and deletions applied,
+  // redrawn only when those change.
+  const hiding = JSON.stringify([doc.erased, doc.objects.filter((s) => s.type === "blur")]);
+  const clean = useMemo(() => cleanImage(image, doc), [image, hiding]);
 
   const findNode = (id: string) => stageRef.current?.findOne((n: Konva.Node) => n.id() === id);
 
@@ -538,7 +576,7 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
     transformer.nodes(nodes);
     const isText = single?.type === "text";
     // Step badges stay round.
-    const isStep = single?.type === "step";
+    const isStep = single?.type === "step" || single?.type === "emoji" || single?.type === "magnify";
     transformer.keepRatio(isText || isStep || selected.length > 1);
     transformer.enabledAnchors(
       isText ? TEXT_ANCHORS : isStep || selected.length > 1 ? CORNER_ANCHORS : RECT_ANCHORS,
@@ -595,6 +633,15 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
         }
       } else {
         patch = { x, y, width: Math.max(2, shape.width * sx), height: Math.max(2, shape.height * sy) };
+        // As with callout pointers: one magnifier keeps its source, a
+        // selection of several takes it along.
+        if (shape.type === "magnify" && ids.length > 1) {
+          const s = shape.source;
+          patch = {
+            ...patch,
+            source: { x: x + (s.x - shape.x) * sx, y: y + (s.y - shape.y) * sy, width: s.width * sx, height: s.height * sy },
+          };
+        }
       }
       next = updateShape(next, id, patch);
     }
@@ -681,6 +728,24 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
     );
   };
 
+  /** Puts the chosen emoji centred on `at`. */
+  const placeEmoji = (at: Point) => {
+    const style = styles.emoji;
+    const edge = emojiSize(SIZES[style.size]);
+    const shape: EmojiShape = {
+      id: newId(),
+      type: "emoji",
+      layer: activeLayer,
+      x: at.x - edge / 2,
+      y: at.y - edge / 2,
+      width: edge,
+      height: edge,
+      emoji: style.emoji ?? EMOJIS[0],
+    };
+    onCommit(addShape(doc, shape));
+    onSelect([shape.id]);
+  };
+
   /** Puts the next step badge centred on `at`. */
   const placeStep = (at: Point) => {
     const style = styles.step;
@@ -734,6 +799,10 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
       placeStep(start);
       return;
     }
+    if (tool === "emoji") {
+      placeEmoji(start);
+      return;
+    }
 
     if (tool === "select") {
       trackDrag(
@@ -767,13 +836,14 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
 
     const id = newId();
     const style = styles[tool];
-    setDraft(makeShape(tool, { id, layer: activeLayer }, start, start, style));
+    const make = (end: Point) => makeShape(tool, { id, layer: activeLayer }, start, end, style, image.naturalWidth);
+    setDraft(make(start));
     trackDrag(
       stage,
-      (p) => setDraft(makeShape(tool, { id, layer: activeLayer }, start, p, style)),
+      (p) => setDraft(make(p)),
       (p) => {
         setDraft(null);
-        const shape = makeShape(tool, { id, layer: activeLayer }, start, p, style);
+        const shape = make(p);
         const dx = Math.abs(p.x - start.x) * scale;
         const dy = Math.abs(p.y - start.y) * scale;
         const big =
@@ -946,6 +1016,22 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
             hitFunc={hitStep}
           />
         );
+      case "emoji":
+        return (
+          <KonvaShape
+            key={shape.id}
+            {...common}
+            x={shape.x}
+            y={shape.y}
+            width={shape.width}
+            height={shape.height}
+            emoji={shape.emoji}
+            sceneFunc={drawEmoji}
+            hitFunc={hitBox}
+          />
+        );
+      case "magnify":
+        return <MagnifyNode key={shape.id} common={common} shape={shape} source={clean} />;
       case "blur":
         return <BlurNode key={shape.id} common={common} shape={shape} image={image} />;
       case "image": {
@@ -968,6 +1054,23 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
 
   const editingShape = editing ? (doc.objects.find((s) => s.id === editing.id) as TextShape | undefined) : undefined;
   const handle = { radius: 6 / scale, fill: "#fff", stroke: SELECTION, strokeWidth: 1.5 / scale };
+  // A magnifier's source area moves on its own.
+  const sourceHandle =
+    single?.type === "magnify" && !locked.has(single.layer) ? (
+      <KonvaRect
+        name="anchor"
+        {...single.source}
+        stroke={SELECTION}
+        strokeWidth={1.5 / scale}
+        dash={[6 / scale, 4 / scale]}
+        fill="rgba(47,128,237,0.08)"
+        draggable
+        onDragMove={(e) =>
+          onPreview(updateShape(doc, single.id, { source: { ...single.source, x: e.target.x(), y: e.target.y() } }))
+        }
+        onDragEnd={() => onCommit(doc)}
+      />
+    ) : null;
   const tailHandle =
     single?.type === "text" && single.tail && !editing ? (
       <Circle
@@ -1096,6 +1199,7 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
           />
           {anchors}
           {tailHandle}
+          {sourceHandle}
         </Layer>
       </Stage>
       {editing && editingShape && (
@@ -1156,6 +1260,45 @@ function autosize(textarea: HTMLTextAreaElement) {
 }
 
 /** A line with optional heads (see `drawArrow`). */
+/** A magnifier (see `drawMagnifier`); only its inset is the clickable node. */
+function MagnifyNode({ shape, common, source }: { shape: MagnifyShape; common: object; source: HTMLCanvasElement }) {
+  const sceneFunc = useMemo(
+    () => (ctx: Konva.Context, node: Konva.Shape) => {
+      const native = (ctx as unknown as { _context: CanvasRenderingContext2D })._context;
+      // Drawn in image coordinates; while dragged or scaled, follow the node.
+      const live = {
+        ...shape,
+        x: node.x(),
+        y: node.y(),
+        width: node.width() * node.scaleX(),
+        height: node.height() * node.scaleY(),
+      };
+      native.save();
+      native.scale(1 / node.scaleX(), 1 / node.scaleY());
+      native.translate(-node.x(), -node.y());
+      drawMagnifier(native, source, live);
+      native.restore();
+    },
+    [shape, source],
+  );
+  return (
+    <KonvaShape
+      {...common}
+      x={shape.x}
+      y={shape.y}
+      width={shape.width}
+      height={shape.height}
+      sceneFunc={sceneFunc}
+      hitFunc={(ctx, node) => {
+        ctx.beginPath();
+        ctx.rect(0, 0, node.width(), node.height());
+        ctx.closePath();
+        ctx.fillShape(node);
+      }}
+    />
+  );
+}
+
 function ArrowNode({ shape, common }: { shape: ArrowShape; common: object }) {
   const { start, end } = arrowHeads(shape);
   const sceneFunc = useMemo(() => drawArrow(start, end), [start, end]);

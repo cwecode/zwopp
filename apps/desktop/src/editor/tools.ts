@@ -9,6 +9,8 @@ export type Tool =
   | "text"
   | "callout"
   | "step"
+  | "emoji"
+  | "magnify"
   | "highlight"
   | "blur";
 
@@ -22,6 +24,8 @@ export const TOOLS: { id: Tool; key: string; icon: string }[] = [
   { id: "text", key: "t", icon: "T" },
   { id: "callout", key: "c", icon: "💬" },
   { id: "step", key: "n", icon: "①" },
+  { id: "emoji", key: "s", icon: "☺" },
+  { id: "magnify", key: "m", icon: "⌕" },
   { id: "highlight", key: "h", icon: "▬" },
   { id: "blur", key: "b", icon: "▦" },
 ];
@@ -38,6 +42,18 @@ export const SIZES = [
   { label: "L", strokeWidth: 8, fontSize: 36, pixelSize: 16 },
   { label: "XL", strokeWidth: 12, fontSize: 52, pixelSize: 24 },
 ];
+
+/** Emojis offered as stickers, in picker order. */
+export const EMOJIS = [
+  "👉", "👈", "👆", "👇", "✅", "❌", "⚠️", "❗",
+  "❓", "💡", "⭐", "🔥", "👍", "👎", "🎯", "📌",
+  "🔍", "🔒", "🔑", "🐞", "✏️", "💬", "⏱️", "📎",
+  "😀", "🙂", "😉", "😕", "😮", "😍", "🤔", "🎉",
+  "❤️", "💯", "🚀", "🛑", "➡️", "⬅️", "⬆️", "⬇️",
+];
+
+/** Edge length of an emoji sticker for a size. */
+export const emojiSize = (size: (typeof SIZES)[number]) => Math.round(size.fontSize * 2);
 
 /** Diameter of a step badge for a size. */
 export const stepDiameter = (size: (typeof SIZES)[number]) => Math.round(size.fontSize * 1.4);
@@ -74,6 +90,10 @@ export interface ToolStyle {
   background?: boolean;
   /** Text and callouts. */
   font?: FontFamily;
+  /** Emoji stickers. */
+  emoji?: string;
+  /** Magnifiers: round instead of a rounded rectangle. */
+  round?: boolean;
 }
 
 /** The tool whose style a shape follows: a line without heads is a "line". */
@@ -126,6 +146,24 @@ export function stylePatch(shape: Shape, style: Partial<ToolStyle>): Partial<Sha
             : { background: undefined, fill: color })),
       };
     }
+    case "emoji": {
+      if (!size) return style.emoji ? { emoji: style.emoji } : {};
+      // Grow or shrink around the centre.
+      const edge = emojiSize(size);
+      return {
+        ...(style.emoji && { emoji: style.emoji }),
+        x: shape.x + (shape.width - edge) / 2,
+        y: shape.y + (shape.height - edge) / 2,
+        width: edge,
+        height: edge,
+      };
+    }
+    case "magnify":
+      return {
+        ...(style.color && { stroke: style.color }),
+        ...(size && { strokeWidth: size.strokeWidth }),
+        ...(style.round !== undefined && { round: style.round }),
+      };
     case "step": {
       if (!size) return style.color ? { fill: style.color } : {};
       // Grow or shrink around the centre.

@@ -20,7 +20,8 @@ highlights, step numbers, emojis and more.
 - **Library:** thumbnails, search (title, tags), favorites, tags, copy, export, drag into
   other apps, delete
 - **Editor:** arrow, line, rectangle, ellipse (outlined or filled), text box (three fonts,
-  optional coloured background), callout, step numbers, highlighter, pixelate; colors, sizes
+  optional coloured background), callout, step numbers, emoji stickers, magnifier,
+  highlighter, pixelate; colors, sizes
   and arrowheads (filled, open, at either end);
   move/resize; undo/redo; autosave; copy the annotated image, export it as PNG, JPG or WebP,
   or drag it into another app. Draw outside the screenshot
@@ -37,6 +38,7 @@ highlights, step numbers, emojis and more.
 |---|---|
 | V / A / L / R / E | Select / Arrow / Line / Rectangle / Ellipse |
 | T / C / N | Text / Callout / Step number |
+| S / M | Emoji sticker / Magnifier |
 | H / B | Highlighter / Pixelate |
 | Ctrl+Z, Ctrl+Y | Undo, redo |
 | Drag on empty area (V) | Mark an area |

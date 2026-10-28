@@ -103,6 +103,26 @@ export interface StepShape extends ShapeBase, Rect {
   fill: string;
 }
 
+/** An emoji used as a sticker, drawn with the system's emoji font into its square. */
+export interface EmojiShape extends ShapeBase, Rect {
+  type: "emoji";
+  emoji: string;
+}
+
+/**
+ * A magnifier: the area `source` of the screenshot (blurs and deletions
+ * applied) enlarged into its own rectangle, framed, with the source marked
+ * and joined to it by a line.
+ */
+export interface MagnifyShape extends ShapeBase, Rect {
+  type: "magnify";
+  source: Rect;
+  stroke: string;
+  strokeWidth: number;
+  /** Round (ellipse) instead of a rounded rectangle. */
+  round?: boolean;
+}
+
 export interface HighlightShape extends ShapeBase, Rect {
   type: "highlight";
   fill: string;
@@ -126,6 +146,8 @@ export type Shape =
   | EllipseShape
   | TextShape
   | StepShape
+  | EmojiShape
+  | MagnifyShape
   | HighlightShape
   | BlurShape
   | ImageShape;
@@ -250,6 +272,10 @@ export function translateShape<T extends Shape>(shape: T, dx: number, dy: number
     const [x1, y1, x2, y2] = shape.points;
     return { ...shape, points: [x1 + dx, y1 + dy, x2 + dx, y2 + dy] };
   }
+  if (shape.type === "magnify") {
+    const source = { ...shape.source, x: shape.source.x + dx, y: shape.source.y + dy };
+    return { ...shape, x: shape.x + dx, y: shape.y + dy, source };
+  }
   if (shape.type === "text" && shape.tail) {
     return { ...shape, x: shape.x + dx, y: shape.y + dy, tail: [shape.tail[0] + dx, shape.tail[1] + dy] };
   }
@@ -368,9 +394,31 @@ export function shapeBounds(shape: Shape): Rect {
       const [tx, ty] = shape.tail;
       return unionRect(box, { x: tx - 1, y: ty - 1, width: 2, height: 2 })!;
     }
+    case "magnify": {
+      const pad = shape.strokeWidth / 2;
+      const inset = { x: shape.x - pad, y: shape.y - pad, width: shape.width + pad * 2, height: shape.height + pad * 2 };
+      return unionRect(inset, shape.source)!;
+    }
     default:
       return { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
   }
+}
+
+/** Default magnification of a new magnifier. */
+export const MAGNIFY_ZOOM = 2;
+
+/**
+ * Where a new magnifier for `source` goes: twice as large, next to it on the
+ * right (or on the left if that side of the image has more room).
+ */
+export function magnifierFor(source: Rect, imageWidth: number): Rect {
+  const width = source.width * MAGNIFY_ZOOM;
+  const height = source.height * MAGNIFY_ZOOM;
+  const gap = Math.max(24, source.width * 0.25);
+  const right = source.x + source.width + gap;
+  const spaceRight = imageWidth - (source.x + source.width);
+  const x = spaceRight >= source.x ? right : source.x - gap - width;
+  return { x, y: source.y + source.height / 2 - height / 2, width, height };
 }
 
 /** Everything that ends up in the exported image: remaining image plus shapes. */

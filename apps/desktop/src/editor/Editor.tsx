@@ -15,6 +15,7 @@ import {
   translateShape,
   updateShape,
   groupMembers,
+  shapeBounds,
   groupShapes,
   pruneGroups,
   selectedGroup,
@@ -30,9 +31,10 @@ import {
 } from "./document";
 import { keys, useT } from "../i18n";
 import { initHistory, push, redo, undo, type History } from "./history";
-import { loadImage, renderBase } from "./render";
+import { cleanImage, loadImage, renderBase, renderMagnifier } from "./render";
 import {
   COLORS,
+  EMOJIS,
   FONTS,
   HEADS,
   HIGHLIGHT_COLOR,
@@ -78,9 +80,60 @@ const DEFAULT_STYLES: Record<Tool, ToolStyle> = {
   text: { color: COLORS[0], size: 1, font: "sans", background: false },
   callout: { color: COLORS[4], size: 1, font: "sans" },
   step: { color: COLORS[0], size: 1 },
+  emoji: { color: COLORS[0], size: 1, emoji: EMOJIS[0] },
+  magnify: { color: COLORS[0], size: 0, round: false },
   highlight: { color: HIGHLIGHT_COLOR, size: 1 },
   blur: { color: COLORS[0], size: 1 },
 };
+
+/** A button showing the chosen emoji; opens a grid to pick another. */
+function EmojiPicker({ label, value, onPick }: { label: string; value?: string; onPick(emoji: string): void }) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: Event) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !root.current?.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener("pointerdown", close);
+    window.addEventListener("keydown", close);
+    return () => {
+      window.removeEventListener("pointerdown", close);
+      window.removeEventListener("keydown", close);
+    };
+  }, [open]);
+  return (
+    <div className="tool-group emoji-picker" ref={root}>
+      <button
+        className="tool emoji-current"
+        title={label}
+        aria-label={label}
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        {value ?? EMOJIS[0]} ▾
+      </button>
+      {open && (
+        <div className="emoji-grid" role="listbox" aria-label={label}>
+          {EMOJIS.map((emoji) => (
+            <button
+              key={emoji}
+              role="option"
+              aria-selected={emoji === value}
+              className={emoji === value ? "active" : undefined}
+              onClick={() => {
+                onPick(emoji);
+                setOpen(false);
+              }}
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** A tiny line with the given heads, for the line-ends buttons. */
 function HeadsIcon({ start, end }: ArrowHeads) {
@@ -254,6 +307,8 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
   const first = selected[0];
   const heads = first?.type === "arrow" ? arrowHeads(first) : style.heads;
   const filled = first?.type === "rect" || first?.type === "ellipse" ? first.fill !== undefined : style.filled;
+  const emoji = first?.type === "emoji" ? first.emoji : style.emoji;
+  const round = first?.type === "magnify" ? !!first.round : style.round;
   const font = first?.type === "text" ? (first.font ?? "sans") : style.font;
   const boxed = first?.type === "text" ? first.background !== undefined : style.background;
 
@@ -366,21 +421,39 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
         const members = doc.objects.filter((s) => s.group === g.id);
         return members.every((m) => shapes.some((s) => s.id === m.id));
       });
+    // Magnifiers travel as pictures: in another screenshot their source
+    // would show other pixels.
+    const portable = async (shapes: Shape[]) => {
+      const pictures: Record<string, Uint8Array> = {};
+      const clean = shapes.some((s) => s.type === "magnify") ? cleanImage(image, doc) : null;
+      const converted = await Promise.all(
+        shapes.map(async (s): Promise<Shape> => {
+          if (s.type !== "magnify" || !clean) return s;
+          const picture = await renderMagnifier(clean, s, shapeBounds(s));
+          const asset = `magnify-${s.id}`;
+          pictures[asset] = picture.png;
+          return { id: s.id, layer: s.layer, group: s.group, type: "image", ...picture.rect, asset };
+        }),
+      );
+      return { shapes: converted, assets: { ...assetBytes(converted), ...pictures } };
+    };
     try {
       if (selected.length) {
+        const copied = await portable(selected);
         setClipboard({
           sourceId: item.id,
-          shapes: selected,
+          shapes: copied.shapes,
           groups: groupsOf(selected),
-          assets: assetBytes(selected),
+          assets: copied.assets,
         });
         setMessage(t.editor.copiedShapes(selected.length, k("mod", "V")));
         return;
       }
       // Blur shapes are baked into the base image so hidden pixels never travel.
       const base = await renderBase(image, doc);
-      const shapes = doc.objects.filter((s) => s.type !== "blur");
-      const content = { sourceId: item.id, shapes, groups: groupsOf(shapes), assets: assetBytes(shapes) };
+      const copied = await portable(doc.objects.filter((s) => s.type !== "blur"));
+      const shapes = copied.shapes;
+      const content = { sourceId: item.id, shapes, groups: groupsOf(shapes), assets: copied.assets };
       if (base) {
         // The layer is assigned on paste.
         const baseShape: ImageShape = { id: newId(), layer: "", type: "image", ...base.rect, asset: BASE_ASSET };
@@ -487,13 +560,15 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  const showColor = !["blur", "select", "image"].includes(styleKey);
+  const showColor = !["blur", "select", "image", "emoji"].includes(styleKey);
   const showSize = !["highlight", "select", "image"].includes(styleKey);
   const showHeads = !block?.frame && (styleKey === "arrow" || styleKey === "line");
   const showFill = !block?.frame && (styleKey === "rect" || styleKey === "ellipse");
   const showFont = styleKey === "text" || styleKey === "callout";
   // A callout always has its bubble.
   const showTextBackground = styleKey === "text";
+  const showEmoji = styleKey === "emoji";
+  const showMagnifierShape = styleKey === "magnify";
   const images = Object.fromEntries(Object.entries(assets).map(([name, a]) => [name, a.image]));
 
   return (
@@ -619,6 +694,24 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
                 onClick={() => changeStyle({ background: value })}
               >
                 <span className={value ? "text-boxed" : undefined}>T</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {showEmoji && <EmojiPicker label={t.editor.emoji} value={emoji} onPick={(e) => changeStyle({ emoji: e })} />}
+
+        {showMagnifierShape && (
+          <div className="tool-group" aria-label={t.editor.magnifierShape}>
+            {[false, true].map((value) => (
+              <button
+                key={String(value)}
+                className={!!round === value ? "tool active" : "tool"}
+                aria-pressed={!!round === value}
+                title={value ? t.editor.round : t.editor.square}
+                onClick={() => changeStyle({ round: value })}
+              >
+                {value ? "○" : "▢"}
               </button>
             ))}
           </div>

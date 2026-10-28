@@ -4,16 +4,19 @@ import {
   contrastColor,
   createDocument,
   loadDocument,
+  magnifierFor,
   nextStepNumber,
   shapeBounds,
   translateShape,
   updateShape,
   type ArrowShape,
+  type EmojiShape,
+  type MagnifyShape,
   type RectShape,
   type StepShape,
   type TextShape,
 } from "./document";
-import { SIZES, stepDiameter, stylePatch, toolOf } from "./tools";
+import { SIZES, emojiSize, stepDiameter, stylePatch, toolOf } from "./tools";
 
 const arrow = (heads: Partial<ArrowShape> = {}): ArrowShape => ({
   id: "a",
@@ -168,5 +171,60 @@ describe("step numbers", () => {
     const diameter = stepDiameter(SIZES[3]);
     expect(patch).toMatchObject({ width: diameter, height: diameter, x: (36 - diameter) / 2 });
     expect(toolOf(step(1))).toBe("step");
+  });
+});
+const magnifier = (extra: Partial<MagnifyShape> = {}): MagnifyShape => ({
+  id: "m",
+  layer: "L",
+  type: "magnify",
+  x: 300,
+  y: 80,
+  width: 200,
+  height: 100,
+  source: { x: 100, y: 105, width: 100, height: 50 },
+  stroke: "#e5322d",
+  strokeWidth: 3,
+  ...extra,
+});
+
+describe("magnifiers", () => {
+  it("open twice as large next to the source, on the side with more room", () => {
+    const source = { x: 100, y: 100, width: 100, height: 50 };
+    const right = magnifierFor(source, 1000);
+    expect(right).toMatchObject({ width: 200, height: 100, y: 75 });
+    expect(right.x).toBeGreaterThan(200);
+    const left = magnifierFor({ ...source, x: 800 }, 1000);
+    expect(left.x + left.width).toBeLessThan(800);
+  });
+
+  it("move with their source as a whole", () => {
+    const moved = translateShape(magnifier(), 10, 20);
+    expect(moved).toMatchObject({ x: 310, y: 100, source: { x: 110, y: 125 } });
+  });
+
+  it("count the source for the output", () => {
+    const bounds = shapeBounds(magnifier());
+    expect(bounds.x).toBeLessThanOrEqual(100);
+    expect(bounds.x + bounds.width).toBeGreaterThanOrEqual(500);
+  });
+
+  it("take colour, size and shape from the toolbar", () => {
+    expect(stylePatch(magnifier(), { color: "#2f80ed", size: 2, round: true })).toEqual({
+      stroke: "#2f80ed",
+      strokeWidth: SIZES[2].strokeWidth,
+      round: true,
+    });
+    expect(toolOf(magnifier())).toBe("magnify");
+  });
+});
+
+describe("emoji stickers", () => {
+  const sticker: EmojiShape = { id: "e", layer: "L", type: "emoji", x: 0, y: 0, width: 52, height: 52, emoji: "👍" };
+
+  it("swap the emoji and resize around their centre", () => {
+    expect(stylePatch(sticker, { emoji: "✅" })).toEqual({ emoji: "✅" });
+    const edge = emojiSize(SIZES[3]);
+    expect(stylePatch(sticker, { size: 3 })).toMatchObject({ width: edge, height: edge, x: (52 - edge) / 2 });
+    expect(toolOf(sticker)).toBe("emoji");
   });
 });
