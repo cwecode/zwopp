@@ -325,18 +325,17 @@ eine Datenbank‑Tabelle; nichts blockiert die Oberfläche.
 
 | Frage | Stand |
 |---|---|
-| **Name** – „Zwopp“ ok? | ⬜ Websuche (Okt. 2026) ohne gleichnamige Software, crates.io und npm frei (zwopp.com und zwopp.de sind vergeben); Prüfung der Markenregister (DPMA, EUIPO, USPTO) steht vor dem öffentlichen Release noch aus |
+| **Name** – „Zwopp“ ok? | ✅ Websuche (Okt. 2026) ohne gleichnamige Software, crates.io und npm frei; keine Treffer in den Markenregistern. Keine eigene Domain, die Projektseite ist das GitHub‑Repository |
 | **Lizenz** | ✅ MIT oder Apache‑2.0 nach Wahl |
 | **Frontend** | ✅ React |
 | **Neubau vs. Beitrag zu ksnip** | ✅ Neubau |
 | **Signing** | ✅ entfällt vorerst: unsignierte Downloads + Start aus dem Quellcode |
 | **Linux‑Mindestversion** | ✅ Ubuntu 24.04 / Debian 13: `xcap` braucht PipeWire ≥ 1.0, CI und Release bauen auf `ubuntu-24.04` |
-| **Repository** | ✅ privat unter `cwecode/zwopp`; öffentlich spätestens mit v1.0 |
+| **Repository** | ✅ öffentlich unter `cwecode/zwopp` seit v1.0 |
 
 ---
 
 ## 7. Nächste Schritte
 
-1. Release‑Workflow mit einem Test‑Tag (`v1.0.0-rc.1`) ausprobieren, Downloads auf allen OS starten.
-2. Markenregister prüfen, Repository öffentlich machen, Tag `v1.0.0` setzen, Entwurf veröffentlichen.
-3. Die UI‑Budgets auf dem CI‑Runner im Blick behalten (ADR 0004).
+1. Rückmeldungen zu v1.0 sammeln und die Issues sichten.
+2. Die UI‑Budgets auf dem CI‑Runner im Blick behalten (ADR 0004).
