@@ -70,9 +70,9 @@ export const en: Messages = {
     libraryDefault: "Default",
     libraryDialog: "Choose a folder for the library",
     libraryRestart: (folder: string) =>
-      `After a restart Screenbook opens ${folder}. Existing screenshots stay in the previous folder.`,
+      `After a restart Zwopp opens ${folder}. Existing screenshots stay in the previous folder.`,
     restartNow: "Restart now",
-    libraryFromEnv: "Set by the SCREENBOOK_LIBRARY_DIR environment variable.",
+    libraryFromEnv: "Set by the ZWOPP_LIBRARY_DIR environment variable.",
     editor: "Editor",
     toolStyles: "Tool styles",
     toolStylesHint: "Every tool starts with the colour, size and shape you used last.",
@@ -88,10 +88,10 @@ export const en: Messages = {
     importQuickStyles: "Import …",
     exportDialog: "Export quick styles",
     importDialog: "Import quick styles",
-    exportFileName: "screenbook-quick-styles.json",
+    exportFileName: "zwopp-quick-styles.json",
     exported: (path: string) => `Saved to ${path}`,
     imported: (n: number) => `${n} ${n === 1 ? "quick style" : "quick styles"} imported`,
-    importFailed: "The file contains no Screenbook quick styles.",
+    importFailed: "The file contains no Zwopp quick styles.",
   },
 
   tools: {

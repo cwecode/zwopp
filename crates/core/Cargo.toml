@@ -1,6 +1,6 @@
 [package]
-name = "screenbook-core"
-description = "Platform-independent core of Screenbook: capture, library and export."
+name = "zwopp-core"
+description = "Platform-independent core of Zwopp: capture, library and export."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

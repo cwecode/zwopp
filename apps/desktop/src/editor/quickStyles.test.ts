@@ -33,7 +33,7 @@ describe("quick styles", () => {
 
   it("drop entries for unknown tools and repair broken fields", () => {
     const file = JSON.stringify({
-      format: "screenbook-quick-styles",
+      format: "zwopp-quick-styles",
       version: 1,
       styles: [
         { name: "?", tool: "laser", style: {} },

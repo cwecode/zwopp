@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Screenbook. The release workflow takes the notes of a version
+All notable changes to Zwopp. The release workflow takes the notes of a version
 from its section here, so each release starts with a `## <version>` heading.
 
 ## 1.0.0

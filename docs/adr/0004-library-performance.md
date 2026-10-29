@@ -44,8 +44,8 @@ index row on startup (quadratic), and generated thumbnails synchronously.
 | Search "review" (24 999 hits) | result while typing, no visible delay |
 
 Before the subquery and the "latest range only" loading, a jump to the end left placeholders
-for 1–4 s. Criterion benchmarks for the core operations: `cargo bench -p screenbook-core
---bench library` (set `SCREENBOOK_BENCH_ITEMS` for larger libraries).
+for 1–4 s. Criterion benchmarks for the core operations: `cargo bench -p zwopp-core
+--bench library` (set `ZWOPP_BENCH_ITEMS` for larger libraries).
 
 ## Follow-ups (2026-10-27)
 

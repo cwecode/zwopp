@@ -37,7 +37,7 @@ export interface Rect {
 /** Tells the backend the UI language, for the tray menu. */
 export const setLanguage = (language: string) => invoke<void>("set_language", { language });
 
-/** The user settings (`screenbook_core::settings::Settings`). */
+/** The user settings (`zwopp_core::settings::Settings`). */
 export interface Settings {
   /** "de" or "en"; null follows the system. */
   language: string | null;
@@ -56,7 +56,7 @@ export interface SettingsInfo {
   /** The library folder in use; a changed setting applies after a restart. */
   libraryDir: string;
   defaultLibraryDir: string;
-  /** SCREENBOOK_LIBRARY_DIR is set and wins over the setting. */
+  /** ZWOPP_LIBRARY_DIR is set and wins over the setting. */
   libraryDirFromEnv: boolean;
   captureShortcut: string | null;
 }

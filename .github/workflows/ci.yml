@@ -76,7 +76,7 @@ jobs:
       - run: npm ci
 
       - name: Core budgets (queries, paging, search)
-        run: cargo test -p screenbook-core --release --test budgets -- --ignored --nocapture
+        run: cargo test -p zwopp-core --release --test budgets -- --ignored --nocapture
 
       - name: UI budgets (first thumbnails, scrolling, search, memory)
         run: |

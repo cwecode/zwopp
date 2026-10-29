@@ -76,7 +76,7 @@ pub fn create(app: &AppHandle, capture_shortcut: Option<&str>) -> tauri::Result<
     let menu = Menu::with_items(app, &[&capture, &delayed, &library, &settings, &quit])?;
 
     let mut tray = TrayIconBuilder::with_id("main")
-        .tooltip("Screenbook")
+        .tooltip("Zwopp")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {

@@ -5,7 +5,7 @@
 
 ## Context
 
-Screenbook is a tray app that is always running, needs low-level screen capture on Windows,
+Zwopp is a tray app that is always running, needs low-level screen capture on Windows,
 macOS and Linux (X11 and Wayland), and a rich canvas editor. It should be easy to build from
 source and later ship as small installers.
 
@@ -21,7 +21,7 @@ source and later ship as small installers.
 ## Decision
 
 - **Tauri 2** as application shell.
-- **Rust** for everything that is not UI, in a separate crate `screenbook-core`, so a CLI,
+- **Rust** for everything that is not UI, in a separate crate `zwopp-core`, so a CLI,
   HTTP API or MCP server can reuse it without Tauri.
 - **React + TypeScript + Vite** for the UI; **Konva.js** for the editor (Phase 1).
 - **xcap** for screen and window capture.

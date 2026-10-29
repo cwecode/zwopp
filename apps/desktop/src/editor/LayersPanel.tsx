@@ -80,7 +80,7 @@ export function LayersPanel({ doc, selectedIds, activeLayer, onSelect, onActivat
   const startDrag = (event: DragEvent, next: Drag) => {
     event.stopPropagation();
     event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", "screenbook");
+    event.dataTransfer.setData("text/plain", "zwopp");
     drag.current = next;
   };
 

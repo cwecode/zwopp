@@ -6,7 +6,7 @@ members = ["crates/core", "apps/desktop/src-tauri"]
 version = "1.0.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/cwecode/screenbook"
+repository = "https://github.com/cwecode/zwopp"
 rust-version = "1.90"
 
 # Dependencies are optimized in dev builds too: image encoding and screen
@@ -16,7 +16,7 @@ rust-version = "1.90"
 [profile.dev.package."*"]
 opt-level = 3
 
-[profile.dev.package.screenbook-core]
+[profile.dev.package.zwopp-core]
 opt-level = 3
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

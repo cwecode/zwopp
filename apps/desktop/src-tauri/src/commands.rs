@@ -1,22 +1,22 @@
 //! Tauri commands, i.e. the IPC surface used by the web UI.
 //!
-//! Commands stay thin: the actual work happens in `screenbook-core` (or in
+//! Commands stay thin: the actual work happens in `zwopp-core` (or in
 //! `capture` for the window handling) so a CLI or HTTP API can reuse it later.
 
 use std::path::PathBuf;
 
 use std::time::Duration;
 
-use screenbook_core::capture::DesktopRect;
-use screenbook_core::export::{self, ExportFormat};
-use screenbook_core::library::{ItemUpdate, Library, LibraryItem, ListQuery};
-use screenbook_core::settings::Settings;
 use serde::Serialize;
 use tauri::ipc::{InvokeBody, Request, Response};
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::DialogExt;
 use uuid::Uuid;
+use zwopp_core::capture::DesktopRect;
+use zwopp_core::export::{self, ExportFormat};
+use zwopp_core::library::{ItemUpdate, Library, LibraryItem, ListQuery};
+use zwopp_core::settings::Settings;
 
 use crate::{AppState, capture, settings, tray};
 
@@ -30,7 +30,7 @@ fn err(e: impl std::fmt::Display) -> String {
 /// never ties up the IPC workers that keep the UI responsive.
 async fn blocking<T: Send + 'static>(
     state: &AppState,
-    work: impl FnOnce(&Library) -> screenbook_core::Result<T> + Send + 'static,
+    work: impl FnOnce(&Library) -> zwopp_core::Result<T> + Send + 'static,
 ) -> CmdResult<T> {
     let library = state.library.clone();
     tauri::async_runtime::spawn_blocking(move || work(&library))

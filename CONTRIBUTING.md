@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest! Screenbook is in an early phase, so issues and ideas are just as
+Thanks for your interest! Zwopp is in an early phase, so issues and ideas are just as
 welcome as pull requests.
 
 ## Ground rules

@@ -7,7 +7,7 @@
 
 The library must list hundreds or thousands of screenshots quickly, support search, tags and
 favorites, and keep annotations editable. Users should not lose screenshots if an index gets
-corrupted, and the data should stay understandable without Screenbook.
+corrupted, and the data should stay understandable without Zwopp.
 
 ## Decision
 

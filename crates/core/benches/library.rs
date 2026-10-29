@@ -1,20 +1,20 @@
 //! Library performance against the budgets in docs/PLAN.md (Phase 1.5).
 //!
 //! ```text
-//! cargo bench -p screenbook-core --bench library
-//! SCREENBOOK_BENCH_ITEMS=100000 cargo bench -p screenbook-core --bench library
+//! cargo bench -p zwopp-core --bench library
+//! ZWOPP_BENCH_ITEMS=100000 cargo bench -p zwopp-core --bench library
 //! ```
 
 use std::hint::black_box;
 
 use criterion::{Criterion, criterion_group, criterion_main};
-use screenbook_core::library::{Library, ListQuery};
-use screenbook_core::testing;
+use zwopp_core::library::{Library, ListQuery};
+use zwopp_core::testing;
 
 const PAGE: u32 = 200;
 
 fn bench(c: &mut Criterion) {
-    let count: usize = std::env::var("SCREENBOOK_BENCH_ITEMS")
+    let count: usize = std::env::var("ZWOPP_BENCH_ITEMS")
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(20_000);

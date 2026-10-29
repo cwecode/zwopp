@@ -1,16 +1,16 @@
 //! Fills a library with synthetic items for performance testing.
 //!
 //! ```text
-//! cargo run -p screenbook-core --release --example seed -- <library-dir> [count]
+//! cargo run -p zwopp-core --release --example seed -- <library-dir> [count]
 //! ```
 //!
 //! To try it in the app, point it at a copy of the app's library folder
-//! (`%APPDATA%\digital.weier.screenbook\library` on Windows).
+//! (`%APPDATA%\digital.weier.zwopp\library` on Windows).
 
 use std::time::Instant;
 
-use screenbook_core::library::ListQuery;
-use screenbook_core::testing;
+use zwopp_core::library::ListQuery;
+use zwopp_core::testing;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = std::env::args().skip(1);

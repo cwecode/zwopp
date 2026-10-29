@@ -1,6 +1,6 @@
-# Screenbook – Projektplan
+# Zwopp – Projektplan
 
-> Arbeitstitel: **Screenbook** – ein schlanker, quelloffener Screenshot‑ und Annotations‑Editor
+> **Zwopp** – ein schlanker, quelloffener Screenshot‑ und Annotations‑Editor
 > für Windows, macOS und Linux.
 >
 > Stand: 2026‑10‑27 · Status: Phase 1.5 abgeschlossen, Phase 2 als Nächstes
@@ -80,7 +80,7 @@ anschauen – bei GPL‑Code aber nicht kopieren, wenn wir MIT/Apache lizenziere
 │  capture_region · capture_window · list_library · tag ·     │
 │  render_annotations · export · delete …                     │
 ├─────────────────────────────────────────────────────────────┤
-│ Domain (crate `screenbook-core`)                            │
+│ Domain (crate `zwopp-core`)                                 │
 │  Capture‑Trait · Library‑Repository · Annotation‑Dokument   │
 │  · Renderer · Export                                        │
 ├─────────────────────────────────────────────────────────────┤
@@ -123,7 +123,7 @@ Rust‑Bausteine: `xcap` (Screen/Window‑Capture, alle Plattformen inkl. Waylan
 ### 3.4 Bibliothek & Datenmodell
 
 ```
-<AppData>/screenbook/
+<AppData>/zwopp/
   library.db                 # SQLite: Metadaten, Tags, Volltextsuche (FTS5)
   items/2026/10/<uuid>/
      original.png            # unverändertes Original (nie überschrieben)
@@ -166,7 +166,7 @@ Beispiel `document.json`:
 
 | Schnittstelle | Zweck |
 |---|---|
-| **CLI** `screenbook capture --region 0,0,800,600 --out shot.png` | Skripte, CI, Doku‑Automatisierung |
+| **CLI** `zwopp capture --region 0,0,800,600 --out shot.png` | Skripte, CI, Doku‑Automatisierung |
 | **Lokale HTTP‑API** (nur `127.0.0.1`, Token‑Auth, OpenAPI‑Spec) | Integration in andere Tools |
 | **MCP‑Server** | KI‑Agenten (Claude, Cursor …) können Screenshots machen, annotieren, aus der Bibliothek lesen |
 
@@ -178,9 +178,9 @@ Sicherheit: API standardmäßig **aus**, Opt‑in in den Einstellungen, zufälli
 
 **Struktur (Monorepo)**
 ```
-screenbook/
+zwopp/
   apps/desktop/          # Tauri‑App (src-tauri/ + React‑UI)
-  crates/core/           # screenbook-core: Domain, Capture, Library, Render
+  crates/core/           # zwopp-core: Domain, Capture, Library, Render
   crates/cli/            # v2
   docs/                  # PLAN, ADRs, Spezifikation, Nutzer‑Doku
     adr/                 # Architecture Decision Records
@@ -217,13 +217,13 @@ Voraussetzungen (alles kostenlos):
 
 Starten:
 ```bash
-git clone https://github.com/<org>/screenbook.git
-cd screenbook
+git clone https://github.com/<org>/zwopp.git
+cd zwopp
 npm install
 npm run dev        # startet die App (Entwicklungsmodus, Hot‑Reload)
 ```
 Optional schneller/schlanker: `npm run build:app` baut eine optimierte, **unsignierte** lokale
-Programmdatei (`target/release/screenbook[.exe]`), die man direkt starten kann. Weil sie auf dem
+Programmdatei (`target/release/zwopp[.exe]`), die man direkt starten kann. Weil sie auf dem
 eigenen Rechner gebaut wurde, gibt es weder unter Windows (SmartScreen) noch unter macOS
 (Gatekeeper) eine Warnung.
 
@@ -325,13 +325,13 @@ eine Datenbank‑Tabelle; nichts blockiert die Oberfläche.
 
 | Frage | Stand |
 |---|---|
-| **Name** – „Screenbook“ ok? | ⬜ Websuche (Okt. 2026) ohne gleichnamige Software; Prüfung der Markenregister (DPMA, EUIPO, USPTO) steht vor dem öffentlichen Release noch aus |
+| **Name** – „Zwopp“ ok? | ⬜ Websuche (Okt. 2026) ohne gleichnamige Software, crates.io und npm frei (zwopp.com und zwopp.de sind vergeben); Prüfung der Markenregister (DPMA, EUIPO, USPTO) steht vor dem öffentlichen Release noch aus |
 | **Lizenz** | ✅ MIT oder Apache‑2.0 nach Wahl |
 | **Frontend** | ✅ React |
 | **Neubau vs. Beitrag zu ksnip** | ✅ Neubau |
 | **Signing** | ✅ entfällt vorerst: unsignierte Downloads + Start aus dem Quellcode |
 | **Linux‑Mindestversion** | ✅ Ubuntu 24.04 / Debian 13: `xcap` braucht PipeWire ≥ 1.0, CI und Release bauen auf `ubuntu-24.04` |
-| **Repository** | ✅ privat unter `cwecode/screenbook`; öffentlich spätestens mit v1.0 |
+| **Repository** | ✅ privat unter `cwecode/zwopp`; öffentlich spätestens mit v1.0 |
 
 ---
 

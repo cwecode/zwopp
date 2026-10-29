@@ -76,9 +76,9 @@ export const de = {
     libraryDefault: "Standard",
     libraryDialog: "Ordner für die Bibliothek wählen",
     libraryRestart: (folder: string) =>
-      `Nach einem Neustart öffnet Screenbook ${folder}. Vorhandene Screenshots bleiben im bisherigen Ordner.`,
+      `Nach einem Neustart öffnet Zwopp ${folder}. Vorhandene Screenshots bleiben im bisherigen Ordner.`,
     restartNow: "Jetzt neu starten",
-    libraryFromEnv: "Festgelegt durch die Umgebungsvariable SCREENBOOK_LIBRARY_DIR.",
+    libraryFromEnv: "Festgelegt durch die Umgebungsvariable ZWOPP_LIBRARY_DIR.",
     editor: "Editor",
     toolStyles: "Werkzeugstile",
     toolStylesHint: "Jedes Werkzeug beginnt mit Farbe, Größe und Form vom letzten Mal.",
@@ -94,10 +94,10 @@ export const de = {
     importQuickStyles: "Importieren …",
     exportDialog: "Schnellstile exportieren",
     importDialog: "Schnellstile importieren",
-    exportFileName: "screenbook-schnellstile.json",
+    exportFileName: "zwopp-schnellstile.json",
     exported: (path: string) => `Gespeichert unter ${path}`,
     imported: (n: number) => `${n} ${n === 1 ? "Schnellstil" : "Schnellstile"} importiert`,
-    importFailed: "Die Datei enthält keine Screenbook-Schnellstile.",
+    importFailed: "Die Datei enthält keine Zwopp-Schnellstile.",
   },
 
   tools: {

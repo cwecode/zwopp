@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Screenbook",
+  "productName": "Zwopp",
   "version": "1.0.0",
-  "identifier": "digital.weier.screenbook",
+  "identifier": "digital.weier.zwopp",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Screenbook",
+        "title": "Zwopp",
         "width": 1100,
         "height": 720,
         "minWidth": 640,

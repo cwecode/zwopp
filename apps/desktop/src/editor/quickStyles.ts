@@ -19,7 +19,7 @@ export interface EditorSettings {
 }
 
 /** Marks a shared quick-styles file. */
-const FILE_FORMAT = "screenbook-quick-styles";
+const FILE_FORMAT = "zwopp-quick-styles";
 const FILE_VERSION = 1;
 /** Number keys apply the first quick styles of the current tool. */
 export const QUICK_STYLE_KEYS = 9;

@@ -53,15 +53,15 @@ jobs:
 
           | | |
           |---|---|
-          | Windows | `Screenbook_*_x64-setup.exe` (or the `.msi`) |
-          | macOS | `Screenbook_*_aarch64.dmg` (Apple silicon) or `Screenbook_*_x64.dmg` (Intel) |
+          | Windows | `Zwopp_*_x64-setup.exe` (or the `.msi`) |
+          | macOS | `Zwopp_*_aarch64.dmg` (Apple silicon) or `Zwopp_*_x64.dmg` (Intel) |
           | Linux | `.AppImage`, `.deb` or `.rpm` (Ubuntu 24.04, Debian 13 or newer) |
 
           The downloads are not signed, so the first start asks once:
 
           - **Windows:** "Windows protected your PC" → *More info* → *Run anyway*.
           - **macOS:** right-click the app → *Open*, or *System Settings → Privacy & Security →
-            Open Anyway*. Then allow *Screen Recording* for Screenbook.
+            Open Anyway*. Then allow *Screen Recording* for Zwopp.
 
           Check a download against `SHA256SUMS.txt`, e.g. `sha256sum -c SHA256SUMS.txt --ignore-missing`.
           EOF
@@ -74,7 +74,7 @@ jobs:
           # Drafts are not found by tag (and a fresh one not even in the
           # release list yet), so the builds attach to the id it returns.
           id=$(gh api "repos/${{ github.repository }}/releases" \
-            -f tag_name="$TAG" -f name="Screenbook $TAG" -F body=@notes.md \
+            -f tag_name="$TAG" -f name="Zwopp $TAG" -F body=@notes.md \
             -F draft=true -F prerelease="$prerelease" --jq .id)
           if [ -z "$id" ]; then
             echo "::error::could not create the draft release"

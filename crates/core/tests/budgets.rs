@@ -2,7 +2,7 @@
 //! in CI. Timings only mean something in a release build:
 //!
 //! ```text
-//! cargo test -p screenbook-core --release --test budgets -- --ignored --nocapture
+//! cargo test -p zwopp-core --release --test budgets -- --ignored --nocapture
 //! ```
 //!
 //! The budgets for the UI (first thumbnails, scrolling, memory) are checked by
@@ -12,8 +12,8 @@ use std::hint::black_box;
 use std::time::{Duration, Instant};
 
 use image::{Rgba, RgbaImage};
-use screenbook_core::library::{Library, ListQuery};
-use screenbook_core::testing;
+use zwopp_core::library::{Library, ListQuery};
+use zwopp_core::testing;
 
 const ITEMS: usize = 100_000;
 const PAGE: u32 = 200;

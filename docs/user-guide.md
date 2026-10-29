@@ -1,33 +1,33 @@
-# Screenbook user guide
+# Zwopp user guide
 
-Screenbook takes screenshots, keeps them in a library and lets you annotate them. This
+Zwopp takes screenshots, keeps them in a library and lets you annotate them. This
 guide covers everything in version 1.0. The keyboard shortcuts name Windows/Linux keys;
 on macOS use ⌘ for Ctrl and ⌥ for Alt.
 
 ## Install and first start
 
 Download the file for your system from the
-[Releases](https://github.com/cwecode/screenbook/releases) page:
+[Releases](https://github.com/cwecode/zwopp/releases) page:
 
 | System | File |
 |---|---|
-| Windows 10/11 | `Screenbook_<version>_x64-setup.exe` (or the `.msi`) |
-| macOS, Apple silicon | `Screenbook_<version>_aarch64.dmg` |
-| macOS, Intel | `Screenbook_<version>_x64.dmg` |
+| Windows 10/11 | `Zwopp_<version>_x64-setup.exe` (or the `.msi`) |
+| macOS, Apple silicon | `Zwopp_<version>_aarch64.dmg` |
+| macOS, Intel | `Zwopp_<version>_x64.dmg` |
 | Linux | `.AppImage` (any distribution), `.deb` (Debian/Ubuntu) or `.rpm` (Fedora) – Ubuntu 24.04, Debian 13 or similarly recent |
 
 The downloads are not signed, so your system asks once before the first start:
 
 - **Windows:** "Windows protected your PC" → *More info* → *Run anyway*.
-- **macOS:** open the `.dmg`, drag Screenbook into *Applications*, then right-click it →
+- **macOS:** open the `.dmg`, drag Zwopp into *Applications*, then right-click it →
   *Open* (or *System Settings → Privacy & Security → Open Anyway*). On the first capture,
-  allow *Screen Recording* for Screenbook and start it again.
-- **Linux:** make the AppImage executable (`chmod +x Screenbook*.AppImage`) and start it.
+  allow *Screen Recording* for Zwopp and start it again.
+- **Linux:** make the AppImage executable (`chmod +x Zwopp*.AppImage`) and start it.
   On Wayland the desktop asks for permission on the first capture.
 
 To check a download, compare it with `SHA256SUMS.txt` from the same release.
 
-Screenbook runs in the system tray (menu bar on macOS). Closing the window keeps it
+Zwopp runs in the system tray (menu bar on macOS). Closing the window keeps it
 running; quit from the tray menu.
 
 ## Taking a screenshot
@@ -142,20 +142,20 @@ Open them with ⚙ in the library or **Settings** in the tray menu.
 - **Tool styles:** reset every tool to its default style.
 - **Quick styles:** rename, delete, export, import.
 
-## Where Screenbook keeps its files
+## Where Zwopp keeps its files
 
 | | Windows | macOS | Linux |
 |---|---|---|---|
-| Library (default) | `%APPDATA%\digital.weier.screenbook\library` | `~/Library/Application Support/digital.weier.screenbook/library` | `~/.local/share/digital.weier.screenbook/library` |
-| Settings | `%APPDATA%\digital.weier.screenbook\settings.json` | `~/Library/Application Support/digital.weier.screenbook/settings.json` | `~/.config/digital.weier.screenbook/settings.json` |
+| Library (default) | `%APPDATA%\digital.weier.zwopp\library` | `~/Library/Application Support/digital.weier.zwopp/library` | `~/.local/share/digital.weier.zwopp/library` |
+| Settings | `%APPDATA%\digital.weier.zwopp\settings.json` | `~/Library/Application Support/digital.weier.zwopp/settings.json` | `~/.config/digital.weier.zwopp/settings.json` |
 
-Back up the library folder to keep your screenshots. Uninstalling Screenbook keeps it,
+Back up the library folder to keep your screenshots. Uninstalling Zwopp keeps it,
 unless you tell the Windows uninstaller to delete the app data.
 
 ## Problems
 
 - **The hotkey does nothing:** another app may use it. Pick another one in the settings.
-- **macOS shows only the desktop background:** allow *Screen Recording* for Screenbook in
-  *System Settings → Privacy & Security*, then restart Screenbook.
+- **macOS shows only the desktop background:** allow *Screen Recording* for Zwopp in
+  *System Settings → Privacy & Security*, then restart Zwopp.
 - **Something else:** open an issue on
-  [GitHub](https://github.com/cwecode/screenbook/issues).
+  [GitHub](https://github.com/cwecode/zwopp/issues).

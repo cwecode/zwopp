@@ -1,12 +1,12 @@
-//! Applying the user settings (stored by `screenbook_core::settings`): the
+//! Applying the user settings (stored by `zwopp_core::settings`): the
 //! capture hotkey, and what the settings page shows.
 
 use std::path::PathBuf;
 
-use screenbook_core::settings::Settings;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+use zwopp_core::settings::Settings;
 
 use crate::{AppState, tray};
 
@@ -27,7 +27,7 @@ pub struct SettingsInfo {
     pub library_dir: PathBuf,
     /// The library folder used when none is set.
     pub default_library_dir: PathBuf,
-    /// Set by `SCREENBOOK_LIBRARY_DIR`, which wins over the setting.
+    /// Set by `ZWOPP_LIBRARY_DIR`, which wins over the setting.
     pub library_dir_from_env: bool,
     /// The registered capture hotkey, if any could be registered.
     pub capture_shortcut: Option<String>,
@@ -110,7 +110,7 @@ pub fn info(app: &AppHandle) -> tauri::Result<SettingsInfo> {
         settings: state.settings.lock().unwrap().clone(),
         library_dir: state.library.root().to_path_buf(),
         default_library_dir: default_library_dir(app)?,
-        library_dir_from_env: std::env::var_os("SCREENBOOK_LIBRARY_DIR").is_some(),
+        library_dir_from_env: std::env::var_os("ZWOPP_LIBRARY_DIR").is_some(),
         capture_shortcut: state.capture_shortcut.lock().unwrap().clone(),
     })
 }

@@ -8,11 +8,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use image::RgbaImage;
-use screenbook_core::capture::{self, DesktopRect, PlacedFrame};
-use screenbook_core::library::LibraryItem;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_clipboard_manager::ClipboardExt;
+use zwopp_core::capture::{self, DesktopRect, PlacedFrame};
+use zwopp_core::library::LibraryItem;
 
 use crate::{AppState, platform};
 
@@ -139,7 +139,7 @@ pub fn prepare_overlays(app: &AppHandle, monitors: &[tauri::Monitor]) -> Result<
         let window = match app.get_webview_window(&label) {
             Some(window) => window,
             None => WebviewWindowBuilder::new(app, label, WebviewUrl::default())
-                .title("Screenbook")
+                .title("Zwopp")
                 .decorations(false)
                 .resizable(false)
                 .always_on_top(true)

@@ -28,7 +28,7 @@ const PREFETCH_ROWS = 6;
 
 /** Capture delays offered next to "New screenshot", in seconds (0 = now). */
 const DELAYS = [0, 3, 5, 10];
-const DELAY_KEY = "screenbook.captureDelay";
+const DELAY_KEY = "zwopp.captureDelay";
 
 /** The delay picked last time; a per-user convenience, so storage may fail. */
 function storedDelay(): number {
@@ -209,7 +209,7 @@ export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): voi
   return (
     <div className="library">
       <header className="toolbar">
-        <h1>Screenbook</h1>
+        <h1>Zwopp</h1>
         <input
           type="search"
           className="search"

@@ -1,6 +1,6 @@
 # Feature specification
 
-What Screenbook should do, written from a user's perspective.
+What Zwopp should do, written from a user's perspective.
 
 Legend: ✅ done · 🚧 in progress · ⬜ planned · Phase in brackets.
 
@@ -82,6 +82,6 @@ see [document-format.md](document-format.md). Changes are saved automatically.
 |---|---|
 | Copy annotated image to the clipboard | ✅ (1) |
 | Export to file (PNG / JPG / WebP): save dialog in the library preview and the editor (Ctrl+Shift+S), format by file extension, named after the title; JPG puts transparency on white, WebP is lossless | ✅ (2) |
-| CLI (`screenbook capture …`) | ⬜ (v2) |
+| CLI (`zwopp capture …`) | ⬜ (v2) |
 | Local HTTP API (loopback, token, OpenAPI) | ⬜ (v2) |
 | MCP server | ⬜ (v2) |

@@ -7,10 +7,10 @@ mod tray;
 
 use std::sync::{Arc, Mutex};
 
-use screenbook_core::library::Library;
-use screenbook_core::settings::Settings;
 use tauri::{AppHandle, Emitter, Manager, WindowEvent};
 use tauri_plugin_global_shortcut::ShortcutState;
+use zwopp_core::library::Library;
+use zwopp_core::settings::Settings;
 
 pub struct AppState {
     pub library: Arc<Library>,
@@ -67,10 +67,10 @@ pub fn run() {
         )
         .setup(|app| {
             let settings = settings::load(app.handle())?;
-            // SCREENBOOK_LIBRARY_DIR points the app at another library, e.g. a
+            // ZWOPP_LIBRARY_DIR points the app at another library, e.g. a
             // generated one for performance tests (see README); it wins over
             // the folder from the settings.
-            let custom = std::env::var_os("SCREENBOOK_LIBRARY_DIR")
+            let custom = std::env::var_os("ZWOPP_LIBRARY_DIR")
                 .map(std::path::PathBuf::from)
                 .or_else(|| settings.library_dir.clone());
             let root = match custom {

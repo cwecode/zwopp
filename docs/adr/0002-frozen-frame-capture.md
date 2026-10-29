@@ -11,7 +11,7 @@ and on Wayland applications may not read the screen freely at all.
 
 ## Decision
 
-1. On hotkey, hide our own window and capture **every monitor in full** (`screenbook-core::capture`).
+1. On hotkey, hide our own window and capture **every monitor in full** (`zwopp-core::capture`).
 2. Open one borderless, always-on-top overlay window per monitor that displays the frozen frame.
 3. The user drags a rectangle (click = whole monitor, Esc / right-click = cancel).
 4. The overlay converts CSS pixels to frame pixels using the ratio
@@ -50,7 +50,7 @@ A capture in `npm run dev` took 1–2 s until the overlay appeared and about 1 s
 click to the editor. Measured causes and fixes:
 
 - **Unoptimized dependencies** in dev builds: PNG/WebP encoding and screen capture were
-  10–70× slower than in release. Dependencies and `screenbook-core` are now built with
+  10–70× slower than in release. Dependencies and `zwopp-core` are now built with
   `opt-level = 3` in dev too (`Cargo.toml`); the app crate stays unoptimized for fast rebuilds.
 - **New overlay windows per capture**: starting a webview and loading the UI took ~1 s.
   The overlays are created once (at startup) and only hidden between captures; the backend
