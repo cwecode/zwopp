@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupYears, queryFor, recentSince } from "./nav";
+import { groupYears, queryFor, recentSince, stillListed } from "./nav";
 
 const now = new Date(2026, 9, 29, 15, 30);
 
@@ -23,6 +23,26 @@ describe("queryFor", () => {
     expect(recentSince(now)).toEqual(new Date(2026, 9, 23));
     expect(recentSince(new Date(2026, 0, 2, 8))).toEqual(new Date(2025, 11, 27));
     expect(new Date(queryFor({ kind: "recent" }, undefined, now).from!)).toEqual(new Date(2026, 9, 23));
+  });
+});
+
+describe("stillListed", () => {
+  const overview = {
+    total: 2,
+    favorites: 0,
+    recent: 0,
+    months: [{ year: 2026, month: 10, count: 2 }],
+    apps: [{ app: "Excel", count: 1 }],
+  };
+
+  it("drops years, months and applications without screenshots", () => {
+    expect(stillListed({ kind: "all" }, overview)).toBe(true);
+    expect(stillListed({ kind: "favorites" }, overview)).toBe(true);
+    expect(stillListed({ kind: "year", year: 2026 }, overview)).toBe(true);
+    expect(stillListed({ kind: "year", year: 2025 }, overview)).toBe(false);
+    expect(stillListed({ kind: "month", year: 2026, month: 9 }, overview)).toBe(false);
+    expect(stillListed({ kind: "app", app: "Excel" }, overview)).toBe(true);
+    expect(stillListed({ kind: "app", app: "Claude" }, overview)).toBe(false);
   });
 });
 

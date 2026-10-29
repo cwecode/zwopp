@@ -19,7 +19,7 @@ import {
 } from "../api";
 import { formatAccelerator, useT } from "../i18n";
 import { LibraryNav } from "./LibraryNav";
-import { ALL, queryFor, recentSince, type NavSelection } from "./nav";
+import { ALL, queryFor, recentSince, stillListed, type NavSelection } from "./nav";
 import { useLibraryPages } from "./useLibraryPages";
 
 /** Grid geometry; rows have a fixed height so the list can be virtualized. */
@@ -92,6 +92,10 @@ export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): voi
       .then(setOverview)
       .catch(report);
   useEffect(() => void loadOverview(), [version]);
+  // A year, month or application whose last screenshot is gone leaves the list.
+  useEffect(() => {
+    if (overview && !stillListed(nav, overview)) navigate(ALL);
+  }, [overview]);
 
   // The background index sync, thumbnail generation and new captures change the list.
   useEffect(() => {

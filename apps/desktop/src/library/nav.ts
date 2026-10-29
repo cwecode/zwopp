@@ -47,7 +47,21 @@ export function queryFor(selection: NavSelection, search: string | undefined, no
   return query;
 }
 
-export const sameSelection = (a: NavSelection, b: NavSelection) => JSON.stringify(a) === JSON.stringify(b);
+/** Whether the navigation still lists `selection` (e.g. after its last item was deleted). */
+export function stillListed(selection: NavSelection, overview: Overview): boolean {
+  switch (selection.kind) {
+    case "year":
+      return overview.months.some((m) => m.year === selection.year);
+    case "month":
+      return overview.months.some((m) => m.year === selection.year && m.month === selection.month);
+    case "app":
+      return overview.apps.some((a) => a.app === selection.app);
+    default:
+      return true;
+  }
+}
+
+export const sameSelection =(a: NavSelection, b: NavSelection) => JSON.stringify(a) === JSON.stringify(b);
 
 export interface YearGroup {
   year: number;
