@@ -7022,6 +7022,7 @@ dependencies = [
 name = "zwopp"
 version = "1.0.0"
 dependencies = [
+ "chrono",
  "image",
  "serde",
  "serde_json",
