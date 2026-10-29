@@ -39,12 +39,24 @@ import {
   type EditorDocument,
   type Rect,
   type Shape,
+  type StampShape,
   type StepShape,
   type TextShape,
 } from "./document";
 import { MipImage } from "./MipImage";
 import { cleanImage, drawMagnifier, pixelBlocks } from "./render";
-import { EMOJIS, FONTS, SIZES, emojiSize, stepDiameter, type Tool, type ToolStyle } from "./tools";
+import {
+  BODY,
+  DIVIDERS,
+  STAMP_BOX,
+  STAMP_DRAWINGS,
+  STAMP_LINE,
+  STAMP_OUTLINE,
+  STAMPS,
+  WHEEL,
+  type StampKind,
+} from "./stamps";
+import { EMOJIS, FONTS, SIZES, emojiSize, stampSize, stepDiameter, type Tool, type ToolStyle } from "./tools";
 
 export interface CanvasHandle {
   /** Renders image and shapes at full resolution, transparent where empty. */
@@ -275,6 +287,46 @@ function drawEmoji(ctx: Konva.Context, node: Konva.Shape) {
   ctx.setAttr("textBaseline", "middle");
   ctx.setAttr("fillStyle", "#000");
   ctx.fillText(String(node.getAttr("emoji")), w / 2, h * 0.54);
+}
+
+const paths = new Map<string, Path2D>();
+/** A Path2D for SVG path data, made once per path. */
+function path(data: string): Path2D {
+  let made = paths.get(data);
+  if (!made) paths.set(data, (made = new Path2D(data)));
+  return made;
+}
+
+/** A mouse stamp (see `stamps.ts`) scaled into the node's box. */
+function drawStamp(ctx: Konva.Context, node: Konva.Shape) {
+  const drawing = STAMP_DRAWINGS[node.getAttr("stamp") as StampKind] ?? STAMP_DRAWINGS.left;
+  const color = node.fill() as string;
+  ctx.save();
+  ctx.scale(node.width() / STAMP_BOX.width, node.height() / STAMP_BOX.height);
+  ctx.setAttr("lineWidth", STAMP_LINE);
+  ctx.setAttr("lineJoin", "round");
+  ctx.setAttr("lineCap", "round");
+  ctx.setAttr("fillStyle", "#ffffff");
+  ctx.fill(path(BODY));
+  ctx.setAttr("fillStyle", color);
+  for (const part of drawing.fills) ctx.fill(path(part));
+  ctx.setAttr("strokeStyle", STAMP_OUTLINE);
+  ctx.stroke(path(DIVIDERS));
+  ctx.stroke(path(WHEEL));
+  ctx.stroke(path(BODY));
+  if (drawing.marks) {
+    ctx.setAttr("strokeStyle", color);
+    ctx.setAttr("lineWidth", STAMP_LINE * 1.25);
+    ctx.stroke(path(drawing.marks));
+  }
+  if (drawing.label) {
+    ctx.setAttr("fillStyle", color);
+    ctx.setAttr("font", `bold 9px ${FONTS.sans}`);
+    ctx.setAttr("textAlign", "center");
+    ctx.setAttr("textBaseline", "middle");
+    ctx.fillText(drawing.label, STAMP_BOX.width / 2, 22);
+  }
+  ctx.restore();
 }
 
 /** Hit area: the whole box. */
@@ -576,7 +628,8 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
     transformer.nodes(nodes);
     const isText = single?.type === "text";
     // Step badges stay round.
-    const isStep = single?.type === "step" || single?.type === "emoji" || single?.type === "magnify";
+    const isStep =
+      single?.type === "step" || single?.type === "stamp" || single?.type === "emoji" || single?.type === "magnify";
     transformer.keepRatio(isText || isStep || selected.length > 1);
     transformer.enabledAnchors(
       isText ? TEXT_ANCHORS : isStep || selected.length > 1 ? CORNER_ANCHORS : RECT_ANCHORS,
@@ -746,8 +799,30 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
     onSelect([shape.id]);
   };
 
-  /** Puts the next step badge centred on `at`. */
-  const placeStep = (at: Point) => {
+  /** Puts the chosen mouse stamp centred on `at`. */
+  const placeStamp = (at: Point) => {
+    const style = styles.stamp;
+    const { width, height } = stampSize(SIZES[style.size]);
+    const shape: StampShape = {
+      id: newId(),
+      type: "stamp",
+      layer: activeLayer,
+      x: at.x - width / 2,
+      y: at.y - height / 2,
+      width,
+      height,
+      stamp: style.stamp ?? STAMPS[0],
+      fill: style.color,
+    };
+    onCommit(addShape(doc, shape));
+    onSelect([shape.id]);
+  };
+
+  /**
+   * Puts a step badge centred on `at`: the fixed number if the tool has one,
+   * else the next one, or with `repeat` (Shift+click) the last one again.
+   */
+  const placeStep = (at: Point, repeat: boolean) => {
     const style = styles.step;
     const diameter = stepDiameter(SIZES[style.size]);
     const shape: StepShape = {
@@ -758,7 +833,7 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
       y: at.y - diameter / 2,
       width: diameter,
       height: diameter,
-      number: nextStepNumber(doc),
+      number: style.number ?? nextStepNumber(doc, repeat),
       fill: style.color,
     };
     onCommit(addShape(doc, shape));
@@ -796,7 +871,11 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
     onMarquee(null);
 
     if (tool === "step") {
-      placeStep(start);
+      placeStep(start, event.evt.shiftKey);
+      return;
+    }
+    if (tool === "stamp") {
+      placeStamp(start);
       return;
     }
     if (tool === "emoji") {
@@ -1014,6 +1093,21 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
             number={shape.number}
             sceneFunc={drawStep}
             hitFunc={hitStep}
+          />
+        );
+      case "stamp":
+        return (
+          <KonvaShape
+            key={shape.id}
+            {...common}
+            x={shape.x}
+            y={shape.y}
+            width={shape.width}
+            height={shape.height}
+            fill={shape.fill}
+            stamp={shape.stamp}
+            sceneFunc={drawStamp}
+            hitFunc={hitBox}
           />
         );
       case "emoji":

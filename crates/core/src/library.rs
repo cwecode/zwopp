@@ -59,7 +59,7 @@ const THUMB_QUALITY: f32 = 80.0;
 const READERS: usize = 4;
 
 /// Current database schema, stored in SQLite's `user_version`.
-const SCHEMA_VERSION: i32 = 2;
+const SCHEMA_VERSION: i32 = 3;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -72,6 +72,8 @@ pub struct LibraryItem {
     pub title: String,
     pub favorite: bool,
     pub tags: Vec<String>,
+    /// The application the screenshot was taken from, if known.
+    pub app: Option<String>,
     pub has_annotations: bool,
     pub original_path: PathBuf,
     /// The annotated image, if the item was edited.
@@ -85,6 +87,40 @@ pub struct ListQuery {
     /// Matches title or tags, case-insensitive.
     pub search: Option<String>,
     pub favorites_only: bool,
+    /// Only items taken from this application.
+    pub app: Option<String>,
+    /// Only items created at or after this time.
+    pub from: Option<DateTime<Utc>>,
+    /// Only items created before this time.
+    pub until: Option<DateTime<Utc>>,
+}
+
+/// Counts for the library's navigation, see [`Library::overview`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Overview {
+    pub total: u64,
+    pub favorites: u64,
+    /// Items created since the time passed to [`Library::overview`].
+    pub recent: u64,
+    /// Items per month in local time, newest first.
+    pub months: Vec<MonthCount>,
+    /// Items per application, alphabetically; items without one are left out.
+    pub apps: Vec<AppCount>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct MonthCount {
+    pub year: i32,
+    /// 1 to 12.
+    pub month: u32,
+    pub count: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct AppCount {
+    pub app: String,
+    pub count: u64,
 }
 
 /// Fields to change in [`Library::update`]; `None` leaves a field as it is.
@@ -112,6 +148,8 @@ pub(crate) struct Metadata {
     pub(crate) favorite: bool,
     #[serde(default)]
     pub(crate) tags: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) app: Option<String>,
 }
 
 pub struct Library {
@@ -159,6 +197,11 @@ impl Library {
 
     /// Stores a new screenshot and returns its metadata.
     pub fn add(&self, image: &RgbaImage) -> Result<LibraryItem> {
+        self.add_from(image, None)
+    }
+
+    /// Stores a new screenshot taken from application `app` (e.g. "Firefox").
+    pub fn add_from(&self, image: &RgbaImage, app: Option<&str>) -> Result<LibraryItem> {
         let now = Utc::now();
         let metadata = Metadata {
             id: Uuid::now_v7(),
@@ -169,6 +212,10 @@ impl Library {
             title: String::new(),
             favorite: false,
             tags: Vec::new(),
+            app: app
+                .map(str::trim)
+                .filter(|a| !a.is_empty())
+                .map(str::to_owned),
         };
         let dir = self.dir(metadata.id);
         fs::create_dir_all(&dir).at(&dir)?;
@@ -262,6 +309,54 @@ impl Library {
             |row| row.get(0),
         )?;
         Ok(Some(newer as u64))
+    }
+
+    /// Counts per month and application for the navigation; `recent_since`
+    /// sets which items count as recent. Months use the local time zone.
+    pub fn overview(&self, recent_since: DateTime<Utc>) -> Result<Overview> {
+        let db = self.readers.get();
+        let (total, favorites, recent): (i64, i64, i64) = db.query_row(
+            "SELECT COUNT(*), COALESCE(SUM(favorite), 0),
+                    COALESCE(SUM(created_at >= ?1), 0)
+             FROM items",
+            [recent_since.to_rfc3339()],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )?;
+        let months = db
+            .prepare_cached(
+                "SELECT strftime('%Y', created_at, 'localtime'),
+                        strftime('%m', created_at, 'localtime'), COUNT(*)
+                 FROM items GROUP BY 1, 2 ORDER BY 1 DESC, 2 DESC",
+            )?
+            .query_map([], |row| {
+                let year: String = row.get(0)?;
+                let month: String = row.get(1)?;
+                Ok(MonthCount {
+                    year: year.parse().map_err(|e| conversion_error(0, e))?,
+                    month: month.parse().map_err(|e| conversion_error(1, e))?,
+                    count: row.get::<_, i64>(2)? as u64,
+                })
+            })?
+            .collect::<Result<_, _>>()?;
+        let apps = db
+            .prepare_cached(
+                "SELECT app, COUNT(*) FROM items WHERE app IS NOT NULL
+                 GROUP BY app ORDER BY app COLLATE NOCASE",
+            )?
+            .query_map([], |row| {
+                Ok(AppCount {
+                    app: row.get(0)?,
+                    count: row.get::<_, i64>(1)? as u64,
+                })
+            })?
+            .collect::<Result<_, _>>()?;
+        Ok(Overview {
+            total: total as u64,
+            favorites: favorites as u64,
+            recent: recent as u64,
+            months,
+            apps,
+        })
     }
 
     /// All tags in use, alphabetically.
@@ -495,7 +590,7 @@ impl Readers {
 }
 
 const SELECT_ITEMS: &str = "SELECT id, created_at, updated_at, width, height, title, favorite,
-        has_annotations,
+        has_annotations, app,
         (SELECT group_concat(tag, char(31)) FROM tags t WHERE t.item_id = items.id)
     FROM items";
 
@@ -529,6 +624,19 @@ impl Filter {
         let mut params = Vec::new();
         if query.favorites_only {
             clauses.push("favorite = 1".to_owned());
+        }
+        if let Some(app) = &query.app {
+            params.push(Value::from(app.clone()));
+            clauses.push(format!("app = ?{}", params.len()));
+        }
+        // Stored and compared as RFC 3339 text in UTC, which sorts like time.
+        if let Some(from) = query.from {
+            params.push(Value::from(from.to_rfc3339()));
+            clauses.push(format!("created_at >= ?{}", params.len()));
+        }
+        if let Some(until) = query.until {
+            params.push(Value::from(until.to_rfc3339()));
+            clauses.push(format!("created_at < ?{}", params.len()));
         }
         let terms: Vec<&str> = query
             .search
@@ -572,7 +680,9 @@ impl Filter {
         } else {
             clauses.join(" AND ")
         };
-        let index = if query.favorites_only {
+        let index = if query.app.is_some() {
+            "items_app"
+        } else if query.favorites_only {
             "items_favorite"
         } else {
             "items_order"
@@ -643,6 +753,13 @@ fn migrate(db: &Connection) -> Result<()> {
                  FROM items;",
         )?;
     }
+    if version < 3 {
+        // The application a screenshot was taken from, for the navigation.
+        db.execute_batch(
+            "ALTER TABLE items ADD COLUMN app TEXT;
+             CREATE INDEX items_app ON items (app, created_at DESC, id DESC);",
+        )?;
+    }
     db.pragma_update(None, "user_version", SCHEMA_VERSION)?;
     Ok(())
 }
@@ -651,11 +768,12 @@ fn upsert(db: &Connection, metadata: &Metadata, has_annotations: bool) -> Result
     let id = metadata.id.to_string();
     let updated_at = metadata.updated_at.unwrap_or(metadata.created_at);
     db.execute(
-        "INSERT INTO items (id, created_at, updated_at, width, height, title, favorite, has_annotations)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+        "INSERT INTO items (id, created_at, updated_at, width, height, title, favorite, has_annotations, app)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
          ON CONFLICT (id) DO UPDATE SET
              updated_at = excluded.updated_at, title = excluded.title,
-             favorite = excluded.favorite, has_annotations = excluded.has_annotations",
+             favorite = excluded.favorite, has_annotations = excluded.has_annotations,
+             app = excluded.app",
         params![
             id,
             metadata.created_at.to_rfc3339(),
@@ -665,6 +783,7 @@ fn upsert(db: &Connection, metadata: &Metadata, has_annotations: bool) -> Result
             metadata.title,
             metadata.favorite,
             has_annotations,
+            metadata.app,
         ],
     )?;
     db.execute("DELETE FROM tags WHERE item_id = ?1", [&id])?;
@@ -695,7 +814,7 @@ fn read_item(row: &Row, items_dir: &Path) -> rusqlite::Result<LibraryItem> {
     let id: String = row.get(0)?;
     let dir = items_dir.join(&id);
     let has_annotations: bool = row.get(7)?;
-    let tags: Option<String> = row.get(8)?;
+    let tags: Option<String> = row.get(9)?;
     let mut tags: Vec<String> = tags
         .map(|t| t.split('\u{1f}').map(str::to_owned).collect())
         .unwrap_or_default();
@@ -709,6 +828,7 @@ fn read_item(row: &Row, items_dir: &Path) -> rusqlite::Result<LibraryItem> {
         title: row.get(5)?,
         favorite: row.get(6)?,
         tags,
+        app: row.get(8)?,
         has_annotations,
         original_path: dir.join(ORIGINAL),
         render_path: has_annotations.then(|| dir.join(RENDER)),
@@ -1137,6 +1257,147 @@ mod tests {
         drop(tx);
         drop(db);
         assert_eq!(library.list(&ListQuery::default()).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn filter_by_app_and_date_and_overview() {
+        use chrono::{Datelike, Local, TimeZone};
+
+        let root = tempfile::tempdir().unwrap();
+        let library = Library::open_index(root.path()).unwrap();
+        // Noon local time keeps the month the same in UTC and locally.
+        let at = |year, month, day| {
+            Local
+                .with_ymd_and_hms(year, month, day, 12, 0, 0)
+                .unwrap()
+                .with_timezone(&Utc)
+        };
+        let item = |created_at: DateTime<Utc>, app: Option<&str>, favorite| Metadata {
+            id: Uuid::now_v7(),
+            created_at,
+            updated_at: None,
+            width: 1,
+            height: 1,
+            title: String::new(),
+            favorite,
+            tags: Vec::new(),
+            app: app.map(str::to_owned),
+        };
+        let items = [
+            item(at(2025, 3, 10), Some("Firefox"), false),
+            item(at(2025, 3, 20), Some("Excel"), true),
+            item(at(2026, 1, 5), Some("Firefox"), false),
+            item(at(2026, 2, 1), None, false),
+        ];
+        library.index_only(&items).unwrap();
+
+        let ids = |query: ListQuery| -> Vec<Uuid> {
+            assert_eq!(
+                library.count(&query).unwrap() as usize,
+                library.list(&query).unwrap().len()
+            );
+            library.list(&query).unwrap().iter().map(|i| i.id).collect()
+        };
+        let firefox = ListQuery {
+            app: Some("Firefox".into()),
+            ..Default::default()
+        };
+        assert_eq!(ids(firefox.clone()), [items[2].id, items[0].id]);
+        let year_2025 = ListQuery {
+            from: Some(at(2025, 1, 1)),
+            until: Some(at(2026, 1, 1)),
+            ..Default::default()
+        };
+        assert_eq!(ids(year_2025.clone()), [items[1].id, items[0].id]);
+        assert_eq!(
+            ids(ListQuery {
+                app: Some("Firefox".into()),
+                ..year_2025
+            }),
+            [items[0].id]
+        );
+        assert_eq!(library.position(items[0].id, &firefox).unwrap(), Some(1));
+        assert_eq!(
+            library.get(items[1].id).unwrap().app.as_deref(),
+            Some("Excel")
+        );
+
+        let overview = library.overview(at(2026, 1, 1)).unwrap();
+        assert_eq!(
+            (overview.total, overview.favorites, overview.recent),
+            (4, 1, 2)
+        );
+        let month = |m: &DateTime<Utc>| {
+            let local = m.with_timezone(&Local);
+            (local.year(), local.month())
+        };
+        let months: Vec<_> = overview
+            .months
+            .iter()
+            .map(|m| ((m.year, m.month), m.count))
+            .collect();
+        assert_eq!(
+            months,
+            [
+                (month(&items[3].created_at), 1),
+                (month(&items[2].created_at), 1),
+                (month(&items[0].created_at), 2),
+            ]
+        );
+        let apps: Vec<_> = overview
+            .apps
+            .iter()
+            .map(|a| (a.app.as_str(), a.count))
+            .collect();
+        assert_eq!(apps, [("Excel", 1), ("Firefox", 2)]);
+    }
+
+    #[test]
+    fn app_is_kept_in_the_item_folder() {
+        let root = tempfile::tempdir().unwrap();
+        let id = {
+            let library = Library::open(root.path()).unwrap();
+            let item = library
+                .add_from(&RgbaImage::new(1, 1), Some(" Notepad "))
+                .unwrap();
+            assert_eq!(item.app.as_deref(), Some("Notepad"));
+            assert!(
+                library
+                    .add_from(&RgbaImage::new(1, 1), Some(""))
+                    .unwrap()
+                    .app
+                    .is_none()
+            );
+            item.id
+        };
+        fs::remove_file(root.path().join(DATABASE)).unwrap();
+        let library = Library::open(root.path()).unwrap();
+        assert_eq!(library.get(id).unwrap().app.as_deref(), Some("Notepad"));
+    }
+
+    #[test]
+    fn version_2_databases_are_migrated() {
+        let root = tempfile::tempdir().unwrap();
+        let id = Library::open(root.path())
+            .unwrap()
+            .add(&RgbaImage::new(1, 1))
+            .unwrap()
+            .id;
+        {
+            // Back to the version 2 schema, as written by Zwopp 1.0.
+            let db = Connection::open(root.path().join(DATABASE)).unwrap();
+            db.execute_batch(
+                "DROP INDEX items_app; ALTER TABLE items DROP COLUMN app; PRAGMA user_version = 2;",
+            )
+            .unwrap();
+        }
+        let library = Library::open(root.path()).unwrap();
+        assert!(library.get(id).unwrap().app.is_none());
+        let item = library
+            .add_from(&RgbaImage::new(1, 1), Some("Mail"))
+            .unwrap();
+        assert_eq!(library.overview(Utc::now()).unwrap().apps[0].app, "Mail");
+        assert_eq!(library.get(item.id).unwrap().app.as_deref(), Some("Mail"));
     }
 
     #[test]

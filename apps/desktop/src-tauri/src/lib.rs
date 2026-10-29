@@ -131,6 +131,7 @@ pub fn run() {
             commands::list_items,
             commands::count_items,
             commands::item_position,
+            commands::library_overview,
             commands::list_tags,
             commands::update_item,
             commands::delete_item,

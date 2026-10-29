@@ -89,6 +89,15 @@ export function tauriMock({ items, latencyMs }: MockOptions) {
       captureShortcut: "CommandOrControl+Shift+X",
     }),
     list_tags: () => TAGS,
+    // Every item lies in the month before `newest` or close to it; the
+    // navigation only needs plausible numbers.
+    library_overview: () => ({
+      total: items,
+      favorites: Math.ceil(items / 50),
+      recent: 0,
+      months: [{ year: 2026, month: 9, count: items }],
+      apps: [],
+    }),
     count_items: ({ query }) => total(filter(query)),
     list_items: ({ query, offset, limit }) => {
       const positions = filter(query);

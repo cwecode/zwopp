@@ -1,5 +1,15 @@
 import type { ArrowHead } from "./document";
 import { contrastColor } from "./document";
+import {
+  BODY,
+  DIVIDERS,
+  STAMP_BOX,
+  STAMP_DRAWINGS,
+  STAMP_LINE,
+  STAMP_OUTLINE,
+  WHEEL,
+  type StampKind,
+} from "./stamps";
 import { FONTS, SIZES, TOOLS, type ArrowHeads, type Tool, type ToolStyle } from "./tools";
 
 /** A tiny line with the given heads, for the line-ends buttons. */
@@ -23,11 +33,59 @@ export function HeadsIcon({ start, end }: ArrowHeads) {
   );
 }
 
+/** A mouse stamp as SVG, drawn from the same paths as on the canvas. */
+export function StampIcon({ kind, color, height = 20 }: { kind: StampKind; color: string; height?: number }) {
+  const drawing = STAMP_DRAWINGS[kind];
+  const line = { stroke: STAMP_OUTLINE, strokeWidth: STAMP_LINE, fill: "none" };
+  return (
+    <svg
+      height={height}
+      width={(height * STAMP_BOX.width) / STAMP_BOX.height}
+      viewBox={`0 0 ${STAMP_BOX.width} ${STAMP_BOX.height}`}
+      aria-hidden
+    >
+      <path d={BODY} fill="#ffffff" />
+      {drawing.fills.map((d) => (
+        <path key={d} d={d} fill={color} />
+      ))}
+      <path d={DIVIDERS} {...line} />
+      <path d={WHEEL} {...line} />
+      <path d={BODY} {...line} strokeLinejoin="round" />
+      {drawing.marks && (
+        <path
+          d={drawing.marks}
+          fill="none"
+          stroke={color}
+          strokeWidth={STAMP_LINE * 1.25}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+      {drawing.label && (
+        <text
+          x={STAMP_BOX.width / 2}
+          y={22}
+          fill={color}
+          fontSize="9"
+          fontWeight="bold"
+          fontFamily={FONTS.sans}
+          textAnchor="middle"
+          dominantBaseline="middle"
+        >
+          {drawing.label}
+        </text>
+      )}
+    </svg>
+  );
+}
+
 /** A small picture of a tool style, for quick-style buttons and lists. */
 export function StyleSwatch({ tool, style }: { tool: Tool; style: ToolStyle }) {
   const size = SIZES[style.size]?.label;
   let icon;
   if (tool === "emoji") icon = style.emoji;
+  else if (tool === "stamp") icon = <StampIcon kind={style.stamp ?? "left"} color={style.color} height={16} />;
+  else if (tool === "step" && style.number !== undefined) icon = style.number;
   else if (style.heads) icon = <HeadsIcon {...style.heads} />;
   else if (tool === "text" || tool === "callout") {
     const boxed = tool === "callout" || style.background;

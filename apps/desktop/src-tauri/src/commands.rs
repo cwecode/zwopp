@@ -15,7 +15,7 @@ use tauri_plugin_dialog::DialogExt;
 use uuid::Uuid;
 use zwopp_core::capture::DesktopRect;
 use zwopp_core::export::{self, ExportFormat};
-use zwopp_core::library::{ItemUpdate, Library, LibraryItem, ListQuery};
+use zwopp_core::library::{ItemUpdate, Library, LibraryItem, ListQuery, Overview};
 use zwopp_core::settings::Settings;
 
 use crate::{AppState, capture, settings, tray};
@@ -198,6 +198,15 @@ pub async fn item_position(
     query: ListQuery,
 ) -> CmdResult<Option<u64>> {
     blocking(&state, move |library| library.position(id, &query)).await
+}
+
+/// Counts per month and application for the library's navigation.
+#[tauri::command]
+pub async fn library_overview(
+    state: State<'_, AppState>,
+    recent_since: chrono::DateTime<chrono::Utc>,
+) -> CmdResult<Overview> {
+    blocking(&state, move |library| library.overview(recent_since)).await
 }
 
 #[tauri::command]

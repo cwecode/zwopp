@@ -3,6 +3,20 @@
 All notable changes to Zwopp. The release workflow takes the notes of a version
 from its section here, so each release starts with a `## <version>` heading.
 
+## Unreleased
+
+### Library
+
+- Sidebar with search, all screenshots, favorites, the last 7 days, years and months, and
+  the applications screenshots were taken in, each with its count.
+- A capture remembers the application it was taken in (not on Wayland).
+
+### Editor
+
+- Mouse stamps (K): left, right, double and middle click, scroll and drag.
+- Step numbers: Shift+click repeats the last number, a fixed number stamps the same one
+  every time, and selected badges can be renumbered.
+
 ## 1.0.0
 
 The first release, with unsigned downloads for Windows, macOS and Linux.

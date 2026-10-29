@@ -29,6 +29,7 @@ const ICONS: Record<Shape["type"], string> = {
   rect: "▭",
   ellipse: "◯",
   step: "①",
+  stamp: "🖱",
   emoji: "☺",
   magnify: "⌕",
   text: "T",
@@ -53,6 +54,7 @@ function label(t: Messages, shape: Shape) {
   if (shape.type === "text" && shape.tail) return t.layers.shapes.callout;
   if (shape.type === "step") return t.layers.shapes.step(shape.number);
   if (shape.type === "emoji") return t.layers.shapes.emoji(shape.emoji);
+  if (shape.type === "stamp") return t.editor.stamps[shape.stamp] ?? t.layers.shapes.stamp;
   return t.layers.shapes[shape.type];
 }
 

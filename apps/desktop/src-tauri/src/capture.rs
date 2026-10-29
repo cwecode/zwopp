@@ -11,7 +11,7 @@ use image::RgbaImage;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_clipboard_manager::ClipboardExt;
-use zwopp_core::capture::{self, DesktopRect, PlacedFrame};
+use zwopp_core::capture::{self, DesktopRect, PlacedFrame, WindowInfo};
 use zwopp_core::library::LibraryItem;
 
 use crate::{AppState, platform};
@@ -33,7 +33,7 @@ pub struct Session {
     /// `frames` as PNG for the overlays, encoded right after the freeze.
     pub previews: Vec<Arc<Vec<u8>>>,
     /// Visible windows at the moment of the capture, topmost first.
-    windows: Vec<DesktopRect>,
+    windows: Vec<WindowInfo>,
     /// The main window was hidden for the capture and comes back afterwards.
     main_hidden: bool,
 }
@@ -202,7 +202,7 @@ pub fn layout(app: &AppHandle) -> Result<Layout, String> {
                 height: frame.image.height(),
             })
             .collect(),
-        windows: session.windows.clone(),
+        windows: session.windows.iter().map(|w| w.rect).collect(),
     })
 }
 
@@ -211,9 +211,10 @@ pub fn layout(app: &AppHandle) -> Result<Layout, String> {
 /// it to the clipboard.
 pub fn complete(app: &AppHandle, rect: DesktopRect) -> Result<LibraryItem, String> {
     let state = app.state::<AppState>();
-    let image = {
+    let (image, pid) = {
         let session = state.session.lock().unwrap();
         let session = session.as_ref().ok_or("no capture in progress")?;
+        let pid = capture::window_under(&session.windows, rect).map(|w| w.pid);
         let frames: Vec<_> = session
             .frames
             .iter()
@@ -223,11 +224,15 @@ pub fn complete(app: &AppHandle, rect: DesktopRect) -> Result<LibraryItem, Strin
                 y: frame.y,
             })
             .collect();
-        capture::compose(&frames, rect).map_err(err)?
+        (capture::compose(&frames, rect).map_err(err)?, pid)
     };
     // The overlays go first, so the screen answers the click at once.
     finish(app);
-    let item = state.library.add(&image).map_err(err)?;
+    let app_name = pid.and_then(capture::app_name);
+    let item = state
+        .library
+        .add_from(&image, app_name.as_deref())
+        .map_err(err)?;
     let (edit, copy) = {
         let settings = state.settings.lock().unwrap();
         (settings.edit_after_capture, settings.copy_after_capture)

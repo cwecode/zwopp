@@ -2,6 +2,8 @@
 // a screenshot. Stored as `document.json` next to the untouched original.
 // The format is specified in docs/spec/document-format.md — keep both in sync.
 
+import type { StampKind } from "./stamps";
+
 export const SCHEMA_VERSION = 3;
 
 export interface Rect {
@@ -103,6 +105,14 @@ export interface StepShape extends ShapeBase, Rect {
   fill: string;
 }
 
+/** A mouse symbol (left click, scroll, …) for instructions, see `stamps.ts`. */
+export interface StampShape extends ShapeBase, Rect {
+  type: "stamp";
+  stamp: StampKind;
+  /** Colour of the highlighted button and marks. */
+  fill: string;
+}
+
 /** An emoji used as a sticker, drawn with the system's emoji font into its square. */
 export interface EmojiShape extends ShapeBase, Rect {
   type: "emoji";
@@ -146,6 +156,7 @@ export type Shape =
   | EllipseShape
   | TextShape
   | StepShape
+  | StampShape
   | EmojiShape
   | MagnifyShape
   | HighlightShape
@@ -192,9 +203,13 @@ export function contrastColor(background: string): string {
   return luminance > 0.6 ? "#1d1d1b" : "#ffffff";
 }
 
-/** The number for the next step badge: one more than the highest so far. */
-export function nextStepNumber(doc: EditorDocument): number {
-  return Math.max(0, ...doc.objects.map((s) => (s.type === "step" ? s.number : 0))) + 1;
+/**
+ * The number for the next step badge: one more than the highest so far, or
+ * with `repeat` the highest again (1 if there is none yet).
+ */
+export function nextStepNumber(doc: EditorDocument, repeat = false): number {
+  const highest = Math.max(0, ...doc.objects.map((s) => (s.type === "step" ? s.number : 0)));
+  return repeat ? Math.max(1, highest) : highest + 1;
 }
 
 /**

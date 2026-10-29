@@ -30,6 +30,8 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned · Phase in brackets.
 | Grid + preview | Thumbnails, newest first | ✅ (0) |
 | Delete | | ✅ (0) |
 | Search, tags, favorites | Full-text search in title and tags; every word must match, in any order, also as part of a word | ✅ (1) |
+| Navigation sidebar | Search on top, then all / favorites / last 7 days, years with their months, and the applications screenshots were taken in, each with its count; combines with the search | ✅ (3) |
+| Source application | A capture remembers the application of the window under the centre of the selection (not on Wayland) | ✅ (3) |
 | Thumbnails | Small lossy WebP previews, generated in the background, served via `thumb://` | ✅ (1.5) |
 | Large libraries | Virtualized grid and filmstrip, pages loaded on demand; tested with 100 000 items | ✅ (1.5) |
 | Drag out | Drag a card from the library, or the "Ziehen" handle in the editor, into another app; it receives a PNG named after the title (a copy, never the library's file) | ✅ (2) |
@@ -64,7 +66,8 @@ see [document-format.md](document-format.md). Changes are saved automatically.
 | Line, ellipse, filled shapes, arrowhead styles | Line tool (L) and ellipse (E); rectangles and ellipses outlined or filled; lines and arrows with no, filled or open heads at either end | ✅ (2) |
 | Text background, fonts | Sans serif, serif or monospace; optional coloured box behind the text, the text contrasting in black or white | ✅ (2) |
 | Callout / speech bubble | Text in a coloured bubble with a pointer: drag from the point it refers to to where the bubble goes (C); the pointer stays on target when the bubble moves and has its own handle | ✅ (2) |
-| Step numbers | Each click places the next number in a round badge (N) | ✅ (2) |
+| Step numbers | Each click places the next number in a round badge (N); Shift+click repeats the last number; a fixed number stamps the same one every time; selected badges can be renumbered | ✅ (2, 3) |
+| Mouse stamps | Left, right, double and middle click, scroll and drag as mouse symbols for instructions (K), in the tool colour | ✅ (3) |
 | Emoji / stickers | 40 emojis to pick from (S); click places one, sized by S/M/L/XL, scaled freely | ✅ (2) |
 | Magnify | Drag over an area (M): a framed inset twice as large appears next to it, round or square, joined to the marked source; inset and source move on their own. Shows blurred areas pixelated, never the hidden pixels | ✅ (2) |
 | Quick styles | Save the current style with "+", apply with a click or 1–9; rename, delete, export and import them in the settings. Every tool also starts with its style from last time | ✅ (2) |

@@ -36,6 +36,7 @@ import {
   EMOJIS,
   FONTS,
   HEADS,
+  MAX_STEP_NUMBER,
   SIZES,
   TOOLS,
   stylePatch,
@@ -51,7 +52,8 @@ import {
   sameStyle,
   styleFor,
 } from "./quickStyles";
-import { HeadsIcon, StyleSwatch } from "./StyleIcons";
+import { STAMPS } from "./stamps";
+import { HeadsIcon, StampIcon, StyleSwatch } from "./StyleIcons";
 import { getSettings, updateEditorSettings, useSettings } from "../settings/store";
 
 export interface EditorHandle {
@@ -282,6 +284,8 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
   const heads = first?.type === "arrow" ? arrowHeads(first) : style.heads;
   const filled = first?.type === "rect" || first?.type === "ellipse" ? first.fill !== undefined : style.filled;
   const emoji = first?.type === "emoji" ? first.emoji : style.emoji;
+  const stamp = first?.type === "stamp" ? first.stamp : style.stamp;
+  const selectedSteps = selected.filter((s) => s.type === "step");
   const round = first?.type === "magnify" ? !!first.round : style.round;
   const font = first?.type === "text" ? (first.font ?? "sans") : style.font;
   const boxed = first?.type === "text" ? first.background !== undefined : style.background;
@@ -292,7 +296,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
   };
 
   /** What the style controls show, as one style of the current tool. */
-  const shownStyle: ToolStyle = { ...style, heads, filled, emoji, round, font, background: boxed };
+  const shownStyle: ToolStyle = { ...style, heads, filled, emoji, stamp, round, font, background: boxed };
   const toolQuickStyles = styleKey === "image" || styleKey === "select" ? [] : quickStylesFor(quickStyles, styleKey);
 
   const changeStyle = (patch: Partial<ToolStyle>) => {
@@ -308,6 +312,20 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
       commit(setGroupFrame(doc, block.id, frameStyle({ ...styles.rect, ...patch })));
     } else if (selected.length) {
       commit(selected.reduce((d, shape) => updateShape(d, shape.id, stylePatch(shape, patch)), doc));
+    }
+  };
+
+  /**
+   * The number control: with step badges selected it renumbers them, else it
+   * sets the step tool's fixed number (undefined = counting up).
+   */
+  const setStepNumber = (number: number | undefined) => {
+    if (selectedSteps.length) {
+      if (doc && number !== undefined) {
+        commit(selectedSteps.reduce((d, shape) => updateShape(d, shape.id, { number }), doc));
+      }
+    } else {
+      changeStyle({ number });
     }
   };
 
@@ -569,6 +587,11 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
   // A callout always has its bubble.
   const showTextBackground = styleKey === "text";
   const showEmoji = styleKey === "emoji";
+  const showStamp = styleKey === "stamp";
+  const showNumbering = styleKey === "step";
+  // A selected badge shows its own number; the tool its fixed one, if any.
+  const shownNumber = selectedSteps[0]?.type === "step" ? selectedSteps[0].number : style.number;
+  const clampNumber = (n: number) => Math.min(MAX_STEP_NUMBER, Math.max(1, Math.round(n)));
   const showMagnifierShape = styleKey === "magnify";
   const images = Object.fromEntries(Object.entries(assets).map(([name, a]) => [name, a.image]));
 
@@ -701,6 +724,78 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
         )}
 
         {showEmoji && <EmojiPicker label={t.editor.emoji} value={emoji} onPick={(e) => changeStyle({ emoji: e })} />}
+
+        {showStamp && (
+          <div className="tool-group" role="listbox" aria-label={t.editor.stamp}>
+            {STAMPS.map((kind) => (
+              <button
+                key={kind}
+                role="option"
+                aria-selected={stamp === kind}
+                className={stamp === kind ? "tool active" : "tool"}
+                title={t.editor.stamps[kind]}
+                aria-label={t.editor.stamps[kind]}
+                onClick={() => changeStyle({ stamp: kind })}
+              >
+                <StampIcon kind={kind} color={style.color} />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {showNumbering && (
+          <div className="tool-group" aria-label={t.editor.numbering}>
+            {!selectedSteps.length &&
+              [false, true].map((fixed) => {
+                const active = (style.number !== undefined) === fixed;
+                return (
+                  <button
+                    key={String(fixed)}
+                    className={active ? "tool active" : "tool"}
+                    aria-pressed={active}
+                    title={fixed ? t.editor.fixedNumberTitle : t.editor.countingTitle}
+                    onClick={() => setStepNumber(fixed ? (style.number ?? 1) : undefined)}
+                  >
+                    {fixed ? t.editor.fixedNumber : t.editor.counting}
+                  </button>
+                );
+              })}
+            {shownNumber !== undefined && (
+              <>
+                <button
+                  className="tool"
+                  title={t.editor.lower}
+                  aria-label={t.editor.lower}
+                  disabled={shownNumber <= 1}
+                  onClick={() => setStepNumber(clampNumber(shownNumber - 1))}
+                >
+                  −
+                </button>
+                <input
+                  className="step-number"
+                  type="number"
+                  min={1}
+                  max={MAX_STEP_NUMBER}
+                  aria-label={t.editor.stepNumber}
+                  value={shownNumber}
+                  onChange={(e) => {
+                    const value = Number(e.target.value);
+                    if (Number.isFinite(value) && value >= 1) setStepNumber(clampNumber(value));
+                  }}
+                />
+                <button
+                  className="tool"
+                  title={t.editor.higher}
+                  aria-label={t.editor.higher}
+                  disabled={shownNumber >= MAX_STEP_NUMBER}
+                  onClick={() => setStepNumber(clampNumber(shownNumber + 1))}
+                >
+                  +
+                </button>
+              </>
+            )}
+          </div>
+        )}
 
         {showMagnifierShape && (
           <div className="tool-group" aria-label={t.editor.magnifierShape}>

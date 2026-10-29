@@ -47,7 +47,8 @@ rendered and do not count for the output area.
 named "Ebene 1" (early version 2 documents) is renamed to "Original".
 
 **Version 3** only added optional fields (`startHead`, `endHead`, `fill`; for text `font`,
-`background`, `tail`) and the `ellipse`, `step`, `emoji` and `magnify` types. Their defaults reproduce version 2, so version 2 documents need no migration; they are
+`background`, `tail`) and the `ellipse`, `step`, `emoji` and `magnify` types; `stamp`
+came later within version 3 (Zwopp 1.0 keeps such shapes but does not draw them). Their defaults reproduce version 2, so version 2 documents need no migration; they are
 saved as version 3 on the next change.
 
 `Rect` = `{ x, y, width, height }`.
@@ -64,6 +65,7 @@ optionally the `group` id of its block.
 | `ellipse` | `Rect`, `stroke`, `strokeWidth`, optional `fill` | Ellipse inscribed in the rectangle; with `fill` also filled |
 | `text` | `x`, `y` (top-left), `text`, `fontSize`, `fill`, optional `width`, `font`, `background`, `tail` | Bold, line height 1.2, multi-line via `\n`; with `width` the text wraps at word boundaries. `font`: `"sans"` (default), `"serif"` or `"mono"`. `background`: colour of a box behind the text with padding and corner radius `round(fontSize × 0.35)`. `tail: [x, y]`: a callout — a triangle in the background colour from the middle of the box to that point |
 | `step` | `Rect` (a square), `number`, `fill` | Circle filled with `fill`, white rim of `max(1.5, width × 0.06)`, the number centred in bold, black or white (whichever contrasts with `fill`) |
+| `stamp` | `Rect` (3 : 4), `stamp`, `fill` | A computer mouse for instructions: `"left"`, `"right"`, `"double"` (left button and "2×"), `"middle"` (the wheel), `"scroll"` (the wheel and up/down chevrons) or `"drag"` (left button and a four-way arrow). White body with a dark outline; the button, chevrons, arrow and "2×" in `fill`. The SVG paths are in `apps/desktop/src/editor/stamps.ts` (a 24 × 32 box) |
 | `emoji` | `Rect` (a square), `emoji` | The emoji filling the square, in the system's colour emoji font (so it looks slightly different on Windows, macOS and Linux) |
 | `magnify` | `Rect`, `source: Rect`, `stroke`, `strokeWidth`, optional `round` | The area `source` of the screenshot — with blurred areas pixelated and deleted areas transparent — scaled into the rectangle, clipped to a rounded rectangle (or an ellipse with `round`) and framed in `stroke`. The source is outlined and joined to the inset by a line, both at half the stroke width. Copied into another screenshot it becomes an `image` |
 | `highlight` | `Rect`, `fill` | Filled rectangle, blend mode *multiply* |

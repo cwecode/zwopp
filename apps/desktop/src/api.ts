@@ -11,6 +11,8 @@ export interface LibraryItem {
   title: string;
   favorite: boolean;
   tags: string[];
+  /** The application the screenshot was taken from, if known. */
+  app: string | null;
   hasAnnotations: boolean;
   originalPath: string;
   renderPath: string | null;
@@ -19,6 +21,24 @@ export interface LibraryItem {
 export interface ListQuery {
   search?: string;
   favoritesOnly?: boolean;
+  /** Only items taken from this application. */
+  app?: string;
+  /** ISO time: only items created at or after it. */
+  from?: string;
+  /** ISO time: only items created before it. */
+  until?: string;
+}
+
+/** Counts for the library's navigation (`zwopp_core::library::Overview`). */
+export interface Overview {
+  total: number;
+  favorites: number;
+  /** Items created since the time passed to `libraryOverview`. */
+  recent: number;
+  /** Per month in local time (month 1–12), newest first. */
+  months: { year: number; month: number; count: number }[];
+  /** Per application, alphabetically. */
+  apps: { app: string; count: number }[];
 }
 
 export interface ItemUpdate {
@@ -97,6 +117,8 @@ export const countItems = (query: ListQuery) => invoke<number>("count_items", { 
 /** Index of an item in the list for `query`, or null if it does not match. */
 export const itemPosition = (id: string, query: ListQuery = {}) =>
   invoke<number | null>("item_position", { id, query });
+export const libraryOverview = (recentSince: Date) =>
+  invoke<Overview>("library_overview", { recentSince: recentSince.toISOString() });
 export const listTags = () => invoke<string[]>("list_tags");
 export const updateItem = (id: string, update: ItemUpdate) =>
   invoke<LibraryItem>("update_item", { id, update });

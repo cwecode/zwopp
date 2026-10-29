@@ -174,16 +174,26 @@ pub fn compose(frames: &[PlacedFrame], rect: DesktopRect) -> Result<RgbaImage> {
     Ok(out)
 }
 
+/// A visible top-level window.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WindowInfo {
+    /// In desktop pixels.
+    pub rect: DesktopRect,
+    /// The process that owns the window.
+    pub pid: u32,
+}
+
 /// The visible top-level windows, topmost first, in desktop pixels, without
 /// those of process `exclude_pid` (our own) and minimized or tiny ones. Best
 /// effort: where the OS does not tell (e.g. Wayland), the list is empty.
-pub fn windows(exclude_pid: u32) -> Vec<DesktopRect> {
+pub fn windows(exclude_pid: u32) -> Vec<WindowInfo> {
     let Ok(all) = xcap::Window::all() else {
         return Vec::new();
     };
     all.iter()
         .filter_map(|window| {
-            if window.pid().ok()? == exclude_pid || window.is_minimized().ok()? {
+            let pid = window.pid().ok()?;
+            if pid == exclude_pid || window.is_minimized().ok()? {
                 return None;
             }
             // macOS reports points; the desktop space is in pixels.
@@ -199,9 +209,32 @@ pub fn windows(exclude_pid: u32) -> Vec<DesktopRect> {
                 width: px(window.width().ok()? as f32) as u32,
                 height: px(window.height().ok()? as f32) as u32,
             };
-            (rect.width >= 8 && rect.height >= 8).then_some(rect)
+            (rect.width >= 8 && rect.height >= 8).then_some(WindowInfo { rect, pid })
         })
         .collect()
+}
+
+/// The window a selection was taken from: the topmost one under its center.
+pub fn window_under(windows: &[WindowInfo], selection: DesktopRect) -> Option<&WindowInfo> {
+    let x = selection.x + selection.width as i32 / 2;
+    let y = selection.y + selection.height as i32 / 2;
+    windows.iter().find(|w| {
+        (w.rect.x..w.rect.right()).contains(&x) && (w.rect.y..w.rect.bottom()).contains(&y)
+    })
+}
+
+/// The name of the application that runs process `pid` (e.g. "Firefox"), as
+/// the OS describes it. Looked up only for the window a selection came from,
+/// since asking for every window would slow down the start of a capture.
+pub fn app_name(pid: u32) -> Option<String> {
+    xcap::Window::all()
+        .ok()?
+        .iter()
+        .find(|w| w.pid().is_ok_and(|p| p == pid))?
+        .app_name()
+        .ok()
+        .map(|name| name.trim().to_owned())
+        .filter(|name| !name.is_empty())
 }
 
 /// Encodes a frozen frame as PNG for the selection overlay. Speed matters
@@ -269,6 +302,25 @@ mod tests {
             Some(desktop(50, 25, 50, 25))
         );
         assert_eq!(a.intersect(&desktop(100, 0, 10, 10)), None);
+    }
+
+    #[test]
+    fn window_under_takes_the_topmost_at_the_center() {
+        let windows = [
+            WindowInfo {
+                rect: desktop(100, 100, 50, 50),
+                pid: 1,
+            },
+            WindowInfo {
+                rect: desktop(0, 0, 400, 300),
+                pid: 2,
+            },
+        ];
+        let pid = |rect| window_under(&windows, rect).map(|w| w.pid);
+        assert_eq!(pid(desktop(110, 110, 20, 20)), Some(1));
+        // Overlapping the small window, but centered on the large one.
+        assert_eq!(pid(desktop(60, 60, 60, 60)), Some(2));
+        assert_eq!(pid(desktop(500, 0, 10, 10)), None);
     }
 
     #[test]

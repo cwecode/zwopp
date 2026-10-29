@@ -8,14 +8,18 @@ import {
   dragOut,
   exportItem,
   fileUrl,
+  libraryOverview,
   startCapture,
   thumbUrl,
   updateItem,
   type ItemUpdate,
   type LibraryItem,
   type ListQuery,
+  type Overview,
 } from "../api";
 import { formatAccelerator, useT } from "../i18n";
+import { LibraryNav } from "./LibraryNav";
+import { ALL, queryFor, recentSince, type NavSelection } from "./nav";
 import { useLibraryPages } from "./useLibraryPages";
 
 /** Grid geometry; rows have a fixed height so the list can be virtualized. */
@@ -49,9 +53,10 @@ const parseTags = (text: string) =>
 export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): void; onSettings(): void }) {
   const t = useT();
   const [search, setSearch] = useState("");
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [nav, setNav] = useState<NavSelection>(ALL);
   // Starts as what the debounce below produces, so opening loads only once.
-  const [query, setQuery] = useState<ListQuery>({ search: undefined, favoritesOnly });
+  const [query, setQuery] = useState<ListQuery>(() => queryFor(ALL, undefined, new Date()));
+  const [overview, setOverview] = useState<Overview>();
   const [version, setVersion] = useState(0);
   const [selected, setSelected] = useState<LibraryItem>();
   const [message, setMessage] = useState<string>();
@@ -70,10 +75,23 @@ export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): voi
   }, []);
 
   // Debounce typing; the query object only changes when the search settles.
+  // A click in the navigation applies at once.
+  const searchText = search.trim() || undefined;
   useEffect(() => {
-    const timer = window.setTimeout(() => setQuery({ search: search.trim() || undefined, favoritesOnly }), 150);
+    const timer = window.setTimeout(() => setQuery(queryFor(nav, searchText, new Date())), 150);
     return () => window.clearTimeout(timer);
-  }, [search, favoritesOnly]);
+  }, [searchText]);
+  const navigate = (selection: NavSelection) => {
+    setNav(selection);
+    setQuery(queryFor(selection, searchText, new Date()));
+  };
+
+  // The counts in the navigation follow every change to the library.
+  const loadOverview = () =>
+    libraryOverview(recentSince(new Date()))
+      .then(setOverview)
+      .catch(report);
+  useEffect(() => void loadOverview(), [version]);
 
   // The background index sync, thumbnail generation and new captures change the list.
   useEffect(() => {
@@ -128,8 +146,9 @@ export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): voi
       const updated = await updateItem(id, change);
       if (selected?.id === id) setSelected(updated);
       // Leaving the favorites filter changes the list itself.
-      if (favoritesOnly && change.favorite === false) refresh();
+      if (nav.kind === "favorites" && change.favorite === false) refresh();
       else pages.replaceItem(updated);
+      if (change.favorite !== undefined) void loadOverview();
     } catch (e) {
       report(e);
     }
@@ -210,21 +229,6 @@ export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): voi
     <div className="library">
       <header className="toolbar">
         <h1>Zwopp</h1>
-        <input
-          type="search"
-          className="search"
-          placeholder={t.library.search}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <button
-          className={favoritesOnly ? "tool active" : "tool"}
-          aria-pressed={favoritesOnly}
-          onClick={() => setFavoritesOnly((f) => !f)}
-          title={t.library.favoritesOnly}
-        >
-          ★ {t.library.favorites}
-        </button>
         {pages.count !== null && <span className="meta">{t.library.count(count)}</span>}
         <span className="spacer" />
         <button className="primary" onClick={() => startCapture(delay).catch(report)}>
@@ -265,10 +269,17 @@ export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): voi
       )}
 
       <main className="content">
+        <LibraryNav
+          overview={overview}
+          selection={nav}
+          onSelect={navigate}
+          search={search}
+          onSearch={setSearch}
+        />
         <div className="grid-scroller" ref={scroller}>
           {pages.count === 0 && (
             <div className="empty">
-              {query.search || query.favoritesOnly ? (
+              {query.search || nav.kind !== "all" ? (
                 <p>{t.library.noMatches}</p>
               ) : (
                 <>
@@ -306,6 +317,7 @@ export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): voi
               alt={t.library.selected}
               onDoubleClick={() => onOpen(selected)}
             />
+            {selected.app && <p className="meta">{t.library.takenFrom(selected.app)}</p>}
             <label>
               {t.library.title}
               <input

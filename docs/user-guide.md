@@ -53,7 +53,10 @@ editor. The settings turn copying and opening off.
 
 ## The library
 
-- **Search** finds titles and tags; **★ Favorites** shows only favorites.
+- The sidebar on the left shows all screenshots, the **favorites**, the **last 7 days**,
+  each **year and month**, and the **applications** they were taken in, with counts. Click
+  ▸ to open a year or the applications.
+- **Search** above it finds titles and tags, within what the sidebar shows.
 - Click a screenshot to see it larger and to set its title and tags (separate tags with
   commas). Double-click or **Edit** opens it in the editor.
 - **Copy** puts it on the clipboard, **Export …** saves it as PNG, JPG or WebP.
@@ -78,7 +81,8 @@ them.
 | R / E | Rectangle / Ellipse | Outlined or filled |
 | T | Text | Three fonts, optionally on a coloured background; double-click to edit |
 | C | Callout | A text bubble; drag its tip to point at something |
-| N | Step number | Each click places the next number |
+| N | Step number | Each click places the next number, Shift+click the last one again. **Fixed** stamps the same number every time; with badges selected, − / + renumbers them |
+| K | Stamp | Mouse symbols for instructions: left, right, double and middle click, scroll, drag |
 | S | Emoji sticker | Pick one of 40 emojis |
 | M | Magnifier | Drag over a detail: an enlarged copy appears next to it |
 | H | Highlighter | |

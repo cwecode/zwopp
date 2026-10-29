@@ -1,4 +1,5 @@
 import { arrowHeads, contrastColor, type ArrowHead, type FontFamily, type Shape } from "./document";
+import { STAMP_BOX, STAMPS, type StampKind } from "./stamps";
 
 export type Tool =
   | "select"
@@ -9,6 +10,7 @@ export type Tool =
   | "text"
   | "callout"
   | "step"
+  | "stamp"
   | "emoji"
   | "magnify"
   | "highlight"
@@ -24,6 +26,7 @@ export const TOOLS: { id: Tool; key: string; icon: string }[] = [
   { id: "text", key: "t", icon: "T" },
   { id: "callout", key: "c", icon: "💬" },
   { id: "step", key: "n", icon: "①" },
+  { id: "stamp", key: "k", icon: "🖱" },
   { id: "emoji", key: "s", icon: "☺" },
   { id: "magnify", key: "m", icon: "⌕" },
   { id: "highlight", key: "h", icon: "▬" },
@@ -57,6 +60,15 @@ export const emojiSize = (size: (typeof SIZES)[number]) => Math.round(size.fontS
 
 /** Diameter of a step badge for a size. */
 export const stepDiameter = (size: (typeof SIZES)[number]) => Math.round(size.fontSize * 1.4);
+
+/** Width and height of a mouse stamp for a size (a little taller than a step badge). */
+export function stampSize(size: (typeof SIZES)[number]) {
+  const height = Math.round(size.fontSize * 1.8);
+  return { width: Math.round((height * STAMP_BOX.width) / STAMP_BOX.height), height };
+}
+
+/** Highest number a step badge can show; three digits still fit. */
+export const MAX_STEP_NUMBER = 999;
 
 /** CSS font stacks; the names are in the translations (`editor.fonts`). */
 export const FONTS: Record<FontFamily, string> = {
@@ -94,6 +106,10 @@ export interface ToolStyle {
   emoji?: string;
   /** Magnifiers: round instead of a rounded rectangle. */
   round?: boolean;
+  /** Step badges: always this number; omitted = counting up (1, 2, 3, …). */
+  number?: number;
+  /** Mouse stamps. */
+  stamp?: StampKind;
 }
 
 /** Each tool's style until the user changes it. */
@@ -105,7 +121,9 @@ export const DEFAULT_STYLES: Record<Tool, ToolStyle> = {
   ellipse: { color: COLORS[0], size: 1, filled: false },
   text: { color: COLORS[0], size: 1, font: "sans", background: false },
   callout: { color: COLORS[4], size: 1, font: "sans" },
-  step: { color: COLORS[0], size: 1 },
+  // `number` is listed (unset) so quick styles keep a fixed number.
+  step: { color: COLORS[0], size: 1, number: undefined },
+  stamp: { color: COLORS[0], size: 1, stamp: STAMPS[0] },
   emoji: { color: COLORS[0], size: 1, emoji: EMOJIS[0] },
   magnify: { color: COLORS[0], size: 0, round: false },
   highlight: { color: HIGHLIGHT_COLOR, size: 1 },
@@ -190,6 +208,22 @@ export function stylePatch(shape: Shape, style: Partial<ToolStyle>): Partial<Sha
         y: shape.y + (shape.height - diameter) / 2,
         width: diameter,
         height: diameter,
+      };
+    }
+    case "stamp": {
+      const patch: Partial<Shape> = {
+        ...(style.color && { fill: style.color }),
+        ...(style.stamp && { stamp: style.stamp }),
+      };
+      if (!size) return patch;
+      // Grow or shrink around the centre.
+      const { width, height } = stampSize(size);
+      return {
+        ...patch,
+        x: shape.x + (shape.width - width) / 2,
+        y: shape.y + (shape.height - height) / 2,
+        width,
+        height,
       };
     }
     case "highlight":

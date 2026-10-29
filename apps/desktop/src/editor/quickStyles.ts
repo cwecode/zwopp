@@ -2,7 +2,8 @@
 // the number keys, and shares as a JSON file. They live in the settings
 // (`settings.editor`) next to each tool's last-used style.
 import { newId, type ArrowHead, type FontFamily } from "./document";
-import { DEFAULT_STYLES, FONTS, SIZES, TOOLS, type Tool, type ToolStyle } from "./tools";
+import { STAMPS, type StampKind } from "./stamps";
+import { DEFAULT_STYLES, FONTS, MAX_STEP_NUMBER, SIZES, TOOLS, type Tool, type ToolStyle } from "./tools";
 
 export interface QuickStyle {
   id: string;
@@ -53,6 +54,9 @@ export function sanitizeStyle(tool: Tool, raw: unknown): ToolStyle {
   }
   if (base.font && typeof raw.font === "string" && raw.font in FONTS) style.font = raw.font as FontFamily;
   if (base.emoji && typeof raw.emoji === "string" && raw.emoji && [...raw.emoji].length <= 8) style.emoji = raw.emoji;
+  if (base.stamp && STAMPS.includes(raw.stamp as StampKind)) style.stamp = raw.stamp as StampKind;
+  const number = raw.number as number;
+  if (tool === "step" && Number.isInteger(number) && number >= 1 && number <= MAX_STEP_NUMBER) style.number = number;
   return style;
 }
 

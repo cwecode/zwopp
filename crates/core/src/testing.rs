@@ -31,6 +31,7 @@ const WORDS: &[&str] = &[
     "Release",
     "Meeting",
 ];
+const APPS: &[&str] = &["Firefox", "Excel", "Outlook", "Visual Studio Code", "Teams"];
 const TAGS: &[&str] = &[
     "bug", "ui", "doku", "kunde", "intern", "review", "design", "support",
 ];
@@ -72,7 +73,8 @@ pub fn seed_index(root: &Path, count: usize) -> Result<Library> {
     Ok(library)
 }
 
-/// Item `i` of a synthetic library: 1 in 50 is a favorite, two tags each.
+/// Item `i` of a synthetic library: 1 in 50 is a favorite, two tags each,
+/// and every sixth has no application.
 fn metadata(i: usize, start: DateTime<Utc>) -> Metadata {
     let created_at = start + Duration::minutes(i as i64);
     Metadata {
@@ -91,5 +93,6 @@ fn metadata(i: usize, start: DateTime<Utc>) -> Metadata {
             TAGS[i % TAGS.len()].to_owned(),
             TAGS[(i / 3) % TAGS.len()].to_owned(),
         ],
+        app: APPS.get(i % (APPS.len() + 1)).map(|&a| a.to_owned()),
     }
 }
