@@ -1,0 +1,51 @@
+name: Bug report
+description: Something does not work as expected.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Press the capture hotkey
+        2. Select a window on the second monitor
+        3. …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Zwopp version
+      description: The version in the download's file name, e.g. 1.0.0, or the commit when built from source.
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS (Apple silicon)
+        - macOS (Intel)
+        - Linux (Wayland)
+        - Linux (X11)
+    validations:
+      required: true
+  - type: input
+    id: os-details
+    attributes:
+      label: OS version and setup
+      description: For example "macOS 15.4", "Ubuntu 24.04, GNOME", or "two monitors, 150 % scaling".
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots or logs
+      description: Please remove anything private from screenshots before you attach them.

@@ -1,7 +1,8 @@
 # Contributing
 
 Thanks for your interest! Zwopp is in an early phase, so issues and ideas are just as
-welcome as pull requests.
+welcome as pull requests. Please follow the [Code of Conduct](CODE_OF_CONDUCT.md), and report
+security problems privately as described in [SECURITY.md](SECURITY.md).
 
 ## Ground rules
 

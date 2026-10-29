@@ -233,16 +233,15 @@ eigenen Rechner gebaut wurde, gibt es weder unter Windows (SmartScreen) noch unt
 > macOS über Apple‑Developer‑Account (99 $/Jahr).
 
 **Standards**
-- Lizenz: **MIT OR Apache‑2.0** (Rust‑Standard, firmenfreundlich) – alternativ GPL‑3.0, wenn Forks
-  offen bleiben sollen. *Entscheidung offen.*
+- Lizenz: **MIT OR Apache‑2.0** (Rust‑Standard, firmenfreundlich).
 - README, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY.md, Issue/PR‑Templates.
 - ADRs für jede größere Entscheidung (erste: „Tauri statt Electron“).
-- Conventional Commits + `release-please` → automatische Changelogs & Versionen.
+- Conventional Commits; `CHANGELOG.md` wird von Hand gepflegt.
 - CI (GitHub Actions, Matrix Win/Mac/Linux): `cargo fmt/clippy/test`, `eslint`, `vitest`,
   Playwright‑E2E für den Editor.
 - CI prüft bei jedem Pull Request, dass das Projekt auf allen drei OS baut.
 - Release‑Workflow: Git‑Tag → `tauri-action` baut unsignierte Downloads → GitHub Release mit
-  Changelog (aus `release-please`), Downloads und Prüfsummen.
+  Changelog (Abschnitt aus `CHANGELOG.md`), Downloads und Prüfsummen.
 - Doku‑Website später (z. B. Starlight/Docusaurus auf GitHub Pages).
 
 ---
@@ -255,7 +254,7 @@ eigenen Rechner gebaut wurde, gibt es weder unter Windows (SmartScreen) noch unt
 | **1 – MVP** ✅ | Tray + Hotkey, Overlay‑Bereichsauswahl, Bibliothek (Grid, Suche, Tags, Favoriten), Editor‑Basis (Pfeil, Rechteck, Textbox, Marker, Verpixeln, Bereich löschen, Zeichnen außerhalb), Undo/Redo, Mehrfachauswahl, Kopieren/Einfügen zwischen Screenshots, Filmstreifen, Zoom | Intern nutzbar |
 | **1.5 – Performance & Skalierung** ✅ | Siehe Abschnitt 5.1 und ADR 0004; Budgets werden in CI geprüft | Bibliothek mit 100 000 Einträgen scrollt flüssig |
 | **2 – Editor komplett** ✅ | Callouts/Sprechblasen, Schritt‑Nummern, Emojis/Sticker, Lupe, Quick Styles, Fenster‑Capture, Einstellungen, i18n (DE/EN) | Vollständiger Editor |
-| **3 – v1.0 Release** (≈1–2 Wochen) | Release‑Workflow mit unsignierten Downloads, README (Download + erster Start + Build aus Quellcode), Nutzer‑Doku, Git‑Tag v1.0 | Öffentliches Release mit Downloads für alle OS |
+| **3 – v1.0 Release** ✅ | Release‑Workflow mit unsignierten Downloads, README (Download + erster Start + Build aus Quellcode), Nutzer‑Doku, Git‑Tag v1.0 | Öffentliches Release mit Downloads für alle OS |
 | *später, optional* | Signing (Windows kostenlos über SignPath, Apple 99 $/Jahr), Auto‑Update, winget/Scoop/Flathub | Sobald es Nutzer gibt |
 | **4 – v2** | CLI, HTTP‑API (OpenAPI), MCP‑Server, Rust‑Renderer, Scrolling‑Capture, OCR, GIF/Video | Automatisierbar |
 
