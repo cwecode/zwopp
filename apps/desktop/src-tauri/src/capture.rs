@@ -238,6 +238,9 @@ pub fn complete(app: &AppHandle, rect: DesktopRect) -> Result<LibraryItem, Strin
         (settings.edit_after_capture, settings.copy_after_capture)
     };
     let _ = app.emit("library:changed", &item);
+    if let (Some(name), Some(pid)) = (app_name, pid) {
+        save_app_icon(app, name, pid);
+    }
     if edit {
         crate::show_main(app);
         let _ = app.emit_to("main", "capture:edit", &item);
@@ -255,6 +258,26 @@ pub fn complete(app: &AppHandle, rect: DesktopRect) -> Result<LibraryItem, Strin
         }
     });
     Ok(item)
+}
+
+/// Saves the icon of application `name` (process `pid`) the first time it is
+/// seen, in the background, and tells the library to show it.
+fn save_app_icon(app: &AppHandle, name: String, pid: u32) {
+    if app.state::<AppState>().library.app_icon(&name).is_some() {
+        return;
+    }
+    let app = app.clone();
+    std::thread::spawn(move || {
+        let Some(icon) = platform::app_icon(pid) else {
+            return;
+        };
+        match app.state::<AppState>().library.save_app_icon(&name, &icon) {
+            Ok(()) => {
+                let _ = app.emit("library:icons", ());
+            }
+            Err(e) => eprintln!("could not save the icon of {name}: {e}"),
+        }
+    });
 }
 
 /// Ends the session and hides the overlays for the next capture.

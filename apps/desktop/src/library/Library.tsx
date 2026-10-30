@@ -18,6 +18,7 @@ import {
   type Overview,
 } from "../api";
 import { formatAccelerator, useT } from "../i18n";
+import { AppIcon } from "./AppIcon";
 import { LibraryNav } from "./LibraryNav";
 import { ALL, queryFor, recentSince, stillListed, type NavSelection } from "./nav";
 import { useLibraryPages } from "./useLibraryPages";
@@ -103,6 +104,8 @@ export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): voi
       listen("library:indexed", refresh),
       listen("library:thumbnails", refresh),
       listen("library:changed", refresh),
+      // An application's icon is saved shortly after its first capture.
+      listen("library:icons", () => void loadOverview()),
     ]);
     return () => void unlisten.then((fns) => fns.forEach((fn) => fn()));
   }, []);
@@ -321,7 +324,12 @@ export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): voi
               alt={t.library.selected}
               onDoubleClick={() => onOpen(selected)}
             />
-            {selected.app && <p className="meta">{t.library.takenFrom(selected.app)}</p>}
+            {selected.app && (
+              <p className="meta taken-from">
+                <AppIcon app={selected.app} icon={overview?.apps.find((a) => a.app === selected.app)?.icon} />
+                {t.library.takenFrom(selected.app)}
+              </p>
+            )}
             <label>
               {t.library.title}
               <input

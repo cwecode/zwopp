@@ -37,8 +37,8 @@ export interface Overview {
   recent: number;
   /** Per month in local time (month 1–12), newest first. */
   months: { year: number; month: number; count: number }[];
-  /** Per application, alphabetically. */
-  apps: { app: string; count: number }[];
+  /** Per application, alphabetically; `icon` is a PNG file, if one was saved. */
+  apps: { app: string; count: number; icon: string | null }[];
 }
 
 export interface ItemUpdate {

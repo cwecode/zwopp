@@ -9,7 +9,8 @@ from its section here, so each release starts with a `## <version>` heading.
 
 - Sidebar with search, all screenshots, favorites, the last 7 days, years and months, and
   the applications screenshots were taken in, each with its count.
-- A capture remembers the application it was taken in (not on Wayland).
+- A capture remembers the application it was taken in (not on Wayland), shown with the
+  application's icon (on Windows; elsewhere its initial).
 
 ### Editor
 

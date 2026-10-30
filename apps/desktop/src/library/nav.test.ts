@@ -32,7 +32,7 @@ describe("stillListed", () => {
     favorites: 0,
     recent: 0,
     months: [{ year: 2026, month: 10, count: 2 }],
-    apps: [{ app: "Excel", count: 1 }],
+    apps: [{ app: "Excel", count: 1, icon: null }],
   };
 
   it("drops years, months and applications without screenshots", () => {

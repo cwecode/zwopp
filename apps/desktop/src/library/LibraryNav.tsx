@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import type { Overview } from "../api";
 import { useT } from "../i18n";
+import { AppIcon } from "./AppIcon";
 import { groupYears, sameSelection, type NavSelection } from "./nav";
 
 /**
@@ -102,9 +103,9 @@ export function LibraryNav({
               <span className="nav-heading">{t.library.nav.apps}</span>
             </div>
             {appsOpen &&
-              overview.apps.map(({ app, count }) => (
+              overview.apps.map(({ app, count, icon }) => (
                 <div key={app} className="nav-row">
-                  {entry({ kind: "app", app }, "▣", app, count, 1)}
+                  {entry({ kind: "app", app }, <AppIcon app={app} icon={icon} />, app, count, 1)}
                 </div>
               ))}
           </div>

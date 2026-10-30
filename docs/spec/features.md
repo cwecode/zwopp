@@ -31,7 +31,7 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned · Phase in brackets.
 | Delete | | ✅ (0) |
 | Search, tags, favorites | Full-text search in title and tags; every word must match, in any order, also as part of a word | ✅ (1) |
 | Navigation sidebar | Search on top, then all / favorites / last 7 days, years with their months, and the applications screenshots were taken in, each with its count; combines with the search | ✅ (3) |
-| Source application | A capture remembers the application of the window under the centre of the selection (not on Wayland) | ✅ (3) |
+| Source application | A capture remembers the application of the window under the centre of the selection (not on Wayland). Its icon is saved once into `icons/` of the library (Windows; elsewhere its initial on a colour of its own) and shown in the sidebar and preview | ✅ (3) |
 | Thumbnails | Small lossy WebP previews, generated in the background, served via `thumb://` | ✅ (1.5) |
 | Large libraries | Virtualized grid and filmstrip, pages loaded on demand; tested with 100 000 items | ✅ (1.5) |
 | Drag out | Drag a card from the library, or the "Ziehen" handle in the editor, into another app; it receives a PNG named after the title (a copy, never the library's file) | ✅ (2) |

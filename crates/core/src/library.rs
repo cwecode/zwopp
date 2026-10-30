@@ -7,6 +7,7 @@
 //! ```text
 //! <root>/
 //!     library.db             index (items, tags)
+//!     icons/app-<name>.png   icons of the applications screenshots came from
 //!     items/<uuid>/
 //!         original.png       untouched capture, never overwritten
 //!         item.json          metadata (title, tags, favorite, …)
@@ -48,6 +49,8 @@ const THUMB: &str = "thumb.webp";
 /// PNG thumbnails written before version 0.2; replaced in the background.
 const LEGACY_THUMB: &str = "thumb.png";
 const ASSETS: &str = "assets";
+/// Folder of application icons, next to `items`; one `<name>.png` each.
+const ICONS: &str = "icons";
 
 /// Longest edge of generated thumbnails, in pixels.
 pub const THUMB_SIZE: u32 = 320;
@@ -121,6 +124,8 @@ pub struct MonthCount {
 pub struct AppCount {
     pub app: String,
     pub count: u64,
+    /// The application's icon (PNG), if one was saved.
+    pub icon: Option<PathBuf>,
 }
 
 /// Fields to change in [`Library::update`]; `None` leaves a field as it is.
@@ -344,8 +349,10 @@ impl Library {
                  GROUP BY app ORDER BY app COLLATE NOCASE",
             )?
             .query_map([], |row| {
+                let app: String = row.get(0)?;
                 Ok(AppCount {
-                    app: row.get(0)?,
+                    icon: self.app_icon(&app),
+                    app,
                     count: row.get::<_, i64>(1)? as u64,
                 })
             })?
@@ -357,6 +364,28 @@ impl Library {
             months,
             apps,
         })
+    }
+
+    /// The saved icon of application `app`, if there is one.
+    pub fn app_icon(&self, app: &str) -> Option<PathBuf> {
+        Some(self.app_icon_path(app)).filter(|path| path.is_file())
+    }
+
+    /// Stores the icon of application `app`, replacing an older one.
+    pub fn save_app_icon(&self, app: &str, icon: &RgbaImage) -> Result<()> {
+        let path = self.app_icon_path(app);
+        let dir = self.root().join(ICONS);
+        fs::create_dir_all(&dir).at(&dir)?;
+        // Under a temporary name first, so a reader never sees half a file.
+        let partial = path.with_extension("png.partial");
+        icon.save_with_format(&partial, image::ImageFormat::Png)?;
+        fs::rename(&partial, &path).at(&path)
+    }
+
+    fn app_icon_path(&self, app: &str) -> PathBuf {
+        self.root()
+            .join(ICONS)
+            .join(format!("{}.png", icon_file_stem(app)))
     }
 
     /// All tags in use, alphabetically.
@@ -918,6 +947,25 @@ fn normalize_tags(tags: Vec<String>) -> Vec<String> {
     out
 }
 
+/// A file name for an application's icon: its name with anything that is not
+/// safe in file names on every OS replaced by `_`.
+fn icon_file_stem(app: &str) -> String {
+    let stem: String = app
+        .trim()
+        .chars()
+        .take(100)
+        .map(|c| {
+            if c.is_alphanumeric() || " -_".contains(c) {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    // Names like "CON" or "." must not stand alone.
+    format!("app-{}", stem.trim())
+}
+
 /// `%text%` with LIKE wildcards in `text` escaped.
 fn like_pattern(text: &str) -> String {
     let escaped = text
@@ -1373,6 +1421,47 @@ mod tests {
         fs::remove_file(root.path().join(DATABASE)).unwrap();
         let library = Library::open(root.path()).unwrap();
         assert_eq!(library.get(id).unwrap().app.as_deref(), Some("Notepad"));
+    }
+
+    #[test]
+    fn app_icons() {
+        let root = tempfile::tempdir().unwrap();
+        let library = Library::open(root.path()).unwrap();
+        library
+            .add_from(&RgbaImage::new(1, 1), Some("Word"))
+            .unwrap();
+        library
+            .add_from(&RgbaImage::new(1, 1), Some("C:\\..\\Evil/App"))
+            .unwrap();
+        assert!(library.app_icon("Word").is_none());
+        assert!(
+            library
+                .overview(Utc::now())
+                .unwrap()
+                .apps
+                .iter()
+                .all(|a| a.icon.is_none())
+        );
+
+        library
+            .save_app_icon("Word", &RgbaImage::new(48, 48))
+            .unwrap();
+        library
+            .save_app_icon("C:\\..\\Evil/App", &RgbaImage::new(48, 48))
+            .unwrap();
+        let icons: Vec<_> = library
+            .overview(Utc::now())
+            .unwrap()
+            .apps
+            .into_iter()
+            .map(|a| a.icon.unwrap())
+            .collect();
+        assert_eq!(icons.len(), 2);
+        // Every icon stays inside the icons folder, whatever the name.
+        for icon in &icons {
+            assert_eq!(icon.parent().unwrap(), root.path().join(ICONS));
+            assert_eq!(image::open(icon).unwrap().width(), 48);
+        }
     }
 
     #[test]
