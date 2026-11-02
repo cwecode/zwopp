@@ -63,7 +63,8 @@ pub fn exclude_from_capture(_window: &WebviewWindow, _exclude: bool) -> bool {
 }
 
 /// Edge length of application icons, in pixels.
-pub const APP_ICON_SIZE: u32 = 48;
+#[cfg(windows)]
+const APP_ICON_SIZE: u32 = 48;
 
 /// The icon of the program that runs process `pid`, APP_ICON_SIZE square.
 /// Elsewhere than on Windows there is none yet; the library then shows the
