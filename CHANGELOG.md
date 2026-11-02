@@ -3,7 +3,11 @@
 All notable changes to Zwopp. The release workflow takes the notes of a version
 from its section here, so each release starts with a `## <version>` heading.
 
-## Unreleased
+## 1.1.0
+
+The library gets a sidebar for browsing, the editor stamps for step-by-step instructions.
+Existing libraries are updated on the first start; screenshots taken before keep no
+application.
 
 ### Library
 

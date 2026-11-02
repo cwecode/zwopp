@@ -4,7 +4,7 @@ A lean, open-source screenshot tool for **Windows, macOS and Linux**: select a r
 the screenshot lands in a **library**, and an **editor** lets you add arrows, callouts,
 highlights, step numbers, emojis and more.
 
-> **Version 1.0.** Capture, library, the full editor and the settings; the library stays
+> **Version 1.1.** Capture, library, the full editor and the settings; the library stays
 > fast with 100 000 screenshots. See the [user guide](docs/user-guide.md), the
 > [feature list](docs/spec/features.md) and the [project plan](docs/PLAN.md) (German).
 
@@ -17,10 +17,12 @@ highlights, step numbers, emojis and more.
   monitors, with a magnifier at the cursor. Click = the window under the mouse,
   Shift+click = whole monitor, Esc / right-click = cancel. Optional delay of 3/5/10 s.
 - Every capture is saved to the library, copied to the clipboard and opened in the editor
-- **Library:** thumbnails, search (title, tags), favorites, tags, copy, export, drag into
-  other apps, delete
+- **Library:** a sidebar by favorites, recent days, year and month, and the application a
+  screenshot was taken in (with its icon); thumbnails, search (title, tags), tags, copy,
+  export, drag into other apps, delete
 - **Editor:** arrow, line, rectangle, ellipse (outlined or filled), text box (three fonts,
-  optional coloured background), callout, step numbers, emoji stickers, magnifier,
+  optional coloured background), callout, step numbers (counting or fixed), mouse stamps
+  (clicks, scroll, drag), emoji stickers, magnifier,
   highlighter, pixelate; colors, sizes
   and arrowheads (filled, open, at either end);
   move/resize; undo/redo; autosave; copy the annotated image, export it as PNG, JPG or WebP,
@@ -41,7 +43,8 @@ highlights, step numbers, emojis and more.
 | Key | Action |
 |---|---|
 | V / A / L / R / E | Select / Arrow / Line / Rectangle / Ellipse |
-| T / C / N | Text / Callout / Step number |
+| T / C / N | Text / Callout / Step number (Shift+click repeats the last) |
+| K | Mouse stamp |
 | S / M | Emoji sticker / Magnifier |
 | H / B | Highlighter / Pixelate |
 | 1 – 9 | Apply the tool's first nine quick styles |
