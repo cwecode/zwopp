@@ -67,6 +67,7 @@ see [document-format.md](document-format.md). Changes are saved automatically.
 | Text background, fonts | Sans serif, serif or monospace; optional coloured box behind the text, the text contrasting in black or white | ✅ (2) |
 | Callout / speech bubble | Text in a coloured bubble with a pointer: drag from the point it refers to to where the bubble goes (C); the pointer stays on target when the bubble moves and has its own handle | ✅ (2) |
 | Step numbers | Each click places the next number in a round badge (N); Shift+click repeats the last number; a fixed number stamps the same one every time; selected badges can be renumbered | ✅ (2, 3) |
+| Guided toolbar | Tools in seven families on a rail at the left (the one used last in front), options beyond colour and size under "More", rare actions in a right-click menu and "Share", one-time tips and "new tool" dots; "show every tool" in the settings (ADR 0007) | ✅ (3) |
 | Pen | Freehand line (P) in the tool colour and size, moved and scaled like other shapes | ✅ (3) |
 | Fill bucket | Click fills the connected area of similar colour (F) with the tool colour; tolerance in four steps | ✅ (3) |
 | Magic wand | Click picks an area of similar colour (W), Shift+click adds; delete it (transparent) or keep only it, which also trims the image — e.g. to cut out an icon | ✅ (3) |

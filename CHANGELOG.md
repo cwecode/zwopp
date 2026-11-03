@@ -5,6 +5,18 @@ from its section here, so each release starts with a `## <version>` heading.
 
 ## Unreleased
 
+### Easier to start with
+
+- The editor's tools are in a rail on the left, in seven families; each shows the tool
+  used last, the triangle in its corner the others. Every tool keeps its key.
+- The top bar shows colour and size; the rest of a tool's options is under **More**.
+  Copy, paste, delete, blocks and stacking are in a right-click menu, export and dragging
+  under **Share**. The layers panel starts closed.
+- One-time tips explain useful things when they help; a dot points out tools not tried
+  yet. Settings: show every tool on its own, show tips again.
+- The library's delay moved into the menu of **New screenshot**; the settings are grouped
+  in cards.
+
 ### General
 
 - Light and dark appearance, or like the system: in the settings and with ☀️/🌙 in the

@@ -40,7 +40,7 @@ const ICONS: Record<Shape["type"], string> = {
   image: "▣",
 };
 
-const STACK_MOVES: { move: StackMove; icon: string; keys: string[] }[] = [
+export const STACK_MOVES: { move: StackMove; icon: string; keys: string[] }[] = [
   { move: "front", icon: "⤒", keys: ["mod", "shift", "↑"] },
   { move: "forward", icon: "↑", keys: ["mod", "↑"] },
   { move: "backward", icon: "↓", keys: ["mod", "↓"] },

@@ -20,6 +20,7 @@ import {
 import { formatAccelerator, useT } from "../i18n";
 import { updateSettings, useSettings } from "../settings/store";
 import { useSystemDark } from "../settings/theme";
+import { Popover } from "../editor/Popover";
 import { AppIcon } from "./AppIcon";
 import { LibraryNav } from "./LibraryNav";
 import { ALL, queryFor, recentSince, stillListed, type NavSelection } from "./nav";
@@ -243,31 +244,41 @@ export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): voi
         <h1>Zwopp</h1>
         {pages.count !== null && <span className="meta">{t.library.count(count)}</span>}
         <span className="spacer" />
-        <button className="primary" onClick={() => startCapture(delay).catch(report)}>
-          {t.library.newScreenshot}
-        </button>
-        <select
-          className="delay"
-          aria-label={t.library.delay}
-          title={t.library.delay}
-          value={delay}
-          onChange={(e) => {
-            const value = Number(e.target.value);
-            setDelay(value);
-            try {
-              localStorage.setItem(DELAY_KEY, String(value));
-            } catch {
-              // Not remembered; still used now.
-            }
-          }}
-        >
-          {DELAYS.map((s) => (
-            <option key={s} value={s}>
-              {s ? t.library.delaySeconds(s) : t.library.delayNone}
-            </option>
-          ))}
-        </select>
-        {shortcut && <kbd>{shortcut}</kbd>}
+        <div className="split-button">
+          <button
+            className="primary"
+            onClick={() => startCapture(delay).catch(report)}
+            title={accelerator ? t.library.newScreenshotTitle(formatAccelerator(t, accelerator)) : undefined}
+          >
+            {t.library.newScreenshot}
+            {delay > 0 && <span className="delay-badge">{t.library.delaySeconds(delay)}</span>}
+          </button>
+          <Popover className="primary" label="▾" title={t.library.delay} align="right">
+            {(close) => (
+              <div className="menu" role="menu" aria-label={t.library.delay}>
+                {DELAYS.map((s) => (
+                  <button
+                    key={s}
+                    role="menuitemradio"
+                    aria-checked={delay === s}
+                    className={delay === s ? "active" : undefined}
+                    onClick={() => {
+                      setDelay(s);
+                      close();
+                      try {
+                        localStorage.setItem(DELAY_KEY, String(s));
+                      } catch {
+                        // Not remembered; still used now.
+                      }
+                    }}
+                  >
+                    {s ? t.library.delaySeconds(s) : t.library.delayNone}
+                  </button>
+                ))}
+              </div>
+            )}
+          </Popover>
+        </div>
         <button
           className="tool"
           onClick={() => updateSettings({ theme: dark ? "light" : "dark" }).catch(report)}

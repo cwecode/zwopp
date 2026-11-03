@@ -3,6 +3,7 @@ import * as api from "../api";
 import { formatAccelerator, useT, type Language } from "../i18n";
 import { parseQuickStyles, readEditorSettings, serializeQuickStyles, type QuickStyle } from "../editor/quickStyles";
 import { StyleSwatch } from "../editor/StyleIcons";
+import { readGuide } from "../editor/guide";
 import { acceleratorFromEvent } from "./accelerator";
 import { updateEditorSettings, updateSettings, useSettings } from "./store";
 
@@ -17,6 +18,7 @@ export function SettingsPage({ onClose }: { onClose(): void }) {
   const [recording, setRecording] = useState(false);
   const [message, setMessage] = useState<string>();
   const quickStyles = useMemo(() => readEditorSettings(settings.editor).quickStyles, [settings.editor]);
+  const guide = useMemo(() => readGuide(settings.editor), [settings.editor]);
 
   const report = (e: unknown) => setMessage(String(e));
   useEffect(() => {
@@ -218,6 +220,35 @@ export function SettingsPage({ onClose }: { onClose(): void }) {
 
         <section>
           <h2>{t.settings.editor}</h2>
+          <div className="setting">
+            <span>{t.settings.toolRail}</span>
+            <div className="setting-value checks">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={guide.allTools}
+                  onChange={(e) => updateEditorSettings({ guide: { ...guide, allTools: e.target.checked } }).catch(report)}
+                />
+                {t.settings.allTools}
+              </label>
+            </div>
+            <p className="hint">{t.settings.allToolsHint}</p>
+          </div>
+          <div className="setting">
+            <span>{t.settings.tips}</span>
+            <div className="setting-value">
+              <span className="hint">{t.settings.tipsHint}</span>
+              <button
+                onClick={() =>
+                  updateEditorSettings({ guide: { ...guide, seenTips: [], openedFamilies: [] } })
+                    .then(() => setMessage(t.settings.tipsReset))
+                    .catch(report)
+                }
+              >
+                {t.settings.showTipsAgain}
+              </button>
+            </div>
+          </div>
           <div className="setting">
             <span>{t.settings.toolStyles}</span>
             <div className="setting-value">

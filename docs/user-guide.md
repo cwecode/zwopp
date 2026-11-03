@@ -69,9 +69,17 @@ with the untouched original, the annotations and the finished image.
 
 ## The editor
 
-Pick a tool in the toolbar or with its key, then draw on the screenshot. Colour, size and
-the tool's other options follow the toolbar; with shapes selected, the toolbar changes
-them.
+The tools are down the left edge, in seven families: **Select, Arrow, Shape, Text,
+Steps, Emphasize, Hide**. A family shows the tool you used last; the small triangle in its
+corner (or a right-click) opens its other tools. Every tool also has a key (below), which
+works whatever the family shows. If you'd rather see every tool on its own, turn on
+**Settings › Editor › Show every tool on its own**.
+
+The bar at the top shows colour and size; everything else a tool can do is under
+**More**. With shapes selected, the bar changes them. A right-click on the screenshot
+offers copy, paste, delete, blocks and the stacking order; **Share** copies, exports or
+drags the image. Now and then a tip at the bottom explains something useful, once;
+**Settings › Editor › Show tips again** brings them back.
 
 | Key | Tool | |
 |---|---|---|
@@ -97,7 +105,7 @@ area with the select tool and press **Del** to delete what is in it.
 ### Quick styles
 
 A quick style stores a tool's colour, size and shape under a name. Set up a style, then
-click **+** after the style controls to save it. A click on a quick style — or the keys
+choose **More › Save as quick style**. A click on a quick style — or the keys
 **1** to **9** — applies it to the tool and to selected shapes. Rename, delete, export
 and import quick styles in the settings, e.g. to share a team style as a file.
 
@@ -105,7 +113,7 @@ Independently of quick styles, every tool starts with the style you used last.
 
 ### Layers and blocks
 
-The layers panel (**Layers**) lists every element. Add layers, hide or lock them, move
+The layers panel (**Layers**, closed at first) lists every element. Add layers, hide or lock them, move
 elements between them. **Ctrl+G** joins the selection into a block that moves as one;
 double-click a block to edit single elements, **Ctrl+Shift+G** dissolves it.
 

@@ -40,7 +40,26 @@ export const TOOLS: { id: Tool; key: string; icon: string }[] = [
   { id: "wand", key: "w", icon: "✨" },
 ];
 
-export const COLORS = ["#e5322d", "#f2994a", "#f2c94c", "#27ae60", "#2f80ed", "#1d1d1b", "#ffffff"];
+export type Family = "select" | "arrow" | "shape" | "text" | "steps" | "emphasize" | "hide";
+
+/**
+ * The tool rail: related tools share one slot, which shows the one used last.
+ * The first tool of each family is the one a new user sees. Their names are in
+ * the translations (`families`).
+ */
+export const FAMILIES: { id: Family; tools: Tool[] }[] = [
+  { id: "select", tools: ["select"] },
+  { id: "arrow", tools: ["arrow", "line", "pen"] },
+  { id: "shape", tools: ["rect", "ellipse", "fill"] },
+  { id: "text", tools: ["text", "callout"] },
+  { id: "steps", tools: ["step", "stamp", "emoji"] },
+  { id: "emphasize", tools: ["highlight", "magnify"] },
+  { id: "hide", tools: ["blur", "wand"] },
+];
+
+export const familyOf = (tool: Tool) => FAMILIES.find((f) => f.tools.includes(tool))!;
+
+export const COLORS =["#e5322d", "#f2994a", "#f2c94c", "#27ae60", "#2f80ed", "#1d1d1b", "#ffffff"];
 
 /** Default marker colour; a pale yellow reads well with multiply blending. */
 export const HIGHLIGHT_COLOR = "#f2c94c";

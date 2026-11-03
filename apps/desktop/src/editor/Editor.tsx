@@ -40,6 +40,7 @@ import {
   MAX_STEP_NUMBER,
   SIZES,
   TOOLS,
+  familyOf,
   stylePatch,
   toolOf,
   type Tool,
@@ -53,7 +54,11 @@ import {
   sameStyle,
   styleFor,
 } from "./quickStyles";
+import { nextTip, pickTool, readGuide, type Guide } from "./guide";
+import { STACK_MOVES } from "./LayersPanel";
 import { DEFAULT_TOLERANCE, TOLERANCES, type Mask } from "./mask";
+import { ContextMenu, Popover } from "./Popover";
+import { ToolRail } from "./ToolRail";
 import { STAMPS } from "./stamps";
 import { HeadsIcon, StampIcon, StyleSwatch } from "./StyleIcons";
 import { getSettings, updateEditorSettings, useSettings } from "../settings/store";
@@ -157,7 +162,11 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
   const [area, setArea] = useState({ width: 0, height: 0 });
   const [zoom, setZoom] = useState<ZoomState>({ zoom: 1, fit: true });
   const [activeLayerId, setActiveLayerId] = useState<string>();
-  const [showLayers, setShowLayers] = useState(true);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  // Style changes in this session, for the quick-styles tip.
+  const [styleChanges, setStyleChanges] = useState(0);
+  const guide = useMemo(() => readGuide(editorSettings), [editorSettings]);
+  const updateGuide = (next: Guide) => updateEditorSettings({ guide: next }).catch((e) => setMessage(String(e)));
 
   const canvas = useRef<CanvasHandle>(null);
   const filmstrip = useRef<FilmstripHandle>(null);
@@ -304,6 +313,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
     styleKey === "image" || styleKey === "select" || styleKey === "wand" ? [] : quickStylesFor(quickStyles, styleKey);
 
   const changeStyle = (patch: Partial<ToolStyle>) => {
+    setStyleChanges((n) => n + 1);
     if (styleKey !== "image") {
       const next = { ...styles, [styleKey]: { ...styles[styleKey], ...patch } };
       setStyles(next);
@@ -363,6 +373,8 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
   };
 
   const chooseTool = (next: Tool) => {
+    // Counted, and shown in front of its family from now on.
+    updateGuide(pickTool(guide, next, familyOf(next).id));
     setTool(next);
     setMarquee(null);
     setWandSelection(null);
@@ -611,52 +623,140 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
   const showMagnifierShape = styleKey === "magnify";
   const images = Object.fromEntries(Object.entries(assets).map(([name, a]) => [name, a.image]));
 
+  // Options that are not needed every time go behind "More".
+  const moreOptions = [
+    showHeads && (
+      <div key="heads" className="tool-group" aria-label={t.editor.heads}>
+        {HEADS.map(({ id, start, end }) => {
+          const active = heads?.start === start && heads?.end === end;
+          return (
+            <button
+              key={id}
+              className={active ? "tool active" : "tool"}
+              aria-pressed={active}
+              title={t.editor.headStyles[id]}
+              onClick={() => changeStyle({ heads: { start, end } })}
+            >
+              <HeadsIcon start={start} end={end} />
+            </button>
+          );
+        })}
+      </div>
+    ),
+    showFill && (
+      <div key="fill" className="tool-group" aria-label={t.editor.fill}>
+        {[false, true].map((value) => (
+          <button
+            key={String(value)}
+            className={!!filled === value ? "tool active" : "tool"}
+            aria-pressed={!!filled === value}
+            title={value ? t.editor.filled : t.editor.outline}
+            onClick={() => changeStyle({ filled: value })}
+          >
+            {styleKey === "ellipse" ? (value ? "●" : "○") : value ? "■" : "□"}
+          </button>
+        ))}
+      </div>
+    ),
+    showFont && (
+      <div key="font" className="tool-group" aria-label={t.editor.font}>
+        {(Object.keys(FONTS) as FontFamily[]).map((family) => (
+          <button
+            key={family}
+            className={font === family ? "tool active" : "tool"}
+            aria-pressed={font === family}
+            title={t.editor.fonts[family]}
+            style={{ fontFamily: FONTS[family] }}
+            onClick={() => changeStyle({ font: family })}
+          >
+            Ab
+          </button>
+        ))}
+      </div>
+    ),
+    showTextBackground && (
+      <div key="background" className="tool-group" aria-label={t.editor.textBackground}>
+        {[false, true].map((value) => (
+          <button
+            key={String(value)}
+            className={!!boxed === value ? "tool active" : "tool"}
+            aria-pressed={!!boxed === value}
+            title={value ? t.editor.boxedText : t.editor.plainText}
+            onClick={() => changeStyle({ background: value })}
+          >
+            <span className={value ? "text-boxed" : undefined}>T</span>
+          </button>
+        ))}
+      </div>
+    ),
+    showTolerance && (
+      <div key="tolerance" className="tool-group" aria-label={t.editor.tolerance}>
+        <span className="tool-group-label">{t.editor.tolerance}</span>
+        {TOLERANCES.map((value, index) => {
+          const active = (style.tolerance ?? DEFAULT_TOLERANCE) === index;
+          return (
+            <button
+              key={value}
+              className={active ? "tool active" : "tool"}
+              aria-pressed={active}
+              title={t.editor.toleranceTitle(value)}
+              onClick={() => changeStyle({ tolerance: index })}
+            >
+              {t.editor.toleranceLabels[index]}
+            </button>
+          );
+        })}
+      </div>
+    ),
+    showNumbering && !selectedSteps.length && (
+      <div key="numbering" className="tool-group" aria-label={t.editor.numbering}>
+        {[false, true].map((fixed) => {
+          const active = (style.number !== undefined) === fixed;
+          return (
+            <button
+              key={String(fixed)}
+              className={active ? "tool active" : "tool"}
+              aria-pressed={active}
+              title={fixed ? t.editor.fixedNumberTitle : t.editor.countingTitle}
+              onClick={() => setStepNumber(fixed ? (style.number ?? 1) : undefined)}
+            >
+              {fixed ? t.editor.fixedNumber : t.editor.counting}
+            </button>
+          );
+        })}
+      </div>
+    ),
+    showMagnifierShape && (
+      <div key="magnifier" className="tool-group" aria-label={t.editor.magnifierShape}>
+        {[false, true].map((value) => (
+          <button
+            key={String(value)}
+            className={!!round === value ? "tool active" : "tool"}
+            aria-pressed={!!round === value}
+            title={value ? t.editor.round : t.editor.square}
+            onClick={() => changeStyle({ round: value })}
+          >
+            {value ? "○" : "▢"}
+          </button>
+        ))}
+      </div>
+    ),
+  ].filter(Boolean);
+  const canSaveQuickStyle = styleKey !== "image" && styleKey !== "select" && styleKey !== "wand";
+  const tip =
+    doc &&
+    nextTip(guide, {
+      tool,
+      steps: doc.objects.filter((s) => s.type === "step").length,
+      styleChanges,
+    });
+
   return (
     <div className="editor">
       <header className="toolbar editor-toolbar">
         <button onClick={close} title={t.editor.backTitle}>
           ← {t.editor.back}
         </button>
-
-        <div className="tool-group" role="toolbar" aria-label={t.editor.tools}>
-          {TOOLS.map(({ id, key, icon }) => (
-            <button
-              key={id}
-              className={tool === id ? "tool active" : "tool"}
-              title={`${t.tools[id]} (${key.toUpperCase()})`}
-              aria-pressed={tool === id}
-              onClick={() => chooseTool(id)}
-            >
-              <span aria-hidden>{icon}</span>
-              <span className="tool-label">{t.tools[id]}</span>
-            </button>
-          ))}
-        </div>
-
-        {(canGroup || block) && (
-          <div className="tool-group" aria-label={t.editor.block}>
-            {canGroup && (
-              <button className="primary" onClick={makeBlock} title={`${t.editor.makeBlockTitle} (${k("mod", "G")})`}>
-                {t.editor.makeBlock}
-              </button>
-            )}
-            {block && (
-              <>
-                <button
-                  className={block.frame ? "tool active" : "tool"}
-                  aria-pressed={!!block.frame}
-                  onClick={toggleFrame}
-                  title={t.editor.frameTitle}
-                >
-                  ▢ {t.editor.frame}
-                </button>
-                <button onClick={dissolveBlock} title={`${t.editor.dissolveTitle} (${k("mod", "shift", "G")})`}>
-                  {t.editor.dissolve}
-                </button>
-              </>
-            )}
-          </div>
-        )}
 
         {showColor && (
           <div className="tool-group" aria-label={t.editor.color}>
@@ -687,77 +787,23 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
           </div>
         )}
 
-        {showHeads && (
-          <div className="tool-group" aria-label={t.editor.heads}>
-            {HEADS.map(({ id, start, end }) => {
-              const active = heads?.start === start && heads?.end === end;
-              return (
-                <button
-                  key={id}
-                  className={active ? "tool active" : "tool"}
-                  aria-pressed={active}
-                  title={t.editor.headStyles[id]}
-                  onClick={() => changeStyle({ heads: { start, end } })}
-                >
-                  <HeadsIcon start={start} end={end} />
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {showFont && (
-          <div className="tool-group" aria-label={t.editor.font}>
-            {(Object.keys(FONTS) as FontFamily[]).map((family) => (
-              <button
-                key={family}
-                className={font === family ? "tool active" : "tool"}
-                aria-pressed={font === family}
-                title={t.editor.fonts[family]}
-                style={{ fontFamily: FONTS[family] }}
-                onClick={() => changeStyle({ font: family })}
-              >
-                Ab
-              </button>
-            ))}
-          </div>
-        )}
-
-        {showTextBackground && (
-          <div className="tool-group" aria-label={t.editor.textBackground}>
-            {[false, true].map((value) => (
-              <button
-                key={String(value)}
-                className={!!boxed === value ? "tool active" : "tool"}
-                aria-pressed={!!boxed === value}
-                title={value ? t.editor.boxedText : t.editor.plainText}
-                onClick={() => changeStyle({ background: value })}
-              >
-                <span className={value ? "text-boxed" : undefined}>T</span>
-              </button>
-            ))}
-          </div>
-        )}
-
         {showEmoji && <EmojiPicker label={t.editor.emoji} value={emoji} onPick={(e) => changeStyle({ emoji: e })} />}
 
-        {showTolerance && (
-          <div className="tool-group" aria-label={t.editor.tolerance}>
-            <span className="tool-group-label">{t.editor.tolerance}</span>
-            {TOLERANCES.map((value, index) => {
-              const active = (style.tolerance ?? DEFAULT_TOLERANCE) === index;
-              return (
-                <button
-                  key={value}
-                  className={active ? "tool active" : "tool"}
-                  aria-pressed={active}
-                  title={t.editor.toleranceTitle(value)}
-                  onClick={() => changeStyle({ tolerance: index })}
-                >
-                  {t.editor.toleranceLabels[index]}
-                </button>
-              );
-            })}
+        {showStamp && (
+          <div className="tool-group" role="listbox" aria-label={t.editor.stamp}>
+            {STAMPS.map((kind) => (
+              <button
+                key={kind}
+                role="option"
+                aria-selected={stamp === kind}
+                className={stamp === kind ? "tool active" : "tool"}
+                title={t.editor.stamps[kind]}
+                aria-label={t.editor.stamps[kind]}
+                onClick={() => changeStyle({ stamp: kind })}
+              >
+                <StampIcon kind={kind} color={style.color} />
+              </button>
+            ))}
           </div>
         )}
 
@@ -779,114 +825,45 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
           </div>
         )}
 
-        {showStamp && (
-          <div className="tool-group" role="listbox" aria-label={t.editor.stamp}>
-            {STAMPS.map((kind) => (
-              <button
-                key={kind}
-                role="option"
-                aria-selected={stamp === kind}
-                className={stamp === kind ? "tool active" : "tool"}
-                title={t.editor.stamps[kind]}
-                aria-label={t.editor.stamps[kind]}
-                onClick={() => changeStyle({ stamp: kind })}
-              >
-                <StampIcon kind={kind} color={style.color} />
-              </button>
-            ))}
+        {showNumbering && shownNumber !== undefined && (
+          <div className="tool-group" aria-label={t.editor.stepNumber}>
+            <button
+              className="tool"
+              title={t.editor.lower}
+              aria-label={t.editor.lower}
+              disabled={shownNumber <= 1}
+              onClick={() => setStepNumber(clampNumber(shownNumber - 1))}
+            >
+              −
+            </button>
+            <input
+              className="step-number"
+              type="number"
+              min={1}
+              max={MAX_STEP_NUMBER}
+              aria-label={t.editor.stepNumber}
+              value={shownNumber}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                if (Number.isFinite(value) && value >= 1) setStepNumber(clampNumber(value));
+              }}
+            />
+            <button
+              className="tool"
+              title={t.editor.higher}
+              aria-label={t.editor.higher}
+              disabled={shownNumber >= MAX_STEP_NUMBER}
+              onClick={() => setStepNumber(clampNumber(shownNumber + 1))}
+            >
+              +
+            </button>
           </div>
         )}
 
-        {showNumbering && (
-          <div className="tool-group" aria-label={t.editor.numbering}>
-            {!selectedSteps.length &&
-              [false, true].map((fixed) => {
-                const active = (style.number !== undefined) === fixed;
-                return (
-                  <button
-                    key={String(fixed)}
-                    className={active ? "tool active" : "tool"}
-                    aria-pressed={active}
-                    title={fixed ? t.editor.fixedNumberTitle : t.editor.countingTitle}
-                    onClick={() => setStepNumber(fixed ? (style.number ?? 1) : undefined)}
-                  >
-                    {fixed ? t.editor.fixedNumber : t.editor.counting}
-                  </button>
-                );
-              })}
-            {shownNumber !== undefined && (
-              <>
-                <button
-                  className="tool"
-                  title={t.editor.lower}
-                  aria-label={t.editor.lower}
-                  disabled={shownNumber <= 1}
-                  onClick={() => setStepNumber(clampNumber(shownNumber - 1))}
-                >
-                  −
-                </button>
-                <input
-                  className="step-number"
-                  type="number"
-                  min={1}
-                  max={MAX_STEP_NUMBER}
-                  aria-label={t.editor.stepNumber}
-                  value={shownNumber}
-                  onChange={(e) => {
-                    const value = Number(e.target.value);
-                    if (Number.isFinite(value) && value >= 1) setStepNumber(clampNumber(value));
-                  }}
-                />
-                <button
-                  className="tool"
-                  title={t.editor.higher}
-                  aria-label={t.editor.higher}
-                  disabled={shownNumber >= MAX_STEP_NUMBER}
-                  onClick={() => setStepNumber(clampNumber(shownNumber + 1))}
-                >
-                  +
-                </button>
-              </>
-            )}
-          </div>
-        )}
-
-        {showMagnifierShape && (
-          <div className="tool-group" aria-label={t.editor.magnifierShape}>
-            {[false, true].map((value) => (
-              <button
-                key={String(value)}
-                className={!!round === value ? "tool active" : "tool"}
-                aria-pressed={!!round === value}
-                title={value ? t.editor.round : t.editor.square}
-                onClick={() => changeStyle({ round: value })}
-              >
-                {value ? "○" : "▢"}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {showFill && (
-          <div className="tool-group" aria-label={t.editor.fill}>
-            {[false, true].map((value) => (
-              <button
-                key={String(value)}
-                className={!!filled === value ? "tool active" : "tool"}
-                aria-pressed={!!filled === value}
-                title={value ? t.editor.filled : t.editor.outline}
-                onClick={() => changeStyle({ filled: value })}
-              >
-                {styleKey === "ellipse" ? (value ? "●" : "○") : value ? "■" : "□"}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {styleKey !== "image" && styleKey !== "select" && (
+        {toolQuickStyles.length > 0 && (
           <div className="tool-group quick-styles" aria-label={t.editor.quickStyles}>
             {toolQuickStyles.map((quick, index) => {
-              const active = sameStyle(styleKey, shownStyle, quick.style);
+              const active = sameStyle(styleKey as Tool, shownStyle, quick.style);
               return (
                 <button
                   key={quick.id}
@@ -895,15 +872,62 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
                   title={index < QUICK_STYLE_KEYS ? t.editor.applyQuickStyle(quick.name, String(index + 1)) : quick.name}
                   onClick={() => changeStyle(quick.style)}
                 >
-                  <StyleSwatch tool={styleKey} style={quick.style} />
+                  <StyleSwatch tool={styleKey as Tool} style={quick.style} />
                 </button>
               );
             })}
-            <button className="tool" title={t.editor.saveQuickStyle} aria-label={t.editor.saveQuickStyle} onClick={saveQuickStyle}>
-              +
-            </button>
           </div>
         )}
+
+        {(moreOptions.length > 0 || canSaveQuickStyle) && (
+          <Popover className="tool" label={`${t.editor.more} ▾`} title={t.editor.moreTitle}>
+            <div className="more-options">
+              {moreOptions}
+              {canSaveQuickStyle && (
+                <button onClick={saveQuickStyle} title={t.editor.saveQuickStyle}>
+                  + {t.editor.saveAsQuickStyle}
+                </button>
+              )}
+            </div>
+          </Popover>
+        )}
+
+        {(canGroup || block) && (
+          <div className="tool-group" aria-label={t.editor.block}>
+            {canGroup && (
+              <button onClick={makeBlock} title={`${t.editor.makeBlockTitle} (${k("mod", "G")})`}>
+                {t.editor.makeBlock}
+              </button>
+            )}
+            {block && (
+              <>
+                <button
+                  className={block.frame ? "tool active" : "tool"}
+                  aria-pressed={!!block.frame}
+                  onClick={toggleFrame}
+                  title={t.editor.frameTitle}
+                >
+                  ▢ {t.editor.frame}
+                </button>
+                <button onClick={dissolveBlock} title={`${t.editor.dissolveTitle} (${k("mod", "shift", "G")})`}>
+                  {t.editor.dissolve}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {(selected.length > 0 || marquee) && (
+          <button
+            className={marquee ? "danger" : undefined}
+            onClick={deleteSelected}
+            title={`${t.editor.delete} (${k("del")})`}
+          >
+            {marquee ? t.editor.deleteArea : t.editor.delete}
+          </button>
+        )}
+
+        <span className="spacer" />
 
         <div className="tool-group">
           <button onClick={doUndo} disabled={!history?.past.length} title={`${t.editor.undo} (${k("mod", "Z")})`}>
@@ -912,72 +936,61 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
           <button onClick={doRedo} disabled={!history?.future.length} title={`${t.editor.redo} (${k("mod", "Y")})`}>
             ↷
           </button>
-          <button
-            className={marquee ? "danger" : undefined}
-            onClick={deleteSelected}
-            disabled={!selected.length && !marquee}
-            title={`${t.editor.delete} (${k("del")})`}
-          >
-            {marquee ? t.editor.deleteArea : t.editor.delete}
-          </button>
         </div>
 
-        <div className="tool-group">
-          <button onClick={copy} title={`${t.editor.copyTitle} (${k("mod", "C")})`}>
-            {selected.length ? t.editor.copySelection : t.editor.copyAll}
-          </button>
-          <button onClick={paste} disabled={!getClipboard()} title={`${t.editor.paste} (${k("mod", "V")})`}>
-            {t.editor.paste}
-          </button>
-        </div>
-
-        <div className="tool-group" aria-label="Zoom">
-          <button onClick={() => canvas.current?.zoomBy(0.8)} title={`${t.editor.zoomOut} (${k("mod", "−")}, ${k("mod", "wheel")})`}>
-            −
-          </button>
-          <button
-            className="zoom-level"
-            onClick={() => canvas.current?.actualSize()}
-            title={`${t.editor.actualSize} (${k("mod", "1")})`}
-          >
-            {Math.round(zoom.zoom * 100)} %
-          </button>
-          <button onClick={() => canvas.current?.zoomBy(1.25)} title={`${t.editor.zoomIn} (${k("mod", "+")}, ${k("mod", "wheel")})`}>
-            +
-          </button>
-          <button
-            className={zoom.fit ? "tool active" : "tool"}
-            onClick={() => canvas.current?.fit()}
-            title={`${t.editor.fitTitle} (${k("mod", "0")})`}
-          >
-            {t.editor.fit}
-          </button>
-        </div>
+        <Popover className="zoom-level" label={`${Math.round(zoom.zoom * 100)} %`} title={t.editor.zoom} align="right">
+          {(closeMenu) => (
+            <div className="menu">
+              <button onClick={() => (canvas.current?.fit(), closeMenu())}>
+                {t.editor.fitTitle} <kbd>{k("mod", "0")}</kbd>
+              </button>
+              <button onClick={() => (canvas.current?.actualSize(), closeMenu())}>
+                {t.editor.actualSize} <kbd>{k("mod", "1")}</kbd>
+              </button>
+              <button onClick={() => canvas.current?.zoomBy(1.25)}>
+                {t.editor.zoomIn} <kbd>{k("mod", "+")}</kbd>
+              </button>
+              <button onClick={() => canvas.current?.zoomBy(0.8)}>
+                {t.editor.zoomOut} <kbd>{k("mod", "−")}</kbd>
+              </button>
+            </div>
+          )}
+        </Popover>
 
         <button
-          className={showLayers ? "tool active" : "tool"}
-          aria-pressed={showLayers}
-          onClick={() => setShowLayers((v) => !v)}
+          className={guide.showLayers ? "tool active" : "tool"}
+          aria-pressed={guide.showLayers}
+          onClick={() => updateGuide({ ...guide, showLayers: !guide.showLayers })}
           title={t.editor.layersTitle}
         >
           {t.editor.layers}
         </button>
 
         <span className={`save-status ${status}`}>{t.editor.status[status]}</span>
-        <button
-          draggable
-          className="drag-out"
-          title={t.editor.dragTitle}
-          onDragStart={(e) => {
-            e.preventDefault();
-            void dragImage();
-          }}
-        >
-          ⠿ {t.editor.drag}
-        </button>
-        <button onClick={exportFile} title={`${t.editor.exportTitle} (${k("mod", "shift", "S")})`}>
-          {t.editor.export}
-        </button>
+
+        <Popover label={`${t.editor.share} ▾`} title={t.editor.shareTitle} align="right">
+          {(closeMenu) => (
+            <div className="menu">
+              <button onClick={() => (void copyImage(), closeMenu())}>
+                {t.editor.copyImage} <kbd>{k("mod", "shift", "C")}</kbd>
+              </button>
+              <button onClick={() => (void exportFile(), closeMenu())}>
+                {t.editor.export} <kbd>{k("mod", "shift", "S")}</kbd>
+              </button>
+              <button
+                draggable
+                title={t.editor.dragTitle}
+                onDragStart={(e) => {
+                  e.preventDefault();
+                  closeMenu();
+                  void dragImage();
+                }}
+              >
+                ⠿ {t.editor.dragOut}
+              </button>
+            </div>
+          )}
+        </Popover>
         <button className="primary" onClick={copyImage} title={`${t.editor.copyImageTitle} (${k("mod", "shift", "C")})`}>
           {t.editor.copyImage}
         </button>
@@ -991,7 +1004,24 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
       )}
 
       <div className="editor-body">
-        <main className="editor-area" ref={areaRef}>
+        <ToolRail
+          tool={tool}
+          guide={guide}
+          onPick={chooseTool}
+          onOpenFamily={(family) =>
+            !guide.openedFamilies.includes(family) &&
+            updateGuide({ ...guide, openedFamilies: [...guide.openedFamilies, family] })
+          }
+        />
+        <main
+          className="editor-area"
+          ref={areaRef}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            const bounds = e.currentTarget.getBoundingClientRect();
+            setContextMenu({ x: e.clientX - bounds.left, y: e.clientY - bounds.top });
+          }}
+        >
           {image && doc && present && area.width > 0 && (
             <EditorCanvas
               ref={canvas}
@@ -1016,8 +1046,52 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
               onZoom={setZoom}
             />
           )}
+          {contextMenu && (
+            <ContextMenu at={contextMenu} onClose={() => setContextMenu(null)}>
+              <button onClick={copy} disabled={!doc}>
+                {selected.length ? t.editor.copySelection : t.editor.copyAll} <kbd>{k("mod", "C")}</kbd>
+              </button>
+              <button onClick={paste} disabled={!getClipboard()}>
+                {t.editor.paste} <kbd>{k("mod", "V")}</kbd>
+              </button>
+              {(selected.length > 0 || marquee) && (
+                <button onClick={deleteSelected}>
+                  {marquee ? t.editor.deleteArea : t.editor.delete} <kbd>{k("del")}</kbd>
+                </button>
+              )}
+              {canGroup && (
+                <button onClick={makeBlock}>
+                  {t.editor.makeBlock} <kbd>{k("mod", "G")}</kbd>
+                </button>
+              )}
+              {block && (
+                <button onClick={dissolveBlock}>
+                  {t.editor.dissolve} <kbd>{k("mod", "shift", "G")}</kbd>
+                </button>
+              )}
+              {selected.length > 0 && doc && (
+                <>
+                  <hr />
+                  {STACK_MOVES.map(({ move, keys: combo }) => (
+                    <button key={move} onClick={() => commit(moveShapes(doc, selectedIds, move))}>
+                      {t.layers.stack[move]} <kbd>{k(...combo)}</kbd>
+                    </button>
+                  ))}
+                </>
+              )}
+            </ContextMenu>
+          )}
+          {tip && (
+            <div className="tip" role="status">
+              <span aria-hidden>💡</span>
+              <p>{t.tips[tip]}</p>
+              <button onClick={() => updateGuide({ ...guide, seenTips: [...guide.seenTips, tip] })}>
+                {t.tips.gotIt}
+              </button>
+            </div>
+          )}
         </main>
-        {showLayers && doc && (
+        {guide.showLayers && doc && (
           <LayersPanel
             doc={doc}
             selectedIds={selectedIds}
