@@ -29,6 +29,7 @@ from its section here, so each release starts with a `## <version>` heading.
 
 - Light and dark appearance, or like the system: in the settings and with ☀️/🌙 in the
   library.
+- A new, simpler app icon: two corners of a selection.
 - Start at login (Settings › General): Zwopp waits in the tray, without a window.
 - Lighter in the background: a closed window frees its memory after two minutes, the
   capture overlays load only their own code. Starting Zwopp again brings the running one

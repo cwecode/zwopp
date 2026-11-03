@@ -1,0 +1,67 @@
+name: Budgets
+
+# Performance budgets from docs/PLAN.md (Phase 1.5) with 100 000 items: the
+# slowest check, so only when the library or the UI changed, and every night.
+# One fixed OS, so measurements stay comparable between runs.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "crates/core/**"
+      - "apps/desktop/src/**"
+      - "apps/desktop/e2e/**"
+      - "apps/desktop/package.json"
+      - "Cargo.lock"
+      - "package-lock.json"
+      - ".github/workflows/budgets.yml"
+  pull_request:
+    paths:
+      - "crates/core/**"
+      - "apps/desktop/src/**"
+      - "apps/desktop/e2e/**"
+      - "apps/desktop/package.json"
+      - "Cargo.lock"
+      - "package-lock.json"
+      - ".github/workflows/budgets.yml"
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: budgets-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  budgets:
+    name: budgets
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libclang-dev libxcb1-dev libxrandr-dev libdbus-1-dev \
+            libpipewire-0.3-dev libwayland-dev libegl-dev libgbm-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: npm
+      - run: npm ci
+
+      - name: Core budgets (queries, paging, search)
+        run: cargo test -p zwopp-core --release --test budgets -- --ignored --nocapture
+
+      - name: UI budgets (first thumbnails, scrolling, search, memory)
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:budgets -w apps/desktop

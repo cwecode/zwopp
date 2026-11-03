@@ -3,7 +3,9 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore: ["docs/**", "**/*.md"]
   pull_request:
+    paths-ignore: ["docs/**", "**/*.md"]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -13,7 +15,23 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  check:
+  # Everything that does not depend on the OS, once.
+  web:
+    name: web
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test -w apps/desktop
+      # Known vulnerabilities in what ships with the app (not dev tools).
+      - run: npm audit --omit=dev --audit-level=high
+
+  rust:
     name: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -35,15 +53,15 @@ jobs:
         with:
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
+        with:
+          # Pull requests use the cache of main but do not fill it.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - uses: actions/setup-node@v7
         with:
           node-version: lts/*
           cache: npm
-
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm test -w apps/desktop
       # The Tauri build embeds the frontend, so it must exist before cargo runs.
       - run: npm run build:web
 
@@ -52,33 +70,29 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
 
-  # Performance budgets from docs/PLAN.md (Phase 1.5) with 100 000 items.
-  # One fixed OS, so measurements stay comparable between runs.
-  budgets:
-    name: budgets
-    runs-on: ubuntu-24.04
+  # The Windows installer, as the release builds it, so a broken icon or
+  # bundle setting shows up now and not when tagging a release.
+  bundle:
+    name: bundle (windows)
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
-
-      - name: Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y pkg-config libclang-dev libxcb1-dev libxrandr-dev libdbus-1-dev \
-            libpipewire-0.3-dev libwayland-dev libegl-dev libgbm-dev
-
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-
+        with:
+          key: bundle
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - uses: actions/setup-node@v7
         with:
           node-version: lts/*
           cache: npm
       - run: npm ci
+      - run: npm run tauri -w apps/desktop -- build --ci --bundles nsis
 
-      - name: Core budgets (queries, paging, search)
-        run: cargo test -p zwopp-core --release --test budgets -- --ignored --nocapture
-
-      - name: UI budgets (first thumbnails, scrolling, search, memory)
-        run: |
-          npx playwright install --with-deps chromium
-          npm run test:budgets -w apps/desktop
+  # Known vulnerabilities, licenses and sources of the Rust dependencies (deny.toml).
+  deny:
+    name: cargo deny
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: EmbarkStudios/cargo-deny-action@v2

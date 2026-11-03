@@ -1,0 +1,48 @@
+# cargo deny (CI job "cargo deny"): known vulnerabilities, licenses and
+# sources of the Rust dependencies. Run locally with `cargo deny check`.
+
+[graph]
+# Only what the release builds for.
+targets = [
+    "x86_64-pc-windows-msvc",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+    "x86_64-unknown-linux-gnu",
+]
+all-features = false
+
+[advisories]
+# Unmaintained crates deep in the GUI stack (e.g. GTK 3 bindings on Linux)
+# are no reason to fail; vulnerabilities are.
+unmaintained = "none"
+
+[licenses]
+# Permissive licenses, and MPL-2.0 (file-level copyleft, fine for an
+# MIT/Apache app as long as those files stay as they are).
+allow = [
+    "MIT",
+    "MIT-0",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "ISC",
+    "Zlib",
+    "0BSD",
+    "CC0-1.0",
+    "Unicode-3.0",
+    "Unlicense",
+    "MPL-2.0",
+]
+confidence-threshold = 0.9
+
+[bans]
+# Several versions of a crate are normal in a Tauri app.
+multiple-versions = "allow"
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

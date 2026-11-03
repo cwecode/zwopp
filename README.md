@@ -138,7 +138,12 @@ npm test -w apps/desktop   # TypeScript unit tests (Vitest)
 npm run typecheck      # TypeScript
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all
+cargo deny check       # vulnerabilities, licenses (deny.toml; cargo install cargo-deny)
 ```
+
+CI runs the TypeScript checks once, the Rust checks on Windows, macOS and Linux, builds
+the Windows installer and checks the dependencies; changes to docs alone skip it. The
+performance budgets run when the library or the UI changes, and every night.
 
 The development build runs as **Zwopp Dev** (identifier `digital.weier.zwopp.dev`), with
 its own settings and library, next to an installed Zwopp; it never starts at login
