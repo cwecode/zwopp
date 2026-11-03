@@ -4,8 +4,6 @@
 //! Both are fed frames of the same region (see `capture::capture_region`);
 //! the capture loop lives in the app, everything here is plain image work.
 
-use std::hash::{DefaultHasher, Hash, Hasher};
-
 use gif::{DisposalMethod, Encoder, Frame, Repeat};
 use image::{Rgba, RgbaImage};
 
@@ -32,56 +30,123 @@ pub enum Step {
 /// The overlap that has to match, at least: this many rows, or an eighth of
 /// the scrolling part.
 const MIN_OVERLAP: usize = 8;
-/// Share of overlapping rows that has to match (in tenths); a little slack
-/// for content that changes while scrolling, e.g. a hover effect.
-const MATCHING_TENTHS: usize = 9;
+/// Rows are compared in this many vertical stripes, so something that moves
+/// on its own (a scroll bar's thumb) only spoils its stripe.
+const STRIPES: usize = 16;
+/// Share of stripes in the overlap that has to match (in tenths); slack for
+/// the scroll bar and for content that changes while scrolling.
+const MATCHING_TENTHS: usize = 8;
 /// Rows with more than one colour that have to match, so a shift is not
 /// found in blank space alone.
 const MIN_DISTINCT_ROWS: usize = 4;
 
 /// Joins frames of a region that is scrolled down into one tall image.
 ///
-/// Each frame is compared with the last one that was used, row by row: rows
-/// that stay in place at the top and bottom (a fixed header or footer) are
-/// kept once, and in between the shift is found where the rows match again.
-/// The rows that came in at the bottom are added.
+/// Each frame is compared with the last one that was used. Only the columns
+/// that changed take part, so whatever stands still beside the scrolling
+/// content (a sidebar, a window in front) does not get in the way. Rows that
+/// stay in place at the top and bottom (a fixed header or footer) are kept
+/// once; in between the shift is found where the rows match again, and the
+/// rows that came in at the bottom are added.
 pub struct Panorama {
     width: u32,
     /// The joined image, RGBA rows.
     pixels: Vec<u8>,
     /// Rows at the end of `pixels` that stay in every frame; new rows go above.
     footer: Option<usize>,
-    /// Rows of the last used frame.
-    last: Vec<Row>,
+    /// The last used frame.
+    last: RgbaImage,
 }
 
+/// A row of the columns that moved, hashed per stripe.
 #[derive(Clone, Copy, PartialEq, Eq)]
 struct Row {
-    hash: u64,
-    /// All pixels have the same colour.
+    stripes: [u64; STRIPES],
+    /// All its pixels have the same colour.
     plain: bool,
 }
 
 impl Row {
-    fn same(&self, other: &Row) -> bool {
-        self.hash == other.hash
+    fn matching_stripes(&self, other: &Row) -> usize {
+        self.stripes
+            .iter()
+            .zip(&other.stripes)
+            .filter(|(a, b)| a == b)
+            .count()
     }
 }
 
-fn rows(frame: &RgbaImage) -> Vec<Row> {
-    let stride = frame.width() as usize * 4;
+/// The columns (as ranges of x) in which `a` and `b` differ.
+fn moving_columns(a: &RgbaImage, b: &RgbaImage) -> Vec<std::ops::Range<usize>> {
+    let width = a.width() as usize;
+    let stride = width * 4;
+    let mut moving = vec![false; width];
+    for (ra, rb) in a
+        .as_raw()
+        .chunks_exact(stride)
+        .zip(b.as_raw().chunks_exact(stride))
+    {
+        if ra == rb {
+            continue;
+        }
+        let (pa, pb) = (ra.as_chunks::<4>().0, rb.as_chunks::<4>().0);
+        for (x, flag) in moving.iter_mut().enumerate() {
+            *flag |= pa[x] != pb[x];
+        }
+    }
+    let mut ranges: Vec<std::ops::Range<usize>> = Vec::new();
+    for (x, _) in moving.iter().enumerate().filter(|(_, m)| **m) {
+        match ranges.last_mut() {
+            Some(range) if range.end == x => range.end = x + 1,
+            _ => ranges.push(x..x + 1),
+        }
+    }
+    ranges
+}
+
+/// The rows of `frame` over `columns`, split into stripes of equal width
+/// (stripes without such columns hash to 0).
+fn rows(frame: &RgbaImage, columns: &[std::ops::Range<usize>]) -> Vec<Row> {
+    let width = frame.width() as usize;
+    let stride = width * 4;
+    let stripe = |s: usize| s * width / STRIPES..(s + 1) * width / STRIPES;
     frame
         .as_raw()
         .chunks_exact(stride)
         .map(|row| {
-            let mut hasher = DefaultHasher::new();
-            row.hash(&mut hasher);
-            Row {
-                hash: hasher.finish(),
-                plain: row.as_chunks::<4>().0.iter().all(|p| p[..] == row[..4]),
+            let mut stripes = [0u64; STRIPES];
+            let mut first: Option<&[u8]> = None;
+            let mut plain = true;
+            for (s, hash) in stripes.iter_mut().enumerate() {
+                let bounds = stripe(s);
+                for range in columns {
+                    let (start, end) = (range.start.max(bounds.start), range.end.min(bounds.end));
+                    if start >= end {
+                        continue;
+                    }
+                    let bytes = &row[start * 4..end * 4];
+                    *hash = mix(*hash, bytes);
+                    let reference = *first.get_or_insert(&bytes[..4]);
+                    plain &= bytes.as_chunks::<4>().0.iter().all(|p| p[..] == *reference);
+                }
             }
+            Row { stripes, plain }
         })
         .collect()
+}
+
+/// A quick, non-cryptographic hash, fast enough for every frame.
+fn mix(mut hash: u64, bytes: &[u8]) -> u64 {
+    let (words, rest) = bytes.as_chunks::<8>();
+    for word in words {
+        hash =
+            (hash.rotate_left(5) ^ u64::from_le_bytes(*word)).wrapping_mul(0x517c_c1b7_2722_0a95);
+    }
+    for &byte in rest {
+        hash = (hash.rotate_left(5) ^ u64::from(byte)).wrapping_mul(0x517c_c1b7_2722_0a95);
+    }
+    // Never 0, which marks a stripe without moving columns.
+    hash | 1
 }
 
 impl Panorama {
@@ -90,7 +155,7 @@ impl Panorama {
             width: first.width(),
             pixels: first.as_raw().clone(),
             footer: None,
-            last: rows(first),
+            last: first.clone(),
         }
     }
 
@@ -100,29 +165,33 @@ impl Panorama {
     }
 
     pub fn push(&mut self, frame: &RgbaImage) -> Step {
-        let rows = rows(frame);
-        if frame.width() != self.width || rows.len() != self.last.len() || rows == self.last {
+        if frame.dimensions() != self.last.dimensions() || *frame == self.last {
             return Step::Same;
         }
         if self.height() >= MAX_PANORAMA_HEIGHT {
             return Step::Full;
         }
-        let height = rows.len();
-        let top = rows
+        let columns = moving_columns(&self.last, frame);
+        let rows_now = rows(frame, &columns);
+        let rows_before = rows(&self.last, &columns);
+        let height = rows_now.len();
+        let top = rows_now
             .iter()
-            .zip(&self.last)
-            .take_while(|(a, b)| a.same(b))
+            .zip(&rows_before)
+            .take_while(|(a, b)| a == b)
             .count();
-        let bottom = rows
+        let bottom = rows_now
             .iter()
             .rev()
-            .zip(self.last.iter().rev())
-            .take_while(|(a, b)| a.same(b))
+            .zip(rows_before.iter().rev())
+            .take_while(|(a, b)| a == b)
             .count();
-        // Only a part in between changed; with nothing scrolled that can be
-        // anything (a blinking cursor), so it counts as no change.
         let band = height.saturating_sub(top + bottom);
-        let Some(shift) = self.shift(&rows, top, band) else {
+        let active = (0..STRIPES)
+            .filter(|&s| rows_now.iter().any(|row| row.stripes[s] != 0))
+            .count()
+            .max(1);
+        let Some(shift) = shift(&rows_now, &rows_before, top, band, active) else {
             return Step::Lost;
         };
 
@@ -135,42 +204,42 @@ impl Panorama {
         let new_rows = &frame.as_raw()[start..start + added * stride];
         let at = self.pixels.len() - footer * stride;
         self.pixels.splice(at..at, new_rows.iter().copied());
-        self.last = rows;
+        self.last = frame.clone();
         Step::Added(added as u32)
-    }
-
-    /// How far the part from row `top` (`band` rows) moved up since the last
-    /// frame: the smallest shift with the most matching rows.
-    fn shift(&self, rows: &[Row], top: usize, band: usize) -> Option<usize> {
-        let min_overlap = MIN_OVERLAP.max(band / 8);
-        let mut best: Option<(usize, usize)> = None;
-        for shift in 1..band {
-            let overlap = band - shift;
-            if overlap < min_overlap {
-                break;
-            }
-            let (mut matching, mut distinct) = (0, 0);
-            let earlier = &self.last[top + shift..];
-            for (row, before) in rows[top..top + overlap].iter().zip(earlier) {
-                if row.same(before) {
-                    matching += 1;
-                    distinct += usize::from(!row.plain);
-                }
-            }
-            if matching * 10 >= overlap * MATCHING_TENTHS
-                && distinct >= MIN_DISTINCT_ROWS
-                && best.is_none_or(|(_, most)| distinct > most)
-            {
-                best = Some((shift, distinct));
-            }
-        }
-        best.map(|(shift, _)| shift)
     }
 
     pub fn finish(self) -> RgbaImage {
         let height = self.height();
         RgbaImage::from_raw(self.width, height, self.pixels).expect("the panorama holds whole rows")
     }
+}
+
+/// How far the rows from `top` (`band` of them) moved up between `before`
+/// and `now`: the smallest shift with the most matching rows. `active`
+/// stripes take part.
+fn shift(now: &[Row], before: &[Row], top: usize, band: usize, active: usize) -> Option<usize> {
+    let min_overlap = MIN_OVERLAP.max(band / 8);
+    let mut best: Option<(usize, usize)> = None;
+    for shift in 1..band {
+        let overlap = band - shift;
+        if overlap < min_overlap {
+            break;
+        }
+        let (mut matching, mut distinct) = (0, 0);
+        for (row, earlier) in now[top..top + overlap].iter().zip(&before[top + shift..]) {
+            // Stripes without moving columns are 0 on both sides and match.
+            let stripes = row.matching_stripes(earlier) - (STRIPES - active);
+            matching += stripes;
+            distinct += usize::from(stripes == active && !row.plain);
+        }
+        if matching * 10 >= overlap * active * MATCHING_TENTHS
+            && distinct >= MIN_DISTINCT_ROWS
+            && best.is_none_or(|(_, most)| distinct > most)
+        {
+            best = Some((shift, distinct));
+        }
+    }
+    best.map(|(shift, _)| shift)
 }
 
 /// GIF speed (1–30): lower picks better colours, but takes longer per frame.
@@ -389,6 +458,38 @@ mod tests {
         assert_eq!(joined.get_pixel(0, 10), page.get_pixel(0, 10));
         assert_eq!(joined.get_pixel(0, 389), page.get_pixel(0, 389));
         assert_eq!(joined.get_pixel(0, 399).0, [0, 0, 255, 255]);
+    }
+
+    #[test]
+    fn a_still_sidebar_and_the_scroll_bar_do_not_matter() {
+        let page = page(40, 400);
+        // Columns 0–9: a sidebar that differs per row but stands still (or
+        // a window in front); the last two: a scroll bar whose 60-row thumb
+        // moves with the page.
+        let view = |scroll: u32| {
+            RgbaImage::from_fn(40, 100, |x, y| {
+                if x < 10 {
+                    Rgba([(y * 2) as u8, 200, 10, 255])
+                } else if x >= 38 {
+                    let thumb = scroll * 100 / 400;
+                    if (thumb..thumb + 60).contains(&y) {
+                        Rgba([90, 90, 90, 255])
+                    } else {
+                        Rgba([240, 240, 240, 255])
+                    }
+                } else {
+                    *page.get_pixel(x, scroll + y)
+                }
+            })
+        };
+        let mut panorama = Panorama::new(&view(0));
+        for scroll in (25..=300).step_by(25) {
+            let step = panorama.push(&view(scroll));
+            assert_eq!(step, Step::Added(25), "scroll {scroll}");
+        }
+        let joined = panorama.finish();
+        assert_eq!(joined.height(), 400);
+        assert_eq!(joined.get_pixel(20, 250), page.get_pixel(20, 250));
     }
 
     #[test]

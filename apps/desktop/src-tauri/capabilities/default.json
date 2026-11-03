@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Library window and capture overlays",
-  "windows": ["main", "overlay-*"],
+  "description": "Library window, capture overlays and the recording frame and bar",
+  "windows": ["main", "overlay-*", "recorder-*"],
   "permissions": [
     "core:default",
     "core:window:allow-show",

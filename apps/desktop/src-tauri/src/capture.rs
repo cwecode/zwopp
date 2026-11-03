@@ -318,7 +318,16 @@ pub fn take_for_recording(app: &AppHandle, rect: DesktopRect) -> Option<(bool, O
     let session = app.state::<AppState>().session.lock().unwrap().take()?;
     hide_overlays(app);
     let pid = capture::window_under(&session.windows, rect).map(|w| w.pid);
-    Some((session.main_hidden, pid))
+    // Left open for a screenshot (only out of the capture), but it would be
+    // in the way of scrolling and clicking: hidden until the recording ends.
+    let main = app
+        .get_webview_window(main_window::LABEL)
+        .filter(|w| w.is_visible().unwrap_or(false));
+    if let Some(main) = &main {
+        platform::exclude_from_capture(main, false);
+        let _ = main.hide();
+    }
+    Some((session.main_hidden || main.is_some(), pid))
 }
 
 /// Saves the icon of application `name` (process `pid`) the first time it is

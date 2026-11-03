@@ -62,19 +62,23 @@ pub fn exclude_from_capture(_window: &WebviewWindow, _exclude: bool) -> bool {
     false
 }
 
-/// Whether the left or right mouse button is down right now, for showing
-/// clicks in a GIF recording. Elsewhere than on Windows clicks do not show yet.
+/// Whether the left or right mouse button is down, or was pressed since the
+/// last call, for showing clicks in a GIF recording. Elsewhere than on
+/// Windows clicks do not show yet.
 #[cfg(windows)]
 pub fn mouse_pressed() -> bool {
     use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
         GetAsyncKeyState, VK_LBUTTON, VK_RBUTTON,
     };
 
-    // SAFETY: GetAsyncKeyState only reads the key state; the high bit means "down".
-    unsafe {
-        GetAsyncKeyState(i32::from(VK_LBUTTON)) as u16 & 0x8000 != 0
-            || GetAsyncKeyState(i32::from(VK_RBUTTON)) as u16 & 0x8000 != 0
-    }
+    // SAFETY: GetAsyncKeyState only reads the key state. The high bit means
+    // "down", the low bit "pressed since the last call" (catches very short
+    // clicks; best effort, as other programs asking reset it too).
+    let pressed = |key: u16| unsafe { GetAsyncKeyState(i32::from(key)) as u16 & 0x8001 != 0 };
+    // Both are asked every time, so both low bits are reset.
+    let left = pressed(VK_LBUTTON);
+    let right = pressed(VK_RBUTTON);
+    left || right
 }
 
 #[cfg(not(windows))]

@@ -6,7 +6,7 @@
 //! OS allows, out of the captures as well.
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
@@ -29,6 +29,10 @@ const BORDER: f64 = 3.0;
 /// Size of the recording bar, in logical pixels.
 const BAR_SIZE: (f64, f64) = (460.0, 52.0);
 const BAR_GAP: i32 = 8;
+/// How often the mouse buttons are checked during a GIF recording.
+const CLICK_POLL: Duration = Duration::from_millis(10);
+/// How long a click stays visible in a GIF.
+const CLICK_SHOWN: Duration = Duration::from_millis(300);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -42,7 +46,7 @@ impl Mode {
     /// to keep up with scrolling.
     fn interval(self) -> Duration {
         match self {
-            Mode::Panorama => Duration::from_millis(50),
+            Mode::Panorama => Duration::from_millis(40),
             Mode::Gif => Duration::from_millis(66),
         }
     }
@@ -170,10 +174,19 @@ fn record(
         Mode::Panorama => {
             let mut panorama = Panorama::new(&first);
             let mut lost = false;
+            let mut previous = first;
             while !stop.load(Ordering::Relaxed) {
                 std::thread::sleep(mode.interval());
                 let frame = region.capture().map_err(err)?;
-                match panorama.push(&frame) {
+                // Only a frame that stands still: while an app scrolls
+                // smoothly or repaints, a capture can catch it half drawn.
+                let settled = frame == previous;
+                previous = frame;
+                if !settled {
+                    progress(panorama.height(), lost, false);
+                    continue;
+                }
+                match panorama.push(&previous) {
                     Step::Added(_) => lost = false,
                     Step::Lost => lost = true,
                     Step::Same => {}
@@ -189,12 +202,32 @@ fn record(
         Mode::Gif => {
             let rect = region.rect();
             let scale = region.scale_factor().round().max(1.0) as u32;
+            // A click is shorter than the time between two frames, so the
+            // buttons are watched more often, and a click stays visible a
+            // moment (milliseconds since `start` of the last press).
+            let last_press = Arc::new(AtomicU64::new(u64::MAX));
+            let watching = Arc::new(AtomicBool::new(true));
+            let watcher = {
+                let (last_press, watching) = (last_press.clone(), watching.clone());
+                std::thread::spawn(move || {
+                    while watching.load(Ordering::Relaxed) {
+                        if platform::mouse_pressed() {
+                            last_press.store(start.elapsed().as_millis() as u64, Ordering::Relaxed);
+                        }
+                        std::thread::sleep(CLICK_POLL);
+                    }
+                })
+            };
             let with_pointer = |mut frame: image::RgbaImage| {
                 if let Ok(pointer) = app.cursor_position() {
                     // The frame has the region's size in desktop pixels.
                     let x = pointer.x.round() as i32 - rect.x;
                     let y = pointer.y.round() as i32 - rect.y;
-                    record::draw_pointer(&mut frame, x, y, scale, platform::mouse_pressed());
+                    let now = start.elapsed().as_millis() as u64;
+                    let last = last_press.load(Ordering::Relaxed);
+                    let pressed = last != u64::MAX
+                        && now.saturating_sub(last) < CLICK_SHOWN.as_millis() as u64;
+                    record::draw_pointer(&mut frame, x, y, scale, pressed);
                 }
                 frame
             };
@@ -219,21 +252,33 @@ fn record(
             });
             let _ = frames.try_send((Some(poster.clone()), 0));
             let limit = Duration::from_secs(record::MAX_GIF_SECONDS);
+            let mut failed = None;
             while !stop.load(Ordering::Relaxed) {
                 std::thread::sleep(mode.interval());
                 if start.elapsed() >= limit {
                     progress(0, false, true);
                     break;
                 }
-                let frame = with_pointer(region.capture().map_err(err)?);
+                let frame = match region.capture() {
+                    Ok(frame) => with_pointer(frame),
+                    Err(e) => {
+                        failed = Some(err(e));
+                        break;
+                    }
+                };
                 let _ = frames.try_send((Some(frame), start.elapsed().as_millis() as u64));
                 progress(0, false, false);
             }
+            watching.store(false, Ordering::Relaxed);
+            let _ = watcher.join();
             // The last frame stays until the end.
             let _ = frames.send((None, start.elapsed().as_millis() as u64));
             drop(frames);
             let gif = encoder.join().map_err(|_| "the GIF encoder panicked")??;
-            Ok(Capture::Animation { gif, poster })
+            match failed {
+                Some(e) => Err(e),
+                None => Ok(Capture::Animation { gif, poster }),
+            }
         }
     }
 }
