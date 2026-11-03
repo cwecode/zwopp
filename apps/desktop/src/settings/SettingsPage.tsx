@@ -115,6 +115,17 @@ export function SettingsPage({ onClose }: { onClose(): void }) {
               ))}
             </select>
           </label>
+          <label className="setting">
+            <span>{t.settings.theme}</span>
+            <select
+              value={settings.theme ?? ""}
+              onChange={(e) => change({ theme: (e.target.value || null) as api.Theme | null })}
+            >
+              <option value="">{t.settings.systemTheme}</option>
+              <option value="light">{t.settings.themes.light}</option>
+              <option value="dark">{t.settings.themes.dark}</option>
+            </select>
+          </label>
         </section>
 
         <section>

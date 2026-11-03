@@ -57,10 +57,14 @@ export interface Rect {
 /** Tells the backend the UI language, for the tray menu. */
 export const setLanguage = (language: string) => invoke<void>("set_language", { language });
 
+export type Theme = "light" | "dark";
+
 /** The user settings (`zwopp_core::settings::Settings`). */
 export interface Settings {
   /** "de" or "en"; null follows the system. */
   language: string | null;
+  /** "light" or "dark"; null follows the system. */
+  theme: Theme | null;
   /** Tauri accelerator, e.g. "CommandOrControl+Shift+X"; null = first free default. */
   captureHotkey: string | null;
   /** null = the default folder. */

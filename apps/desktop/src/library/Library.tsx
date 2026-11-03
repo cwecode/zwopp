@@ -18,6 +18,8 @@ import {
   type Overview,
 } from "../api";
 import { formatAccelerator, useT } from "../i18n";
+import { updateSettings, useSettings } from "../settings/store";
+import { useSystemDark } from "../settings/theme";
 import { AppIcon } from "./AppIcon";
 import { LibraryNav } from "./LibraryNav";
 import { ALL, queryFor, recentSince, stillListed, type NavSelection } from "./nav";
@@ -119,6 +121,9 @@ export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): voi
   }, []);
 
   const shortcut = accelerator && formatAccelerator(t, accelerator);
+  // The toggle switches to the other theme; the settings also offer "like the system".
+  const { theme } = useSettings();
+  const dark = useSystemDark(theme);
   const dateFormat = useMemo(
     () => new Intl.DateTimeFormat(t.locale, { dateStyle: "medium", timeStyle: "short" }),
     [t.locale],
@@ -263,6 +268,14 @@ export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): voi
           ))}
         </select>
         {shortcut && <kbd>{shortcut}</kbd>}
+        <button
+          className="tool"
+          onClick={() => updateSettings({ theme: dark ? "light" : "dark" }).catch(report)}
+          title={dark ? t.library.toLight : t.library.toDark}
+          aria-label={dark ? t.library.toLight : t.library.toDark}
+        >
+          <span className="emoji-current">{dark ? "☀️" : "🌙"}</span>
+        </button>
         <button className="tool" onClick={onSettings} title={t.library.settings} aria-label={t.library.settings}>
           ⚙
         </button>

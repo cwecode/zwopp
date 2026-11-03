@@ -13,6 +13,8 @@ use crate::error::IoContext;
 pub struct Settings {
     /// UI language ("de", "en"); `None` follows the system.
     pub language: Option<String>,
+    /// Colour theme ("light", "dark"); `None` follows the system.
+    pub theme: Option<String>,
     /// Capture hotkey as a Tauri accelerator, e.g. `CommandOrControl+Shift+X`;
     /// `None` takes the first free one of the built-in defaults.
     pub capture_hotkey: Option<String>,
@@ -31,6 +33,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             language: None,
+            theme: None,
             capture_hotkey: None,
             library_dir: None,
             copy_after_capture: true,
@@ -80,6 +83,7 @@ mod tests {
         let path = dir.path().join("nested").join("settings.json");
         let settings = Settings {
             language: Some("en".into()),
+            theme: Some("dark".into()),
             capture_hotkey: Some("CommandOrControl+Alt+S".into()),
             library_dir: Some(dir.path().join("shots")),
             edit_after_capture: false,

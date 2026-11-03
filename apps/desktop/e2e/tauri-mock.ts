@@ -77,6 +77,7 @@ export function tauriMock({ items, latencyMs }: MockOptions) {
     get_settings: () => ({
       settings: {
         language: null,
+        theme: null,
         captureHotkey: null,
         libraryDir: null,
         copyAfterCapture: true,

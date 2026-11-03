@@ -4,9 +4,11 @@ import { useSyncExternalStore } from "react";
 import { listen } from "@tauri-apps/api/event";
 import * as api from "../api";
 import { resolveLanguage, setLanguage, systemLanguages } from "../i18n";
+import { applyTheme } from "./theme";
 
 export const DEFAULT_SETTINGS: api.Settings = {
   language: null,
+  theme: null,
   captureHotkey: null,
   libraryDir: null,
   copyAfterCapture: true,
@@ -20,6 +22,7 @@ const listeners = new Set<() => void>();
 function apply(next: api.Settings) {
   current = next;
   setLanguage(resolveLanguage(next.language, systemLanguages()));
+  applyTheme(next.theme);
   listeners.forEach((listener) => listener());
 }
 
