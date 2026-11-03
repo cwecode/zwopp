@@ -8,6 +8,29 @@ highlights, step numbers, emojis and more.
 > fast with 100 000 screenshots. See the [user guide](docs/user-guide.md), the
 > [feature list](docs/spec/features.md) and the [project plan](docs/PLAN.md) (German).
 
+![A click sequence recorded as a GIF with Zwopp](docs/media/demo.gif)
+
+**Capture modes:** a bar at the bottom of the screen switches between a screenshot, a
+**panorama** (select an area, scroll down in it, and Zwopp joins everything into one tall
+image) and a **GIF** of a click sequence, like the one above, ready to paste into a chat.
+
+![A screenshot annotated in the Zwopp editor: arrow, step numbers, callout, emoji and mouse stamp](docs/media/annotated.png)
+
+Every capture lands in the **library**, sorted by date and by the application it came from,
+and opens in the **editor** for arrows, step numbers, callouts, emojis, mouse stamps and
+pixelating what nobody should see.
+
+<details>
+<summary>More pictures: library, capture overlay, panorama</summary>
+
+![The library with recordings, a panorama and an annotated screenshot](docs/media/library.jpg)
+
+![The capture overlay with the mode bar](docs/media/overlay.jpg)
+
+![A panorama of a long document, joined while scrolling](docs/media/panorama.jpg)
+
+</details>
+
 ## Features (current)
 
 - Global hotkey **Ctrl+Shift+X** (macOS: **⌘⇧X**) or tray menu → region capture.
