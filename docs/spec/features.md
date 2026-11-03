@@ -67,6 +67,9 @@ see [document-format.md](document-format.md). Changes are saved automatically.
 | Text background, fonts | Sans serif, serif or monospace; optional coloured box behind the text, the text contrasting in black or white | ✅ (2) |
 | Callout / speech bubble | Text in a coloured bubble with a pointer: drag from the point it refers to to where the bubble goes (C); the pointer stays on target when the bubble moves and has its own handle | ✅ (2) |
 | Step numbers | Each click places the next number in a round badge (N); Shift+click repeats the last number; a fixed number stamps the same one every time; selected badges can be renumbered | ✅ (2, 3) |
+| Pen | Freehand line (P) in the tool colour and size, moved and scaled like other shapes | ✅ (3) |
+| Fill bucket | Click fills the connected area of similar colour (F) with the tool colour; tolerance in four steps | ✅ (3) |
+| Magic wand | Click picks an area of similar colour (W), Shift+click adds; delete it (transparent) or keep only it, which also trims the image — e.g. to cut out an icon | ✅ (3) |
 | Mouse stamps | Left, right, double and middle click, scroll and drag as mouse symbols for instructions (K), in the tool colour | ✅ (3) |
 | Emoji / stickers | 40 emojis to pick from (S); click places one, sized by S/M/L/XL, scaled freely | ✅ (2) |
 | Magnify | Drag over an area (M): a framed inset twice as large appears next to it, round or square, joined to the marked source; inset and source move on their own. Shows blurred areas pixelated, never the hidden pixels | ✅ (2) |
@@ -77,7 +80,7 @@ see [document-format.md](document-format.md). Changes are saved automatically.
 | Feature | Description | Status |
 |---|---|---|
 | Language | German and English, picked from the system language or set in the settings; tooltips name keys as on the keyboard (Strg / Ctrl / ⌘) | ✅ (2) |
-| Settings | Language, capture hotkey (press to record), library folder (after a restart), copy / open in the editor after a capture, reset tool styles, quick styles; also from the tray menu | ✅ (2) |
+| Settings | Language, appearance (light, dark or like the system; also ☀️/🌙 in the library), capture hotkey (press to record), library folder (after a restart), copy / open in the editor after a capture, reset tool styles, quick styles; also from the tray menu | ✅ (2) |
 
 ## Export & automation
 

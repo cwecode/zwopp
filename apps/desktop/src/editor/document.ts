@@ -2,6 +2,7 @@
 // a screenshot. Stored as `document.json` next to the untouched original.
 // The format is specified in docs/spec/document-format.md — keep both in sync.
 
+import { encodeMask, isMask, maskBitmap, type Mask } from "./mask";
 import type { StampKind } from "./stamps";
 
 export const SCHEMA_VERSION = 3;
@@ -105,6 +106,25 @@ export interface StepShape extends ShapeBase, Rect {
   fill: string;
 }
 
+/**
+ * A freehand line. `points` are x, y pairs relative to the rectangle (0–1),
+ * so moving and scaling only change the rectangle.
+ */
+export interface PenShape extends ShapeBase, Rect {
+  type: "pen";
+  points: number[];
+  stroke: string;
+  strokeWidth: number;
+}
+
+/** An area of the screenshot filled with a colour (the fill bucket), see `mask.ts`. */
+export interface FillShape extends ShapeBase, Rect {
+  type: "fill";
+  /** Run-length encoded pixels of the original mask size, scaled to the rectangle. */
+  mask: { width: number; height: number; runs: number[] };
+  fill: string;
+}
+
 /** A mouse symbol (left click, scroll, …) for instructions, see `stamps.ts`. */
 export interface StampShape extends ShapeBase, Rect {
   type: "stamp";
@@ -156,6 +176,8 @@ export type Shape =
   | EllipseShape
   | TextShape
   | StepShape
+  | PenShape
+  | FillShape
   | StampShape
   | EmojiShape
   | MagnifyShape
@@ -170,6 +192,8 @@ export interface EditorDocument {
   canvas: { width: number; height: number };
   /** Areas of the original image that were deleted (rendered transparent). */
   erased: Rect[];
+  /** Pixel areas deleted with the magic wand, also transparent. */
+  erasedMasks?: Mask[];
   /** Layers above the screenshot, bottom to top. Never empty. */
   layers: Layer[];
   /**
@@ -257,10 +281,37 @@ export function loadDocument(stored: unknown, width: number, height: number): Ed
   return pruneGroups({
     ...fresh,
     erased: Array.isArray(doc.erased) ? doc.erased : [],
+    ...(Array.isArray(doc.erasedMasks) && { erasedMasks: doc.erasedMasks.filter(isMask) }),
     layers,
     objects: doc.objects.map((s) => (layerIds.has(s.layer) ? s : { ...s, layer: layers[0].id })),
     groups: Array.isArray(doc.groups) ? doc.groups : [],
   });
+}
+
+/** A freehand line through `points` (image px), its points relative to its box. */
+export function penShape(
+  base: { id: string; layer: string },
+  points: { x: number; y: number }[],
+  stroke: string,
+  strokeWidth: number,
+): PenShape {
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  const [x, y] = [Math.min(...xs), Math.min(...ys)];
+  // A straight line still gets a box of at least one pixel.
+  const width = Math.max(1, Math.max(...xs) - x);
+  const height = Math.max(1, Math.max(...ys) - y);
+  return {
+    ...base,
+    type: "pen",
+    x,
+    y,
+    width,
+    height,
+    points: points.flatMap((p) => [(p.x - x) / width, (p.y - y) / height]),
+    stroke,
+    strokeWidth,
+  };
 }
 
 export function newId(): string {
@@ -348,6 +399,28 @@ function containsRect(outer: Rect, inner: Rect): boolean {
     inner.x + inner.width <= outer.x + outer.width &&
     inner.y + inner.height <= outer.y + outer.height
   );
+}
+
+/**
+ * Deletes pixels of the screenshot (they become transparent): the mask, or
+ * with `keep` everything except the mask. Keeping trims the image to the
+ * mask's bounding box, so a cut-out object is saved without empty margins.
+ */
+export function eraseMask(doc: EditorDocument, mask: Mask, keep = false): EditorDocument {
+  if (!keep) return { ...doc, erasedMasks: [...(doc.erasedMasks ?? []), mask] };
+  const { width, height } = doc.canvas;
+  const outside: Rect[] = [
+    { x: 0, y: 0, width, height: mask.y },
+    { x: 0, y: mask.y + mask.height, width, height: height - mask.y - mask.height },
+    { x: 0, y: mask.y, width: mask.x, height: mask.height },
+    { x: mask.x + mask.width, y: mask.y, width: width - mask.x - mask.width, height: mask.height },
+  ].filter((r) => r.width > 0 && r.height > 0);
+  const inverted = encodeMask(maskBitmap([mask], mask, true));
+  return {
+    ...doc,
+    erased: [...doc.erased, ...outside],
+    erasedMasks: inverted ? [...(doc.erasedMasks ?? []), inverted] : doc.erasedMasks,
+  };
 }
 
 /**

@@ -21,6 +21,7 @@ import {
   headSize,
   magnifierFor,
   nextStepNumber,
+  penShape,
   textPadding,
   contentBounds,
   visibleShapes,
@@ -39,10 +40,12 @@ import {
   type EditorDocument,
   type Rect,
   type Shape,
+  type FillShape,
   type StampShape,
   type StepShape,
   type TextShape,
 } from "./document";
+import { DEFAULT_TOLERANCE, TOLERANCES, encodeMask, floodFill, maskBitmap, maskCanvas, type Mask } from "./mask";
 import { MipImage } from "./MipImage";
 import { cleanImage, drawMagnifier, pixelBlocks } from "./render";
 import {
@@ -90,6 +93,10 @@ interface Props {
   activeLayer: string;
   /** Area marked with the selection tool, in image px. */
   marquee: Rect | null;
+  /** Pixels picked with the magic wand. */
+  wandSelection: Mask | null;
+  /** A wand click picked `mask` (Shift+click: added to the selection). */
+  onWandSelect(mask: Mask | null): void;
   /** Size of the stage, in CSS px. */
   width: number;
   height: number;
@@ -289,6 +296,37 @@ function drawEmoji(ctx: Konva.Context, node: Konva.Shape) {
   ctx.fillText(String(node.getAttr("emoji")), w / 2, h * 0.54);
 }
 
+/** A freehand line through `points` (relative to the node's box). */
+function drawPen(ctx: Konva.Context, node: Konva.Shape) {
+  const points = node.getAttr("points") as number[];
+  const [w, h] = [node.width(), node.height()];
+  ctx.beginPath();
+  ctx.moveTo(points[0] * w, points[1] * h);
+  for (let i = 2; i < points.length; i += 2) ctx.lineTo(points[i] * w, points[i + 1] * h);
+  // A single click draws a dot.
+  if (points.length === 2) ctx.lineTo(points[0] * w + 0.01, points[1] * h);
+  ctx.strokeShape(node);
+}
+
+/** A fill-bucket area: its mask in its colour, stretched to its box. */
+function FillNode({ common, shape }: { common: object; shape: FillShape }) {
+  const picture = useMemo(
+    () => maskCanvas({ x: 0, y: 0, ...shape.mask }, shape.fill),
+    [shape.mask, shape.fill],
+  );
+  return (
+    <KonvaImage
+      {...common}
+      image={picture}
+      x={shape.x}
+      y={shape.y}
+      width={shape.width}
+      height={shape.height}
+      imageSmoothingEnabled={false}
+    />
+  );
+}
+
 const paths = new Map<string, Path2D>();
 /** A Path2D for SVG path data, made once per path. */
 function path(data: string): Path2D {
@@ -397,6 +435,7 @@ function inside(outer: Rect, inner: Rect) {
 
 export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanvas(props, ref) {
   const { image, assets, doc, layoutDoc, tool, styles, selectedIds, activeLayer, marquee, width, height } = props;
+  const { wandSelection, onWandSelect } = props;
   const { onSelect, onMarquee, onPreview, onCommit, onCancelPreview, onZoom } = props;
 
   const stageRef = useRef<Konva.Stage>(null);
@@ -509,8 +548,28 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
   const locked = new Set(doc.layers.filter((l) => l.locked).map((l) => l.id));
   // What magnifiers show: the screenshot with blurs and deletions applied,
   // redrawn only when those change.
-  const hiding = JSON.stringify([doc.erased, doc.objects.filter((s) => s.type === "blur")]);
+  const hiding = JSON.stringify([doc.erased, doc.erasedMasks, doc.objects.filter((s) => s.type === "blur")]);
   const clean = useMemo(() => cleanImage(image, doc), [image, hiding]);
+  // The pixels the fill bucket and the magic wand look at, read on first use.
+  const cleanPixels = useRef<{ source: HTMLCanvasElement; data: Uint8ClampedArray } | null>(null);
+  const pixelsOf = () => {
+    if (cleanPixels.current?.source !== clean) {
+      const data = clean.getContext("2d")!.getImageData(0, 0, clean.width, clean.height).data;
+      cleanPixels.current = { source: clean, data };
+    }
+    return cleanPixels.current.data;
+  };
+  /** The area of similar colour around `at`, with the tool's tolerance. */
+  const areaAt = (at: Point, tool: "fill" | "wand") => {
+    const tolerance = TOLERANCES[styles[tool].tolerance ?? DEFAULT_TOLERANCE];
+    const bitmap = floodFill(pixelsOf(), clean.width, clean.height, at.x, at.y, tolerance);
+    return bitmap && encodeMask(bitmap);
+  };
+  const wandOverlay = useMemo(() => wandSelection && maskCanvas(wandSelection, SELECTION), [wandSelection]);
+  const erasedMaskCanvases = useMemo(
+    () => (doc.erasedMasks ?? []).map((mask) => ({ mask, canvas: maskCanvas(mask, "#000000") })),
+    [doc.erasedMasks],
+  );
 
   const findNode = (id: string) => stageRef.current?.findOne((n: Konva.Node) => n.id() === id);
 
@@ -799,6 +858,50 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
     onSelect([shape.id]);
   };
 
+  /** Fills the area of similar colour around `at` with the tool's colour. */
+  const placeFill = (at: Point) => {
+    const mask = areaAt(at, "fill");
+    if (!mask) return;
+    const shape: FillShape = {
+      id: newId(),
+      type: "fill",
+      layer: activeLayer,
+      x: mask.x,
+      y: mask.y,
+      width: mask.width,
+      height: mask.height,
+      mask: { width: mask.width, height: mask.height, runs: mask.runs },
+      fill: styles.fill.color,
+    };
+    onCommit(addShape(doc, shape));
+  };
+
+  /** Draws a freehand line while the mouse is down. */
+  const startPen = (stage: Konva.Stage, start: Point) => {
+    const style = styles.pen;
+    const strokeWidth = SIZES[style.size].strokeWidth;
+    const points: Point[] = [start];
+    const id = newId();
+    const make = () => penShape({ id, layer: activeLayer }, points, style.color, strokeWidth);
+    setDraft(make());
+    trackDrag(
+      stage,
+      (p) => {
+        // Points closer than a screen pixel only add noise.
+        const last = points[points.length - 1];
+        if (Math.hypot(p.x - last.x, p.y - last.y) * scale < 1.5) return;
+        points.push(p);
+        setDraft(make());
+      },
+      (p) => {
+        points.push(p);
+        setDraft(null);
+        onCommit(addShape(doc, make()));
+        onSelect([id]);
+      },
+    );
+  };
+
   /** Puts the chosen mouse stamp centred on `at`. */
   const placeStamp = (at: Point) => {
     const style = styles.stamp;
@@ -865,10 +968,31 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
       return;
     }
 
+    // The wand and the bucket look at the screenshot, also under shapes.
+    if (tool === "wand") {
+      const picked = areaAt(start, "wand");
+      if (picked && event.evt.shiftKey && wandSelection) {
+        const area = unionRect(wandSelection, picked)!;
+        onWandSelect(encodeMask(maskBitmap([wandSelection, picked], area)));
+      } else {
+        onWandSelect(picked);
+      }
+      return;
+    }
+    if (tool === "fill") {
+      placeFill(start);
+      return;
+    }
+
     // Clicking a shape selects it (in every tool); the shape drags itself.
     if (onShape) return;
     onSelect([]);
     onMarquee(null);
+
+    if (tool === "pen") {
+      startPen(stage, start);
+      return;
+    }
 
     if (tool === "step") {
       placeStep(start, event.evt.shiftKey);
@@ -1095,6 +1219,27 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
             hitFunc={hitStep}
           />
         );
+      case "pen":
+        return (
+          <KonvaShape
+            key={shape.id}
+            {...common}
+            x={shape.x}
+            y={shape.y}
+            width={shape.width}
+            height={shape.height}
+            stroke={shape.stroke}
+            strokeWidth={shape.strokeWidth}
+            strokeScaleEnabled={false}
+            lineCap="round"
+            lineJoin="round"
+            hitStrokeWidth={Math.max(16, shape.strokeWidth * 3)}
+            points={shape.points}
+            sceneFunc={drawPen}
+          />
+        );
+      case "fill":
+        return <FillNode key={shape.id} common={common} shape={shape} />;
       case "stamp":
         return (
           <KonvaShape
@@ -1229,6 +1374,16 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
               {doc.erased.map((r, i) => (
                 <KonvaRect key={i} {...r} fill="#000" globalCompositeOperation="destination-out" listening={false} />
               ))}
+              {erasedMaskCanvases.map(({ mask, canvas }, i) => (
+                <KonvaImage
+                  key={`mask-${i}`}
+                  image={canvas}
+                  x={mask.x}
+                  y={mask.y}
+                  globalCompositeOperation="destination-out"
+                  listening={false}
+                />
+              ))}
             </>
           )}
           <Group ref={shapesRef}>
@@ -1266,6 +1421,16 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
             dash={[4 / scale, 4 / scale]}
             listening={false}
           />
+          {wandSelection && wandOverlay && (
+            <KonvaImage
+              image={wandOverlay}
+              x={wandSelection.x}
+              y={wandSelection.y}
+              opacity={0.45}
+              imageSmoothingEnabled={false}
+              listening={false}
+            />
+          )}
           {(marquee || textDraft) && (
             <KonvaRect
               {...(marquee ?? textDraft)!}

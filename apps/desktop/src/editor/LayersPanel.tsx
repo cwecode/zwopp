@@ -30,6 +30,8 @@ const ICONS: Record<Shape["type"], string> = {
   ellipse: "◯",
   step: "①",
   stamp: "🖱",
+  pen: "✎",
+  fill: "🪣",
   emoji: "☺",
   magnify: "⌕",
   text: "T",

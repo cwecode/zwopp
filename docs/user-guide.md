@@ -83,6 +83,9 @@ them.
 | C | Callout | A text bubble; drag its tip to point at something |
 | N | Step number | Each click places the next number, Shift+click the last one again. **Fixed** stamps the same number every time; with badges selected, − / + renumbers them |
 | K | Stamp | Mouse symbols for instructions: left, right, double and middle click, scroll, drag |
+| P | Pen | Draw freehand |
+| F | Fill | Click fills an area of similar colour; **Tolerance** sets how similar |
+| W | Magic wand | Click picks an area of similar colour, Shift+click adds more. **Delete selection** makes it transparent; **Keep only the selection** removes everything else and trims the image — to cut out an icon or a button with a transparent background |
 | S | Emoji sticker | Pick one of 40 emojis |
 | M | Magnifier | Drag over a detail: an enlarged copy appears next to it |
 | H | Highlighter | |

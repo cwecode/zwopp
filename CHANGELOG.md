@@ -3,6 +3,20 @@
 All notable changes to Zwopp. The release workflow takes the notes of a version
 from its section here, so each release starts with a `## <version>` heading.
 
+## Unreleased
+
+### General
+
+- Light and dark appearance, or like the system: in the settings and with ☀️/🌙 in the
+  library.
+
+### Editor
+
+- Pen (P) for freehand lines.
+- Fill bucket (F): fills an area of similar colour.
+- Magic wand (W): picks an area of similar colour to delete it, or keeps only it to cut
+  out an object with a transparent background.
+
 ## 1.1.0
 
 The library gets a sidebar for browsing, the editor stamps for step-by-step instructions.

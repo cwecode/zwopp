@@ -1,4 +1,5 @@
 import { arrowHeads, contrastColor, type ArrowHead, type FontFamily, type Shape } from "./document";
+import { DEFAULT_TOLERANCE } from "./mask";
 import { STAMP_BOX, STAMPS, type StampKind } from "./stamps";
 
 export type Tool =
@@ -10,6 +11,9 @@ export type Tool =
   | "text"
   | "callout"
   | "step"
+  | "pen"
+  | "fill"
+  | "wand"
   | "stamp"
   | "emoji"
   | "magnify"
@@ -31,6 +35,9 @@ export const TOOLS: { id: Tool; key: string; icon: string }[] = [
   { id: "magnify", key: "m", icon: "⌕" },
   { id: "highlight", key: "h", icon: "▬" },
   { id: "blur", key: "b", icon: "▦" },
+  { id: "pen", key: "p", icon: "✎" },
+  { id: "fill", key: "f", icon: "🪣" },
+  { id: "wand", key: "w", icon: "✨" },
 ];
 
 export const COLORS = ["#e5322d", "#f2994a", "#f2c94c", "#27ae60", "#2f80ed", "#1d1d1b", "#ffffff"];
@@ -110,6 +117,8 @@ export interface ToolStyle {
   number?: number;
   /** Mouse stamps. */
   stamp?: StampKind;
+  /** Fill bucket and magic wand: index into TOLERANCES. */
+  tolerance?: number;
 }
 
 /** Each tool's style until the user changes it. */
@@ -124,6 +133,9 @@ export const DEFAULT_STYLES: Record<Tool, ToolStyle> = {
   // `number` is listed (unset) so quick styles keep a fixed number.
   step: { color: COLORS[0], size: 1, number: undefined },
   stamp: { color: COLORS[0], size: 1, stamp: STAMPS[0] },
+  pen: { color: COLORS[0], size: 1 },
+  fill: { color: COLORS[2], size: 1, tolerance: DEFAULT_TOLERANCE },
+  wand: { color: COLORS[0], size: 1, tolerance: DEFAULT_TOLERANCE },
   emoji: { color: COLORS[0], size: 1, emoji: EMOJIS[0] },
   magnify: { color: COLORS[0], size: 0, round: false },
   highlight: { color: HIGHLIGHT_COLOR, size: 1 },
@@ -226,7 +238,13 @@ export function stylePatch(shape: Shape, style: Partial<ToolStyle>): Partial<Sha
         height,
       };
     }
+    case "pen":
+      return {
+        ...(style.color && { stroke: style.color }),
+        ...(size && { strokeWidth: size.strokeWidth }),
+      };
     case "highlight":
+    case "fill":
       return style.color ? { fill: style.color } : {};
     case "blur":
       return size ? { pixelSize: size.pixelSize } : {};

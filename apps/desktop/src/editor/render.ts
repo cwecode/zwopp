@@ -1,5 +1,6 @@
 // Off-screen rendering helpers that do not need the Konva stage.
 import { imageBounds, type EditorDocument, type MagnifyShape, type Rect } from "./document";
+import { maskCanvas } from "./mask";
 
 /**
  * The screenshot as it currently looks without annotations: deleted areas are
@@ -34,6 +35,8 @@ export function cleanImage(image: HTMLImageElement, doc: EditorDocument): HTMLCa
     if (shape.type === "blur") pixelate(ctx, image, shape, shape.pixelSize);
   }
   for (const r of doc.erased) ctx.clearRect(r.x, r.y, r.width, r.height);
+  ctx.globalCompositeOperation = "destination-out";
+  for (const mask of doc.erasedMasks ?? []) ctx.drawImage(maskCanvas(mask, "#000000"), mask.x, mask.y);
   return canvas;
 }
 

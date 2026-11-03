@@ -7,6 +7,7 @@ import { Filmstrip, type FilmstripHandle } from "./Filmstrip";
 import { LayersPanel } from "./LayersPanel";
 import {
   eraseArea,
+  eraseMask,
   loadDocument,
   moveShapes,
   newId,
@@ -52,6 +53,7 @@ import {
   sameStyle,
   styleFor,
 } from "./quickStyles";
+import { DEFAULT_TOLERANCE, TOLERANCES, type Mask } from "./mask";
 import { STAMPS } from "./stamps";
 import { HeadsIcon, StampIcon, StyleSwatch } from "./StyleIcons";
 import { getSettings, updateEditorSettings, useSettings } from "../settings/store";
@@ -149,6 +151,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
   const quickStyles = useMemo(() => readEditorSettings(editorSettings).quickStyles, [editorSettings]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [marquee, setMarquee] = useState<Rect | null>(null);
+  const [wandSelection, setWandSelection] = useState<Mask | null>(null);
   const [status, setStatus] = useState<SaveStatus>("saved");
   const [message, setMessage] = useState<string>();
   const [area, setArea] = useState({ width: 0, height: 0 });
@@ -297,7 +300,8 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
 
   /** What the style controls show, as one style of the current tool. */
   const shownStyle: ToolStyle = { ...style, heads, filled, emoji, stamp, round, font, background: boxed };
-  const toolQuickStyles = styleKey === "image" || styleKey === "select" ? [] : quickStylesFor(quickStyles, styleKey);
+  const toolQuickStyles =
+    styleKey === "image" || styleKey === "select" || styleKey === "wand" ? [] : quickStylesFor(quickStyles, styleKey);
 
   const changeStyle = (patch: Partial<ToolStyle>) => {
     if (styleKey !== "image") {
@@ -361,13 +365,23 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
   const chooseTool = (next: Tool) => {
     setTool(next);
     setMarquee(null);
+    setWandSelection(null);
     if (next !== "select") setSelectedIds([]);
   };
 
-  /** Deletes the marked area, or else the selected shapes. */
+  /** Applies the wand selection: deletes it, or with `keep` everything else. */
+  const eraseWand = (keep: boolean) => {
+    if (!doc || !wandSelection) return;
+    commit(eraseMask(doc, wandSelection, keep));
+    setWandSelection(null);
+  };
+
+  /** Deletes the wand selection or the marked area, or else the selected shapes. */
   const deleteSelected = () => {
     if (!doc) return;
-    if (marquee) {
+    if (wandSelection) {
+      eraseWand(false);
+    } else if (marquee) {
       commit(eraseArea(doc, marquee));
       setMarquee(null);
     } else if (selectedIds.length) {
@@ -563,6 +577,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
       else if (e.key === "Escape") {
         setSelectedIds([]);
         setMarquee(null);
+        setWandSelection(null);
         setTool("select");
       } else if (!mod && !e.altKey && /^[1-9]$/.test(e.key)) {
         const quick = toolQuickStyles[Number(e.key) - 1];
@@ -579,8 +594,9 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  const showColor = !["blur", "select", "image", "emoji"].includes(styleKey);
-  const showSize = !["highlight", "select", "image"].includes(styleKey);
+  const showColor = !["blur", "select", "image", "emoji", "wand"].includes(styleKey);
+  const showSize = !["highlight", "select", "image", "fill", "wand"].includes(styleKey);
+  const showTolerance = styleKey === "fill" || styleKey === "wand";
   const showHeads = !block?.frame && (styleKey === "arrow" || styleKey === "line");
   const showFill = !block?.frame && (styleKey === "rect" || styleKey === "ellipse");
   const showFont = styleKey === "text" || styleKey === "callout";
@@ -724,6 +740,44 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
         )}
 
         {showEmoji && <EmojiPicker label={t.editor.emoji} value={emoji} onPick={(e) => changeStyle({ emoji: e })} />}
+
+        {showTolerance && (
+          <div className="tool-group" aria-label={t.editor.tolerance}>
+            <span className="tool-group-label">{t.editor.tolerance}</span>
+            {TOLERANCES.map((value, index) => {
+              const active = (style.tolerance ?? DEFAULT_TOLERANCE) === index;
+              return (
+                <button
+                  key={value}
+                  className={active ? "tool active" : "tool"}
+                  aria-pressed={active}
+                  title={t.editor.toleranceTitle(value)}
+                  onClick={() => changeStyle({ tolerance: index })}
+                >
+                  {t.editor.toleranceLabels[index]}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {styleKey === "wand" && (
+          <div className="tool-group" aria-label={t.tools.wand}>
+            {wandSelection ? (
+              <>
+                <button className="primary" title={t.editor.wandKeepTitle} onClick={() => eraseWand(true)}>
+                  {t.editor.wandKeep}
+                </button>
+                <button title={t.editor.wandDeleteTitle} onClick={() => eraseWand(false)}>
+                  {t.editor.wandDelete}
+                </button>
+                <button onClick={() => setWandSelection(null)}>{t.editor.wandClear}</button>
+              </>
+            ) : (
+              <span className="tool-group-label">{t.editor.wandHint}</span>
+            )}
+          </div>
+        )}
 
         {showStamp && (
           <div className="tool-group" role="listbox" aria-label={t.editor.stamp}>
@@ -950,6 +1004,8 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
               selectedIds={selectedIds}
               activeLayer={activeLayer}
               marquee={marquee}
+              wandSelection={wandSelection}
+              onWandSelect={setWandSelection}
               width={area.width}
               height={area.height}
               onSelect={select}

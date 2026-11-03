@@ -53,6 +53,12 @@ saved as version 3 on the next change.
 
 `Rect` = `{ x, y, width, height }`.
 
+**Masks** (`erasedMasks`, optional, and the `fill` shape) describe pixel areas picked by
+colour: `{ x, y, width, height, runs }`, where `runs` are run lengths over the rectangle's
+pixels row by row, alternating outside / inside and starting with outside (possibly 0);
+they add up to `width × height`. `erasedMasks` are deleted like `erased`, pixel by pixel
+(magic wand). Zwopp 1.1 and older ignore them.
+
 ## Shapes
 
 Every shape has a unique `id` (string, UUID), a `type`, the `layer` id it belongs to and
@@ -70,6 +76,8 @@ optionally the `group` id of its block.
 | `magnify` | `Rect`, `source: Rect`, `stroke`, `strokeWidth`, optional `round` | The area `source` of the screenshot — with blurred areas pixelated and deleted areas transparent — scaled into the rectangle, clipped to a rounded rectangle (or an ellipse with `round`) and framed in `stroke`. The source is outlined and joined to the inset by a line, both at half the stroke width. Copied into another screenshot it becomes an `image` |
 | `highlight` | `Rect`, `fill` | Filled rectangle, blend mode *multiply* |
 | `blur` | `Rect`, `pixelSize` | The original pixels under the rectangle, pixelated in blocks of `pixelSize` |
+| `pen` | `Rect`, `points`, `stroke`, `strokeWidth` | Freehand polyline, round caps and joins. `points` are `x, y` pairs relative to the rectangle (0–1), so moving and scaling only change the rectangle |
+| `fill` | `Rect`, `mask: { width, height, runs }`, `fill` | The mask's pixels in `fill`, stretched to the rectangle without smoothing (see *Masks*) |
 | `image` | `Rect`, `asset` | The PNG `assets/<asset>` of the same item, scaled to the rectangle. Used for content pasted from another screenshot |
 
 When a whole edit is copied, its screenshot becomes an `image` shape (with deleted areas

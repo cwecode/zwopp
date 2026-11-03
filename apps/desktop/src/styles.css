@@ -14,14 +14,28 @@
   background: var(--bg);
 }
 
+/* Dark: by the system, unless the settings chose light (data-theme, see theme.ts). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #18181a;
     --surface: #222225;
     --border: #34343a;
     --text: #ececec;
     --muted: #9a9aa0;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg: #18181a;
+  --surface: #222225;
+  --border: #34343a;
+  --text: #ececec;
+  --muted: #9a9aa0;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 * {
@@ -867,6 +881,12 @@ button.tool.active {
 
 .emoji-current {
   font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+}
+
+.tool-group-label {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 0 4px;
 }
 
 .tool svg {
