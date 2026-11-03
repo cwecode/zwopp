@@ -2,6 +2,7 @@ mod capture;
 mod commands;
 mod main_window;
 mod platform;
+mod recording;
 mod settings;
 mod thumbs;
 mod tray;
@@ -21,6 +22,8 @@ pub struct AppState {
     pub capture_shortcut: Mutex<Option<String>>,
     /// Folder of the last export, offered again by the next one.
     pub export_dir: Mutex<Option<std::path::PathBuf>>,
+    /// A panorama or GIF recording in progress.
+    pub recording: Mutex<Option<recording::Recording>>,
 }
 
 /// Syncs the index with the item folders and creates missing thumbnails,
@@ -84,7 +87,8 @@ pub fn run() {
             // Only the capture hotkey is ever registered.
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
-                    if event.state() == ShortcutState::Pressed {
+                    // During a recording the hotkey ends it.
+                    if event.state() == ShortcutState::Pressed && !recording::stop(app) {
                         capture::start_in_background(app.clone(), std::time::Duration::ZERO);
                     }
                 })
@@ -120,6 +124,7 @@ pub fn run() {
                 settings: Mutex::new(settings),
                 capture_shortcut: Mutex::new(capture_shortcut),
                 export_dir: Mutex::default(),
+                recording: Mutex::default(),
             });
             // Loaded now, so the first capture does not wait for webviews to start.
             let monitors = app.available_monitors()?;
@@ -171,6 +176,9 @@ pub fn run() {
             commands::export_item,
             commands::drag_file,
             commands::take_view,
+            commands::start_recording,
+            commands::stop_recording,
+            commands::cancel_recording,
             commands::autostart,
             commands::set_autostart,
         ])

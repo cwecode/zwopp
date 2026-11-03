@@ -129,6 +129,7 @@ Rust‑Bausteine: `xcap` (Screen/Window‑Capture, alle Plattformen inkl. Waylan
      original.png            # unverändertes Original (nie überschrieben)
      document.json           # Annotationen (Vektor, versioniert)
      render.png              # gerendertes Ergebnis (Cache)
+     animation.gif           # nur bei GIF‑Aufnahmen; original.png ist dann das erste Bild
      thumb.webp              # Thumbnail
 ```
 
@@ -256,7 +257,26 @@ eigenen Rechner gebaut wurde, gibt es weder unter Windows (SmartScreen) noch unt
 | **2 – Editor komplett** ✅ | Callouts/Sprechblasen, Schritt‑Nummern, Emojis/Sticker, Lupe, Quick Styles, Fenster‑Capture, Einstellungen, i18n (DE/EN) | Vollständiger Editor |
 | **3 – v1.0 Release** ✅ | Release‑Workflow mit unsignierten Downloads, README (Download + erster Start + Build aus Quellcode), Nutzer‑Doku, Git‑Tag v1.0 | Öffentliches Release mit Downloads für alle OS |
 | *später, optional* | Signing (Windows kostenlos über SignPath, Apple 99 $/Jahr), Auto‑Update, winget/Scoop/Flathub | Sobald es Nutzer gibt |
-| **4 – v2** | CLI, HTTP‑API (OpenAPI), MCP‑Server, Rust‑Renderer, Scrolling‑Capture, OCR, GIF/Video | Automatisierbar |
+| **4 – v2** | Aufnahmemodi 🚧 (Panorama ✅, GIF ✅, Video ⬜, siehe 5.0); CLI, HTTP‑API (OpenAPI), MCP‑Server, Rust‑Renderer, OCR | Automatisierbar |
+
+### 5.0 Aufnahmemodi (Screenshot · Panorama · GIF · Video)
+
+Im Aufnahmemodus schalten Buttons unten am Bildschirm (oder ←/→, Tab) zwischen den Modi
+um; der Bereich wird in allen Modi gleich gewählt (ziehen, Klick = Fenster).
+
+- [x] Modusleiste im Overlay, Tasten ←/→ und Tab; der zuletzt genutzte Modus bleibt
+- [x] **Panorama:** Bereich wählen, darin scrollen; Zwopp setzt die Bilder zu einem langen
+      Bild zusammen (feste Kopf‑/Fußzeilen nur einmal), Fertig über die Leiste oder den Hotkey
+- [x] **GIF:** Bereich wählen, Klickabläufe aufnehmen (Mauszeiger und Klicks sichtbar,
+      bis 60 s); landet als GIF in der Bibliothek, Kopieren/Ziehen/Export geben die GIF‑Datei
+- [ ] Panorama: Auto‑Scroll (Zwopp scrollt selbst), auch seitlich und nach oben
+- [ ] Panorama/GIF über mehrere Monitore (jetzt: der Monitor in der Mitte des Bereichs)
+- [ ] GIF bearbeiten: kürzen (Anfang/Ende), Pausen kürzen, Annotationen über alle Frames,
+      Bildrate/Größe beim Export
+- [ ] Eigene Hotkeys pro Modus
+- [ ] **Video** (MP4/WebM, mit Ton optional) – Modus ist schon als „bald“ sichtbar
+- [ ] macOS/Linux: Klick‑Anzeige im GIF (jetzt nur Windows), Aufnahmeleiste aus der
+      Aufnahme heraushalten
 
 ### 5.1 Phase 1.5 – Performance & Skalierung
 

@@ -10,7 +10,28 @@ export const en: Messages = {
   quote: (text: string) => `“${text}”`,
 
   capture: {
-    hint: "Drag to select an area · Click = window · Shift+click = whole screen · Esc = cancel",
+    hints: {
+      screenshot: "Drag to select an area · Click = window · Shift+click = whole screen · Esc = cancel",
+      panorama: "Drag over the area that scrolls · Click = window · then scroll down in it",
+      gif: "Drag over the area to record · Click = window · then click what you want to show",
+    },
+    mode: "Capture mode",
+    modes: { screenshot: "Screenshot", panorama: "Panorama", gif: "GIF" },
+    video: "Video",
+    soon: "Coming soon",
+    modeKeys: "← → to switch",
+    recording: {
+      panorama: "Panorama",
+      gif: "GIF recording",
+      scroll: "Now scroll down in the area",
+      lost: "Scrolled too far – go back a bit",
+      fullPanorama: "Maximum height reached",
+      fullGif: "Maximum length reached",
+      done: "Done",
+      doneTitle: (shortcut: string) => `Stop and save the recording${shortcut ? ` (${shortcut})` : ""}`,
+      cancel: "Cancel",
+      pixels: (height: number) => `${height.toLocaleString("en-US")} px`,
+    },
   },
 
   library: {
@@ -43,6 +64,7 @@ export const en: Messages = {
     tags: "Tags (comma-separated)",
     tagsExample: "e.g. bug, login",
     edit: "Edit",
+    gifNotEditable: "GIFs cannot be edited yet – copy, drag or export them.",
     copy: "Copy",
     copied: "Copied to the clipboard",
     export: "Export …",

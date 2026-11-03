@@ -16,6 +16,8 @@ export interface LibraryItem {
   hasAnnotations: boolean;
   originalPath: string;
   renderPath: string | null;
+  /** The GIF of a recording; `originalPath` is then its first frame. */
+  animationPath: string | null;
 }
 
 export interface ListQuery {
@@ -121,6 +123,29 @@ export const captureLayout = () => invoke<CaptureLayout>("capture_layout");
 /** Saves `rect` (desktop pixels, may span monitors) as a new library item. */
 export const finishCapture = (rect: Rect) => invoke<LibraryItem>("finish_capture", { rect });
 export const cancelCapture = () => invoke<void>("cancel_capture");
+
+/** What the capture overlay takes: a still screenshot or a recording of the region. */
+export type CaptureMode = "screenshot" | "panorama" | "gif";
+export type RecordingMode = Exclude<CaptureMode, "screenshot">;
+
+/** Starts recording `rect` instead of taking a screenshot of it. */
+export const startRecording = (rect: Rect, mode: RecordingMode) =>
+  invoke<void>("start_recording", { rect, mode });
+/** Ends the recording and saves it to the library. */
+export const stopRecording = () => invoke<void>("stop_recording");
+export const cancelRecording = () => invoke<void>("cancel_recording");
+
+/** Sent to the recording bar a few times a second (`recording.rs`). */
+export interface RecordingProgress {
+  mode: RecordingMode;
+  seconds: number;
+  /** Panorama: the height joined so far. */
+  height: number;
+  /** Panorama: scrolled too far at once, the last frames do not fit on. */
+  lost: boolean;
+  /** The limit is reached; the recording ends by itself. */
+  full: boolean;
+}
 
 /** One page of the library, newest first. */
 export const listItems = (query: ListQuery, offset: number, limit: number) =>

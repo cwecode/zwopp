@@ -193,6 +193,9 @@ export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): voi
     [columns],
   );
 
+  /** Opens the editor; a GIF cannot be edited yet and only shows in the preview. */
+  const open = (item: LibraryItem) => (item.animationPath ? setSelected(item) : onOpen(item));
+
   const card = (item: LibraryItem) => (
     <div
       key={item.id}
@@ -200,8 +203,8 @@ export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): voi
       role="button"
       tabIndex={0}
       onClick={() => setSelected(item)}
-      onDoubleClick={() => onOpen(item)}
-      onKeyDown={(e) => e.key === "Enter" && onOpen(item)}
+      onDoubleClick={() => open(item)}
+      onKeyDown={(e) => e.key === "Enter" && open(item)}
       // Dragging a card hands other apps a PNG file (the OS drag, not the browser's).
       draggable
       title={t.library.dragOut}
@@ -213,6 +216,7 @@ export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): voi
       {/* Not `loading="lazy"`: only rows near the view exist, and lazy
           loading would wait for layout before requesting the image. */}
       <img src={thumbUrl(item)} alt="" decoding="async" />
+      {item.animationPath && <span className="gif-badge">GIF</span>}
       <button
         className={item.favorite ? "star active" : "star"}
         title={item.favorite ? t.library.unfavorite : t.library.favorite}
@@ -344,9 +348,9 @@ export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): voi
         {selected && (
           <aside className="preview" key={selected.id}>
             <img
-              src={fileUrl(selected.renderPath ?? selected.originalPath, selected.updatedAt)}
+              src={fileUrl(selected.animationPath ?? selected.renderPath ?? selected.originalPath, selected.updatedAt)}
               alt={t.library.selected}
-              onDoubleClick={() => onOpen(selected)}
+              onDoubleClick={() => open(selected)}
             />
             {selected.app && (
               <p className="meta taken-from">
@@ -378,7 +382,12 @@ export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): voi
               />
             </label>
             <div className="preview-actions">
-              <button className="primary" onClick={() => onOpen(selected)}>
+              <button
+                className="primary"
+                disabled={!!selected.animationPath}
+                title={selected.animationPath ? t.library.gifNotEditable : undefined}
+                onClick={() => onOpen(selected)}
+              >
                 {t.library.edit}
               </button>
               <button onClick={() => copy(selected.id)}>{t.library.copy}</button>

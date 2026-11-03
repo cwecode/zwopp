@@ -18,8 +18,12 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned · Phase in brackets.
 | Window capture | Hover highlights a window, click captures it (cut from the frozen frame); Shift+click or a click on the bare desktop takes the whole monitor | ✅ (2) |
 | Cross-monitor selection | A drag may continue onto other monitors; the parts are joined, gaps between monitors of different sizes stay transparent | ✅ (2) |
 | Delay | Capture after 3/5/10 s, from the tray menu or the picker next to "New screenshot"; the window hides at once | ✅ (2) |
-| Scrolling capture | Long pages stitched together | ⬜ (v2) |
-| Screen recording / GIF | | ⬜ (v2) |
+| Capture modes | A bar at the bottom of the overlay (or ←/→, Tab) switches between screenshot, panorama and GIF; the mode stays for the next capture; video shows as "coming soon" (ADR 0009) | ✅ (4) |
+| Panorama | Select the area that scrolls, then scroll down in it: Zwopp joins the frames into one tall image (fixed headers and footers once, up to 30 000 px); a bar next to the area shows the height and warns when scrolling too fast; Done or the hotkey ends it | ✅ (4) |
+| GIF recording | Select an area and click through what you want to show (up to 60 s, 15 fps); mouse pointer and clicks (Windows) are drawn in; saved as a looping GIF that only stores what changed. Copy (Windows), drag and export hand over the GIF file | ✅ (4) |
+| Auto-scroll, sideways/upward panorama, recordings across monitors | | ⬜ |
+| Edit GIFs | Trim, shorten pauses, annotations on all frames | ⬜ |
+| Video | MP4/WebM | ⬜ |
 
 ## Library
 

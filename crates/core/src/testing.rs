@@ -94,5 +94,6 @@ fn metadata(i: usize, start: DateTime<Utc>) -> Metadata {
             TAGS[(i / 3) % TAGS.len()].to_owned(),
         ],
         app: APPS.get(i % (APPS.len() + 1)).map(|&a| a.to_owned()),
+        animated: false,
     }
 }

@@ -20,9 +20,15 @@ loadSettings().catch((e) => console.error("could not load the settings", e));
 // Each window loads only its own code: the capture overlays stay loaded in
 // the background all the time, so they leave out the library and the editor.
 const view =
-  overlayIndex === null
-    ? import("./App").then(({ App }) => <App />)
-    : import("./capture/Overlay").then(({ Overlay }) => <Overlay index={overlayIndex} />);
+  overlayIndex !== null
+    ? import("./capture/Overlay").then(({ Overlay }) => <Overlay index={overlayIndex} />)
+    : label.startsWith("recorder-")
+      ? import("./capture/Recorder").then(({ RecorderBar, RecorderFrame }) => {
+          // These windows are transparent around what they draw.
+          document.documentElement.classList.add("transparent");
+          return label === "recorder-bar" ? <RecorderBar /> : <RecorderFrame />;
+        })
+      : import("./App").then(({ App }) => <App />);
 
 void view.then((element) =>
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

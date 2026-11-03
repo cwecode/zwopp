@@ -116,6 +116,82 @@ impl DesktopRect {
     }
 }
 
+/// One region of one monitor, captured again and again for a recording.
+pub struct Region {
+    monitor: Monitor,
+    /// Within the monitor, in its native units.
+    x: u32,
+    y: u32,
+    width: u32,
+    height: u32,
+    /// The region in desktop pixels, clamped to the monitor.
+    rect: DesktopRect,
+}
+
+impl Region {
+    /// The part of `rect` (desktop pixels) on the monitor under its centre.
+    pub fn new(rect: DesktopRect) -> Result<Self> {
+        let center_x = rect.x + rect.width as i32 / 2;
+        let center_y = rect.y + rect.height as i32 / 2;
+        // macOS works in points, the desktop space in pixels.
+        let monitors = Monitor::all()?;
+        let scale_of = |m: &Monitor| -> Result<f64> {
+            Ok(if cfg!(target_os = "macos") {
+                f64::from(m.scale_factor()?)
+            } else {
+                1.0
+            })
+        };
+        let mut found = None;
+        for monitor in monitors {
+            let scale = scale_of(&monitor)?;
+            let px = |v: i32| (f64::from(v) * scale).round() as i32;
+            let bounds = DesktopRect {
+                x: px(monitor.x()?),
+                y: px(monitor.y()?),
+                width: px(monitor.width()? as i32) as u32,
+                height: px(monitor.height()? as i32) as u32,
+            };
+            let inside = (bounds.x..bounds.right()).contains(&center_x)
+                && (bounds.y..bounds.bottom()).contains(&center_y);
+            if inside {
+                found = Some((monitor, bounds, scale));
+                break;
+            }
+        }
+        let (monitor, bounds, scale) = found.ok_or(Error::NoMonitor {
+            x: center_x,
+            y: center_y,
+        })?;
+        let rect = bounds.intersect(&rect).ok_or(Error::EmptyRegion)?;
+        let native = |v: i64| (v as f64 / scale).round() as u32;
+        Ok(Self {
+            x: native(i64::from(rect.x - bounds.x)),
+            y: native(i64::from(rect.y - bounds.y)),
+            width: native(i64::from(rect.width)).max(1),
+            height: native(i64::from(rect.height)).max(1),
+            monitor,
+            rect,
+        })
+    }
+
+    /// The captured region in desktop pixels.
+    pub fn rect(&self) -> DesktopRect {
+        self.rect
+    }
+
+    /// The monitor's scale (1 at 96 DPI), e.g. for drawing the mouse pointer.
+    pub fn scale_factor(&self) -> f32 {
+        self.monitor.scale_factor().unwrap_or(1.0)
+    }
+
+    pub fn capture(&self) -> Result<RgbaImage> {
+        Ok(self
+            .monitor
+            .capture_region(self.x, self.y, self.width, self.height)?)
+    }
+}
+
 /// A frozen monitor image and where it sits on the desktop.
 pub struct PlacedFrame<'a> {
     pub image: &'a RgbaImage,

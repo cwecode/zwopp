@@ -40,6 +40,22 @@ pub enum Error {
 
     #[error("could not encode thumbnail: {0}")]
     Thumbnail(String),
+
+    #[error("could not write the GIF: {0}")]
+    Gif(#[from] gif::EncodingError),
+
+    #[error("this item is not an animation")]
+    NotAnimated,
+}
+
+impl From<std::io::Error> for Error {
+    /// For writing into memory, where there is no path.
+    fn from(source: std::io::Error) -> Self {
+        Error::Io {
+            path: PathBuf::new(),
+            source,
+        }
+    }
 }
 
 pub(crate) trait IoContext<T> {

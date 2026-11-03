@@ -23,6 +23,9 @@ pub enum ExportFormat {
     Jpeg,
     /// Lossless WebP, keeps transparency; usually smaller than PNG.
     Webp,
+    /// For recordings: their animation as it is. A still image becomes a
+    /// single-frame GIF with at most 256 colours.
+    Gif,
 }
 
 /// JPEG quality: text stays crisp, files stay small.
@@ -38,17 +41,29 @@ impl ExportFormat {
             ExportFormat::Png => "png",
             ExportFormat::Jpeg => "jpg",
             ExportFormat::Webp => "webp",
+            ExportFormat::Gif => "gif",
         }
     }
 
-    /// The format a file name asks for (`.png`, `.jpg`/`.jpeg`, `.webp`, any case).
+    /// The format a file name asks for (`.png`, `.jpg`/`.jpeg`, `.webp`,
+    /// `.gif`, any case).
     pub fn from_path(path: &Path) -> Option<Self> {
         let extension = path.extension()?.to_str()?.to_ascii_lowercase();
         match extension.as_str() {
             "png" => Some(ExportFormat::Png),
             "jpg" | "jpeg" => Some(ExportFormat::Jpeg),
             "webp" => Some(ExportFormat::Webp),
+            "gif" => Some(ExportFormat::Gif),
             _ => None,
+        }
+    }
+
+    /// The natural format of an item: GIF for a recording, else PNG.
+    pub fn of(item: &LibraryItem) -> Self {
+        if item.animation_path.is_some() {
+            ExportFormat::Gif
+        } else {
+            ExportFormat::Png
         }
     }
 }
@@ -66,15 +81,23 @@ pub fn encode(image: &RgbaImage, format: ExportFormat) -> Result<Vec<u8>> {
                 .encode_lossless()
                 .to_vec()
         }
+        ExportFormat::Gif => image.write_to(&mut Cursor::new(&mut out), ImageFormat::Gif)?,
     }
     Ok(out)
 }
 
 /// Writes item `id` to `path` in `format`. The file appears complete or not
-/// at all; an existing file is replaced.
+/// at all; an existing file is replaced. A recording exported as GIF keeps
+/// its animation; in other formats it is its first frame.
 pub fn export(library: &Library, id: Uuid, path: &Path, format: ExportFormat) -> Result<()> {
-    let image = image::open(library.output_path(id)?)?.to_rgba8();
-    let bytes = encode(&image, format)?;
+    let item = library.get(id)?;
+    let bytes = match (&item.animation_path, format) {
+        (Some(gif), ExportFormat::Gif) => fs::read(gif).at(gif)?,
+        _ => encode(
+            &image::open(item.render_path.unwrap_or(item.original_path))?.to_rgba8(),
+            format,
+        )?,
+    };
     let mut partial = path.as_os_str().to_owned();
     partial.push(".partial");
     let partial = PathBuf::from(partial);
@@ -161,7 +184,11 @@ mod tests {
             ExportFormat::from_path(Path::new("a.webp")),
             Some(ExportFormat::Webp)
         );
-        assert_eq!(ExportFormat::from_path(Path::new("a.gif")), None);
+        assert_eq!(
+            ExportFormat::from_path(Path::new("a.gif")),
+            Some(ExportFormat::Gif)
+        );
+        assert_eq!(ExportFormat::from_path(Path::new("a.bmp")), None);
         assert_eq!(ExportFormat::from_path(Path::new("a")), None);
     }
 
@@ -211,5 +238,32 @@ mod tests {
             export_into(&library, id, &dir.path().join("drag"), ExportFormat::Png).unwrap();
         assert_eq!(dragged.extension().unwrap(), "png");
         assert!(dragged.is_file());
+    }
+
+    #[test]
+    fn recordings_export_their_gif() {
+        let dir = tempfile::tempdir().unwrap();
+        let library = Library::open(dir.path().join("library")).unwrap();
+        let poster = RgbaImage::from_pixel(4, 3, Rgba([9, 9, 9, 255]));
+        let mut gif = crate::record::GifRecorder::new(4, 3).unwrap();
+        gif.push(&poster, 0).unwrap();
+        let gif = gif.finish(100).unwrap();
+        let item = library.add_animation(&gif, &poster, None).unwrap();
+        assert_eq!(ExportFormat::of(&item), ExportFormat::Gif);
+
+        let path = export_into(
+            &library,
+            item.id,
+            &dir.path().join("out"),
+            ExportFormat::Gif,
+        )
+        .unwrap();
+        assert_eq!(fs::read(&path).unwrap(), gif);
+        // Other formats get the first frame.
+        let png = dir.path().join("still.png");
+        export(&library, item.id, &png, ExportFormat::Png).unwrap();
+        assert_eq!(image::open(&png).unwrap().to_rgba8(), poster);
+        // A still image as GIF.
+        assert!(image::load_from_memory(&encode(&poster, ExportFormat::Gif).unwrap()).is_ok());
     }
 }

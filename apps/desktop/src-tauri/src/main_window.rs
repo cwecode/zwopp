@@ -28,7 +28,7 @@ const VIEW_EVENT: &str = "app:view";
 #[derive(Clone, Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum View {
-    Editor { item: LibraryItem },
+    Editor { item: Box<LibraryItem> },
     Settings,
 }
 

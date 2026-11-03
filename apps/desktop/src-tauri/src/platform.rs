@@ -62,6 +62,102 @@ pub fn exclude_from_capture(_window: &WebviewWindow, _exclude: bool) -> bool {
     false
 }
 
+/// Whether the left or right mouse button is down right now, for showing
+/// clicks in a GIF recording. Elsewhere than on Windows clicks do not show yet.
+#[cfg(windows)]
+pub fn mouse_pressed() -> bool {
+    use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
+        GetAsyncKeyState, VK_LBUTTON, VK_RBUTTON,
+    };
+
+    // SAFETY: GetAsyncKeyState only reads the key state; the high bit means "down".
+    unsafe {
+        GetAsyncKeyState(i32::from(VK_LBUTTON)) as u16 & 0x8000 != 0
+            || GetAsyncKeyState(i32::from(VK_RBUTTON)) as u16 & 0x8000 != 0
+    }
+}
+
+#[cfg(not(windows))]
+pub fn mouse_pressed() -> bool {
+    false
+}
+
+/// Puts files on the clipboard, as the file manager's "Copy" does, so they
+/// can be pasted into a mail or a chat (e.g. a GIF, which as an image would
+/// lose its animation).
+#[cfg(windows)]
+pub fn copy_files(paths: &[std::path::PathBuf]) -> Result<(), String> {
+    use std::os::windows::ffi::OsStrExt;
+    use std::ptr::null_mut;
+    use windows_sys::Win32::System::DataExchange::{
+        CloseClipboard, EmptyClipboard, OpenClipboard, SetClipboardData,
+    };
+    use windows_sys::Win32::System::Memory::{
+        GMEM_MOVEABLE, GlobalAlloc, GlobalLock, GlobalUnlock,
+    };
+
+    /// The clipboard format for a list of files.
+    const CF_HDROP: u32 = 15;
+    /// The header of CF_HDROP data (`DROPFILES`), followed by the paths.
+    #[repr(C)]
+    struct DropFiles {
+        files_offset: u32,
+        x: i32,
+        y: i32,
+        non_client: i32,
+        wide: i32,
+    }
+
+    // Each path NUL-terminated, the list ends with another NUL.
+    let mut names: Vec<u16> = Vec::new();
+    for path in paths {
+        names.extend(path.as_os_str().encode_wide());
+        names.push(0);
+    }
+    names.push(0);
+    let header = size_of::<DropFiles>();
+    let size = header + names.len() * 2;
+    // SAFETY: the memory is allocated with room for the header and the
+    // names, written while locked, and owned by the clipboard once set.
+    unsafe {
+        if OpenClipboard(null_mut()) == 0 {
+            return Err("the clipboard is in use".into());
+        }
+        let result = (|| {
+            EmptyClipboard();
+            let memory = GlobalAlloc(GMEM_MOVEABLE, size);
+            if memory.is_null() {
+                return Err("out of memory".to_owned());
+            }
+            let data = GlobalLock(memory).cast::<u8>();
+            data.cast::<DropFiles>().write_unaligned(DropFiles {
+                files_offset: header as u32,
+                x: 0,
+                y: 0,
+                non_client: 0,
+                wide: 1,
+            });
+            std::ptr::copy_nonoverlapping(
+                names.as_ptr().cast::<u8>(),
+                data.add(header),
+                names.len() * 2,
+            );
+            GlobalUnlock(memory);
+            if SetClipboardData(CF_HDROP, memory).is_null() {
+                return Err("could not set the clipboard".to_owned());
+            }
+            Ok(())
+        })();
+        CloseClipboard();
+        result
+    }
+}
+
+#[cfg(not(windows))]
+pub fn copy_files(_paths: &[std::path::PathBuf]) -> Result<(), String> {
+    Err("copying files is only possible on Windows yet; drag or export the GIF".into())
+}
+
 /// Edge length of application icons, in pixels.
 #[cfg(windows)]
 const APP_ICON_SIZE: u32 = 48;

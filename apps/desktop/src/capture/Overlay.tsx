@@ -1,7 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { emit, listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { cancelCapture, captureLayout, finishCapture, overlayFrame, type CaptureLayout, type Rect } from "../api";
+import {
+  cancelCapture,
+  captureLayout,
+  finishCapture,
+  overlayFrame,
+  startRecording,
+  type CaptureLayout,
+  type CaptureMode,
+  type Rect,
+} from "../api";
 import { useT } from "../i18n";
 import { useTrayLanguage } from "../trayLanguage";
 
@@ -20,6 +29,15 @@ const ZOOM = 8;
 const START_EVENT = "capture:start";
 const SELECTION_EVENT = "capture:selection";
 const TARGET_EVENT = "capture:target";
+/** The mode picked on one monitor applies to all of them. */
+const MODE_EVENT = "capture:mode";
+
+/** In the order of the mode bar; ←/→ and Tab step through them. */
+const MODES: { id: CaptureMode; icon: string }[] = [
+  { id: "screenshot", icon: "📷" },
+  { id: "panorama", icon: "📜" },
+  { id: "gif", icon: "🎞️" },
+];
 
 function toRect(a: Point, b: Point): Rect {
   return {
@@ -58,6 +76,13 @@ export function Overlay({ index }: { index: number }) {
   const loupe = useRef<HTMLCanvasElement>(null);
   const sampler = useRef<CanvasRenderingContext2D | null>(null);
   const busy = useRef(false);
+  /** Stays as it was for the next capture, while Zwopp runs. */
+  const [mode, setMode] = useState<CaptureMode>("screenshot");
+
+  const pickMode = (next: CaptureMode) => {
+    setMode(next);
+    void emit(MODE_EVENT, next);
+  };
 
   // The window lives on between captures (hidden); every capture starts here.
   useEffect(() => {
@@ -85,8 +110,22 @@ export function Overlay({ index }: { index: number }) {
       listen(START_EVENT, () => load(false)),
       listen<Rect | null>(SELECTION_EVENT, (e) => setSelection(e.payload)),
       listen<Rect | null>(TARGET_EVENT, (e) => setTarget(e.payload)),
+      listen<CaptureMode>(MODE_EVENT, (e) => setMode(e.payload)),
     ]);
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && cancelCapture();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") return void cancelCapture();
+      const step = e.key === "ArrowRight" || (e.key === "Tab" && !e.shiftKey) ? 1
+        : e.key === "ArrowLeft" || (e.key === "Tab" && e.shiftKey) ? -1
+        : 0;
+      if (!step) return;
+      e.preventDefault();
+      setMode((current) => {
+        const index = MODES.findIndex((m) => m.id === current);
+        const next = MODES[(index + step + MODES.length) % MODES.length].id;
+        void emit(MODE_EVENT, next);
+        return next;
+      });
+    };
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
@@ -136,7 +175,8 @@ export function Overlay({ index }: { index: number }) {
   const finish = (rect: Rect) => {
     if (busy.current) return;
     busy.current = true;
-    finishCapture(rect).catch(() => cancelCapture());
+    const done = mode === "screenshot" ? finishCapture(rect) : startRecording(rect, mode);
+    done.catch(() => cancelCapture());
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
@@ -247,8 +287,35 @@ export function Overlay({ index }: { index: number }) {
           ) : (
             <div className="overlay-dim" />
           )}
-          <p className="overlay-hint">{t.capture.hint}</p>
+          <p className="overlay-hint">{t.capture.hints[mode]}</p>
         </>
+      )}
+      {!selection && (
+        <div
+          className="overlay-modes"
+          role="radiogroup"
+          aria-label={t.capture.mode}
+          // Clicks here pick a mode, they do not start a selection.
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+          onPointerMove={(e) => e.stopPropagation()}
+        >
+          {MODES.map(({ id, icon }) => (
+            <button
+              key={id}
+              role="radio"
+              aria-checked={mode === id}
+              className={mode === id ? "active" : undefined}
+              onClick={() => pickMode(id)}
+            >
+              <span aria-hidden="true">{icon}</span> {t.capture.modes[id]}
+            </button>
+          ))}
+          <button disabled title={t.capture.soon}>
+            <span aria-hidden="true">🎬</span> {t.capture.video}
+          </button>
+          <span className="overlay-modes-keys">{t.capture.modeKeys}</span>
+        </div>
       )}
       {pointer && !selection && (
         <>

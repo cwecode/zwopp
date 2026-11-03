@@ -7178,6 +7178,7 @@ version = "1.1.0"
 dependencies = [
  "chrono",
  "criterion",
+ "gif",
  "image",
  "rayon",
  "rusqlite",

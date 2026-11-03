@@ -317,6 +317,19 @@ button.tool.active {
   background: var(--bg);
 }
 
+.gif-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 0.7);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
 .card {
   position: relative;
   width: 100%;
@@ -1055,6 +1068,120 @@ button.tool.active {
   border-radius: 6px;
   background: rgb(0 0 0 / 0.7);
   color: #fff;
+}
+
+/* Mode bar at the bottom of the capture overlay. */
+.overlay-modes {
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: rgb(20 20 20 / 0.85);
+  color: #fff;
+  cursor: default;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.4);
+}
+
+.overlay-modes button {
+  border: none;
+  background: transparent;
+  color: inherit;
+  padding: 6px 12px;
+  border-radius: 7px;
+}
+
+.overlay-modes button:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.12);
+}
+
+.overlay-modes button.active {
+  background: var(--selection);
+}
+
+.overlay-modes button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.overlay-modes-keys {
+  padding: 0 8px;
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+/* Recording windows: a frame around the region and the bar next to it. */
+html.transparent,
+html.transparent body {
+  background: transparent;
+}
+
+.recorder-frame {
+  position: fixed;
+  inset: 0;
+  border: 3px dashed var(--accent);
+  box-sizing: border-box;
+}
+
+.recorder-bar {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px 0 14px;
+  border-radius: 10px;
+  background: rgb(20 20 20 / 0.92);
+  color: #fff;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.recorder-bar button {
+  border: none;
+  background: rgb(255 255 255 / 0.12);
+  color: inherit;
+}
+
+.recorder-bar button.primary {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.recorder-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: recorder-blink 1.2s ease-in-out infinite;
+}
+
+@keyframes recorder-blink {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.recorder-time {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+.recorder-status {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.recorder-bar[data-lost] .recorder-status {
+  color: #ffcf4d;
+  opacity: 1;
 }
 
 .overlay-selection {

@@ -47,6 +47,20 @@ The screen freezes, so menus and tooltips stay as they were. Then:
 | Shift+click | the whole monitor |
 | Esc or right-click | nothing (cancel) |
 
+The bar at the bottom of the screen switches the **mode** (also with ← / → or Tab):
+
+- **Screenshot:** as described here.
+- **Panorama:** for content longer than the screen, e.g. a web page or a chat. Select the
+  area that scrolls, then scroll down in it with the mouse wheel; Zwopp joins everything
+  into one tall image. If the bar next to the area says you scrolled too far, scroll back
+  a little. **Done** (or the hotkey again) ends it.
+- **GIF:** for short click sequences. Select the area, then click through what you want
+  to show; the mouse pointer and clicks are recorded. **Done** (or the hotkey) saves the
+  GIF, at most 60 seconds. Copy it (Windows), drag it or export it to send it; it stays
+  animated. GIFs cannot be edited yet.
+
+The mode stays for the next capture.
+
 A magnifier at the cursor helps to hit the exact pixel. For menus that close when you
 press a key, use a delay: **Take screenshot with delay** in the tray menu or the delay
 next to **New screenshot**.

@@ -12,6 +12,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use zwopp_core::capture::{self, DesktopRect, PlacedFrame, WindowInfo};
+use zwopp_core::export::ExportFormat;
 use zwopp_core::library::LibraryItem;
 
 use crate::{AppState, main_window, platform};
@@ -228,11 +229,33 @@ pub fn complete(app: &AppHandle, rect: DesktopRect) -> Result<LibraryItem, Strin
     };
     // The overlays go first, so the screen answers the click at once.
     finish(app);
+    store(app, Capture::Still(image), pid)
+}
+
+/// The result of a capture or recording.
+pub enum Capture {
+    Still(RgbaImage),
+    /// A GIF and its first frame.
+    Animation {
+        gif: Vec<u8>,
+        poster: RgbaImage,
+    },
+}
+
+/// Saves a capture taken from process `pid` to the library and, as set in
+/// the settings, opens it and copies it to the clipboard.
+pub fn store(app: &AppHandle, capture: Capture, pid: Option<u32>) -> Result<LibraryItem, String> {
+    let state = app.state::<AppState>();
     let app_name = pid.and_then(capture::app_name);
-    let item = state
-        .library
-        .add_from(&image, app_name.as_deref())
-        .map_err(err)?;
+    let item = match &capture {
+        Capture::Still(image) => state.library.add_from(image, app_name.as_deref()),
+        Capture::Animation { gif, poster } => {
+            state
+                .library
+                .add_animation(gif, poster, app_name.as_deref())
+        }
+    }
+    .map_err(err)?;
     let (edit, copy) = {
         let settings = state.settings.lock().unwrap();
         (settings.edit_after_capture, settings.copy_after_capture)
@@ -242,7 +265,16 @@ pub fn complete(app: &AppHandle, rect: DesktopRect) -> Result<LibraryItem, Strin
         save_app_icon(app, name, pid);
     }
     if edit {
-        main_window::show_view(app, main_window::View::Editor { item: item.clone() });
+        // A GIF cannot be edited yet; it shows in the library.
+        match &capture {
+            Capture::Still(_) => main_window::show_view(
+                app,
+                main_window::View::Editor {
+                    item: Box::new(item.clone()),
+                },
+            ),
+            Capture::Animation { .. } => main_window::show(app),
+        }
     }
     if !copy {
         return Ok(item);
@@ -250,13 +282,43 @@ pub fn complete(app: &AppHandle, rect: DesktopRect) -> Result<LibraryItem, Strin
 
     // Nobody waits for the clipboard; converting a large image takes a moment.
     let clipboard = app.clone();
+    let id = item.id;
     std::thread::spawn(move || {
-        let clip = tauri::image::Image::new(image.as_raw(), image.width(), image.height());
-        if let Err(e) = clipboard.clipboard().write_image(&clip) {
+        let copied = match capture {
+            Capture::Still(image) => {
+                let clip = tauri::image::Image::new(image.as_raw(), image.width(), image.height());
+                clipboard.clipboard().write_image(&clip).map_err(err)
+            }
+            Capture::Animation { .. } => copy_file(&clipboard, id),
+        };
+        if let Err(e) = copied {
             eprintln!("could not copy to clipboard: {e}");
         }
     });
     Ok(item)
+}
+
+/// Copies item `id` to the clipboard as a file named after its title, in
+/// its natural format (a GIF stays animated).
+pub fn copy_file(app: &AppHandle, id: uuid::Uuid) -> Result<(), String> {
+    let dir = app.path().app_cache_dir().map_err(err)?.join("clipboard");
+    let library = app.state::<AppState>().library.clone();
+    let item = library.get(id).map_err(err)?;
+    // Only the latest copy is needed; older ones would pile up.
+    let _ = std::fs::remove_dir_all(&dir);
+    let file = zwopp_core::export::export_into(&library, id, &dir, ExportFormat::of(&item))
+        .map_err(err)?;
+    platform::copy_files(&[file])
+}
+
+/// Ends the capture session for a recording of `rect`, without bringing the
+/// main window back: whether it was hidden, and the process of the window
+/// under `rect`.
+pub fn take_for_recording(app: &AppHandle, rect: DesktopRect) -> Option<(bool, Option<u32>)> {
+    let session = app.state::<AppState>().session.lock().unwrap().take()?;
+    hide_overlays(app);
+    let pid = capture::window_under(&session.windows, rect).map(|w| w.pid);
+    Some((session.main_hidden, pid))
 }
 
 /// Saves the icon of application `name` (process `pid`) the first time it is
@@ -282,13 +344,17 @@ fn save_app_icon(app: &AppHandle, name: String, pid: u32) {
 /// Ends the session and hides the overlays for the next capture.
 pub fn finish(app: &AppHandle) {
     let session = app.state::<AppState>().session.lock().unwrap().take();
+    hide_overlays(app);
+    if session.is_some_and(|s| s.main_hidden) {
+        main_window::show(app);
+    }
+}
+
+fn hide_overlays(app: &AppHandle) {
     for (label, window) in app.webview_windows() {
         if label.starts_with(OVERLAY_PREFIX) {
             let _ = window.hide();
         }
-    }
-    if session.is_some_and(|s| s.main_hidden) {
-        main_window::show(app);
     }
 }
 

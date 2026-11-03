@@ -45,6 +45,7 @@ const ORIGINAL: &str = "original.png";
 const METADATA: &str = "item.json";
 const DOCUMENT: &str = "document.json";
 const RENDER: &str = "render.png";
+const ANIMATION: &str = "animation.gif";
 const THUMB: &str = "thumb.webp";
 /// PNG thumbnails written before version 0.2; replaced in the background.
 const LEGACY_THUMB: &str = "thumb.png";
@@ -62,7 +63,7 @@ const THUMB_QUALITY: f32 = 80.0;
 const READERS: usize = 4;
 
 /// Current database schema, stored in SQLite's `user_version`.
-const SCHEMA_VERSION: i32 = 3;
+const SCHEMA_VERSION: i32 = 4;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -81,6 +82,8 @@ pub struct LibraryItem {
     pub original_path: PathBuf,
     /// The annotated image, if the item was edited.
     pub render_path: Option<PathBuf>,
+    /// The GIF, if the item is a recording; `original_path` is its first frame.
+    pub animation_path: Option<PathBuf>,
 }
 
 /// Filter for [`Library::list`].
@@ -155,6 +158,9 @@ pub(crate) struct Metadata {
     pub(crate) tags: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) app: Option<String>,
+    /// A GIF recording (`animation.gif`); `original.png` is its first frame.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub(crate) animated: bool,
 }
 
 pub struct Library {
@@ -207,6 +213,26 @@ impl Library {
 
     /// Stores a new screenshot taken from application `app` (e.g. "Firefox").
     pub fn add_from(&self, image: &RgbaImage, app: Option<&str>) -> Result<LibraryItem> {
+        self.add_item(image, None, app)
+    }
+
+    /// Stores a GIF recording; `poster` (its first frame) stands for it
+    /// wherever a still image is needed, e.g. the thumbnail.
+    pub fn add_animation(
+        &self,
+        gif: &[u8],
+        poster: &RgbaImage,
+        app: Option<&str>,
+    ) -> Result<LibraryItem> {
+        self.add_item(poster, Some(gif), app)
+    }
+
+    fn add_item(
+        &self,
+        image: &RgbaImage,
+        gif: Option<&[u8]>,
+        app: Option<&str>,
+    ) -> Result<LibraryItem> {
         let now = Utc::now();
         let metadata = Metadata {
             id: Uuid::now_v7(),
@@ -221,9 +247,14 @@ impl Library {
                 .map(str::trim)
                 .filter(|a| !a.is_empty())
                 .map(str::to_owned),
+            animated: gif.is_some(),
         };
         let dir = self.dir(metadata.id);
         fs::create_dir_all(&dir).at(&dir)?;
+        if let Some(gif) = gif {
+            let path = dir.join(ANIMATION);
+            fs::write(&path, gif).at(&path)?;
+        }
         image.save(dir.join(ORIGINAL))?;
         save_thumbnail(&dir, image)?;
         write_metadata(&dir, &metadata)?;
@@ -620,7 +651,8 @@ impl Readers {
 
 const SELECT_ITEMS: &str = "SELECT id, created_at, updated_at, width, height, title, favorite,
         has_annotations, app,
-        (SELECT group_concat(tag, char(31)) FROM tags t WHERE t.item_id = items.id)
+        (SELECT group_concat(tag, char(31)) FROM tags t WHERE t.item_id = items.id),
+        animated
     FROM items";
 
 /// Search words beyond this are ignored.
@@ -789,6 +821,10 @@ fn migrate(db: &Connection) -> Result<()> {
              CREATE INDEX items_app ON items (app, created_at DESC, id DESC);",
         )?;
     }
+    if version < 4 {
+        // GIF recordings.
+        db.execute_batch("ALTER TABLE items ADD COLUMN animated INTEGER NOT NULL DEFAULT 0;")?;
+    }
     db.pragma_update(None, "user_version", SCHEMA_VERSION)?;
     Ok(())
 }
@@ -797,12 +833,12 @@ fn upsert(db: &Connection, metadata: &Metadata, has_annotations: bool) -> Result
     let id = metadata.id.to_string();
     let updated_at = metadata.updated_at.unwrap_or(metadata.created_at);
     db.execute(
-        "INSERT INTO items (id, created_at, updated_at, width, height, title, favorite, has_annotations, app)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+        "INSERT INTO items (id, created_at, updated_at, width, height, title, favorite, has_annotations, app, animated)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
          ON CONFLICT (id) DO UPDATE SET
              updated_at = excluded.updated_at, title = excluded.title,
              favorite = excluded.favorite, has_annotations = excluded.has_annotations,
-             app = excluded.app",
+             app = excluded.app, animated = excluded.animated",
         params![
             id,
             metadata.created_at.to_rfc3339(),
@@ -813,6 +849,7 @@ fn upsert(db: &Connection, metadata: &Metadata, has_annotations: bool) -> Result
             metadata.favorite,
             has_annotations,
             metadata.app,
+            metadata.animated,
         ],
     )?;
     db.execute("DELETE FROM tags WHERE item_id = ?1", [&id])?;
@@ -861,6 +898,7 @@ fn read_item(row: &Row, items_dir: &Path) -> rusqlite::Result<LibraryItem> {
         has_annotations,
         original_path: dir.join(ORIGINAL),
         render_path: has_annotations.then(|| dir.join(RENDER)),
+        animation_path: row.get::<_, bool>(10)?.then(|| dir.join(ANIMATION)),
     })
 }
 
@@ -1330,6 +1368,7 @@ mod tests {
             favorite,
             tags: Vec::new(),
             app: app.map(str::to_owned),
+            animated: false,
         };
         let items = [
             item(at(2025, 3, 10), Some("Firefox"), false),
@@ -1424,6 +1463,28 @@ mod tests {
     }
 
     #[test]
+    fn animations_keep_their_gif() {
+        let root = tempfile::tempdir().unwrap();
+        let (animated, still) = {
+            let library = Library::open(root.path()).unwrap();
+            let poster = RgbaImage::new(4, 3);
+            let item = library.add_animation(b"GIF89a", &poster, None).unwrap();
+            let path = item.animation_path.clone().unwrap();
+            assert_eq!(fs::read(&path).unwrap(), b"GIF89a");
+            assert_eq!((item.width, item.height), (4, 3));
+            assert!(item.original_path.is_file());
+            let still = library.add(&poster).unwrap();
+            assert!(still.animation_path.is_none());
+            (item.id, still.id)
+        };
+        // Also after rebuilding the index from the folders.
+        fs::remove_file(root.path().join(DATABASE)).unwrap();
+        let library = Library::open(root.path()).unwrap();
+        assert!(library.get(animated).unwrap().animation_path.is_some());
+        assert!(library.get(still).unwrap().animation_path.is_none());
+    }
+
+    #[test]
     fn app_icons() {
         let root = tempfile::tempdir().unwrap();
         let library = Library::open(root.path()).unwrap();
@@ -1476,7 +1537,8 @@ mod tests {
             // Back to the version 2 schema, as written by Zwopp 1.0.
             let db = Connection::open(root.path().join(DATABASE)).unwrap();
             db.execute_batch(
-                "DROP INDEX items_app; ALTER TABLE items DROP COLUMN app; PRAGMA user_version = 2;",
+                "DROP INDEX items_app; ALTER TABLE items DROP COLUMN app;
+                 ALTER TABLE items DROP COLUMN animated; PRAGMA user_version = 2;",
             )
             .unwrap();
         }

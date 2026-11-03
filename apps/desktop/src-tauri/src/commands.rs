@@ -19,7 +19,7 @@ use zwopp_core::export::{self, ExportFormat};
 use zwopp_core::library::{ItemUpdate, Library, LibraryItem, ListQuery, Overview};
 use zwopp_core::settings::Settings;
 
-use crate::{AppState, capture, main_window, settings, tray};
+use crate::{AppState, capture, main_window, recording, settings, tray};
 
 type CmdResult<T> = Result<T, String>;
 
@@ -77,6 +77,28 @@ pub async fn finish_capture(app: AppHandle, rect: DesktopRect) -> CmdResult<Libr
 #[tauri::command]
 pub async fn cancel_capture(app: AppHandle) {
     capture::finish(&app);
+}
+
+/// Starts a panorama or GIF recording of `rect` (desktop pixels) chosen in
+/// the capture overlay. Async: it creates windows.
+#[tauri::command]
+pub async fn start_recording(
+    app: AppHandle,
+    rect: DesktopRect,
+    mode: recording::Mode,
+) -> CmdResult<()> {
+    recording::start(&app, rect, mode).await
+}
+
+/// Ends the recording and saves it to the library.
+#[tauri::command]
+pub fn stop_recording(app: AppHandle) {
+    recording::stop(&app);
+}
+
+#[tauri::command]
+pub fn cancel_recording(app: AppHandle) {
+    recording::cancel(&app);
 }
 
 /// The registered capture hotkey (e.g. `CommandOrControl+Shift+X`), if any.
@@ -329,9 +351,15 @@ pub async fn read_asset(state: State<'_, AppState>, id: Uuid, name: String) -> C
         .map(Response::new)
 }
 
-/// Copies the item (with annotations, if any) to the clipboard.
+/// Copies the item (with annotations, if any) to the clipboard; a GIF as a
+/// file, so it stays animated where it is pasted.
 #[tauri::command]
 pub async fn copy_item(app: AppHandle, state: State<'_, AppState>, id: Uuid) -> CmdResult<()> {
+    if state.library.get(id).map_err(err)?.animation_path.is_some() {
+        return tauri::async_runtime::spawn_blocking(move || capture::copy_file(&app, id))
+            .await
+            .map_err(err)?;
+    }
     let image = blocking(&state, move |library| {
         Ok(image::open(library.output_path(id)?)?.to_rgba8())
     })
@@ -358,11 +386,16 @@ pub async fn export_item(
         .unwrap()
         .clone()
         .or_else(|| app.path().picture_dir().ok());
-    let mut dialog = app
-        .dialog()
-        .file()
-        .set_title(title)
-        .set_file_name(format!("{}.png", export::file_stem(&item)))
+    let natural = ExportFormat::of(&item);
+    let mut dialog = app.dialog().file().set_title(title).set_file_name(format!(
+        "{}.{}",
+        export::file_stem(&item),
+        natural.extension()
+    ));
+    if natural == ExportFormat::Gif {
+        dialog = dialog.add_filter("GIF", &["gif"]);
+    }
+    dialog = dialog
         .add_filter("PNG", &["png"])
         .add_filter("JPEG", &["jpg", "jpeg"])
         .add_filter("WebP", &["webp"]);
@@ -380,8 +413,9 @@ pub async fn export_item(
         Some(format) => (path, format),
         None => {
             let mut name = path.into_os_string();
-            name.push(".png");
-            (PathBuf::from(name), ExportFormat::Png)
+            name.push(".");
+            name.push(natural.extension());
+            (PathBuf::from(name), natural)
         }
     };
     *state.export_dir.lock().unwrap() = path.parent().map(PathBuf::from);
@@ -400,8 +434,9 @@ pub struct DragFile {
     icon: PathBuf,
 }
 
-/// Writes item `id` as a PNG named after its title into a scratch folder,
-/// so dragging it out hands other apps a copy, never the library's file.
+/// Writes item `id` as a PNG (a recording as GIF) named after its title into
+/// a scratch folder, so dragging it out hands other apps a copy, never the
+/// library's file.
 #[tauri::command]
 pub async fn drag_file(
     app: AppHandle,
@@ -412,8 +447,9 @@ pub async fn drag_file(
     blocking(&state, move |library| {
         // Only the latest drag is needed; older copies would pile up.
         let _ = std::fs::remove_dir_all(&dir);
+        let format = ExportFormat::of(&library.get(id)?);
         Ok(DragFile {
-            file: export::export_into(library, id, &dir, ExportFormat::Png)?,
+            file: export::export_into(library, id, &dir, format)?,
             icon: library.preview_path(id)?,
         })
     })

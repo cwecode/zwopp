@@ -35,7 +35,11 @@ export function App() {
     return () => void unlisten.then((fn) => fn());
   }, [show]);
 
-  const open = useCallback((item: LibraryItem) => show({ kind: "editor", item }), [show]);
+  // A GIF cannot be edited yet; it stays in the library.
+  const open = useCallback(
+    (item: LibraryItem) => show(item.animationPath ? { kind: "library" } : { kind: "editor", item }),
+    [show],
+  );
   const toLibrary = useCallback(() => setView({ kind: "library" }), []);
   // Only refreshes the item while it is still open.
   const onSaved = useCallback(
@@ -52,7 +56,7 @@ export function App() {
           ref={editor}
           item={view.item}
           onClose={toLibrary}
-          onOpen={(item) => setView({ kind: "editor", item })}
+          onOpen={(item) => setView(item.animationPath ? { kind: "library" } : { kind: "editor", item })}
           onSaved={onSaved}
         />
       );

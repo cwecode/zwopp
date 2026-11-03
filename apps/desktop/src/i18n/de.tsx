@@ -12,7 +12,28 @@ export const de = {
   quote: (text: string) => `„${text}“`,
 
   capture: {
-    hint: "Bereich aufziehen · Klick = Fenster · Umschalt+Klick = ganzer Bildschirm · Esc = Abbrechen",
+    hints: {
+      screenshot: "Bereich aufziehen · Klick = Fenster · Umschalt+Klick = ganzer Bildschirm · Esc = Abbrechen",
+      panorama: "Bereich aufziehen, der gescrollt wird · Klick = Fenster · danach darin nach unten scrollen",
+      gif: "Bereich für die Aufnahme aufziehen · Klick = Fenster · danach klicken, was gezeigt werden soll",
+    },
+    mode: "Aufnahmemodus",
+    modes: { screenshot: "Screenshot", panorama: "Panorama", gif: "GIF" },
+    video: "Video",
+    soon: "Kommt bald",
+    modeKeys: "← → wechseln",
+    recording: {
+      panorama: "Panorama",
+      gif: "GIF-Aufnahme",
+      scroll: "Jetzt im Bereich nach unten scrollen",
+      lost: "Zu weit gescrollt – ein Stück zurück",
+      fullPanorama: "Maximale Höhe erreicht",
+      fullGif: "Maximale Länge erreicht",
+      done: "Fertig",
+      doneTitle: (shortcut: string) => `Aufnahme beenden und speichern${shortcut ? ` (${shortcut})` : ""}`,
+      cancel: "Abbrechen",
+      pixels: (height: number) => `${height.toLocaleString("de-DE")} px`,
+    },
   },
 
   library: {
@@ -49,6 +70,7 @@ export const de = {
     tags: "Tags (durch Komma getrennt)",
     tagsExample: "z. B. bug, login",
     edit: "Bearbeiten",
+    gifNotEditable: "GIFs lassen sich noch nicht bearbeiten – kopieren, ziehen oder exportieren geht.",
     copy: "Kopieren",
     copied: "In die Zwischenablage kopiert",
     export: "Exportieren …",

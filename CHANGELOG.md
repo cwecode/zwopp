@@ -17,6 +17,14 @@ from its section here, so each release starts with a `## <version>` heading.
 - The library's delay moved into the menu of **New screenshot**; the settings are grouped
   in cards.
 
+### Capture
+
+- Capture modes, switched in a bar at the bottom of the screen or with ←/→: screenshot,
+  panorama and GIF.
+- Panorama: select an area and scroll down in it; Zwopp joins it into one tall image.
+- GIF: record short click sequences with the mouse pointer and clicks; copy, drag or
+  export the GIF to send it.
+
 ### General
 
 - Light and dark appearance, or like the system: in the settings and with ☀️/🌙 in the
