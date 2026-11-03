@@ -20,9 +20,14 @@ export function SettingsPage({ onClose }: { onClose(): void }) {
   const quickStyles = useMemo(() => readEditorSettings(settings.editor).quickStyles, [settings.editor]);
   const guide = useMemo(() => readGuide(settings.editor), [settings.editor]);
 
+  /** Undefined while loading, null in a development build. */
+  const [autostart, setAutostart] = useState<boolean | null>();
+
   const report = (e: unknown) => setMessage(String(e));
   useEffect(() => {
     api.getSettings().then(setInfo).catch(report);
+    // The system keeps this, not settings.json: it can also be turned off there.
+    api.getAutostart().then(setAutostart).catch(report);
   }, []);
 
   const change = (patch: Partial<api.Settings>) => updateSettings(patch).then(setInfo).catch(report);
@@ -128,6 +133,27 @@ export function SettingsPage({ onClose }: { onClose(): void }) {
               <option value="dark">{t.settings.themes.dark}</option>
             </select>
           </label>
+          <div className="setting">
+            <span>{t.settings.startup}</span>
+            <div className="setting-value checks">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={autostart === true}
+                  disabled={autostart == null}
+                  onChange={(e) => {
+                    const enabled = e.target.checked;
+                    api
+                      .setAutostart(enabled)
+                      .then(() => setAutostart(enabled))
+                      .catch(report);
+                  }}
+                />
+                {t.settings.autostart}
+              </label>
+            </div>
+            <p className="hint">{autostart === null ? t.settings.autostartDev : t.settings.autostartHint}</p>
+          </div>
         </section>
 
         <section>

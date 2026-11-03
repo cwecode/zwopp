@@ -1,8 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { App } from "./App";
-import { Overlay } from "./capture/Overlay";
 import { loadSettings } from "./settings/store";
 import { rememberedTheme } from "./settings/theme";
 import "./styles.css";
@@ -19,8 +17,15 @@ if (theme) document.documentElement.dataset.theme = theme;
 // language other than the system's), so the window does not wait for them.
 loadSettings().catch((e) => console.error("could not load the settings", e));
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>
-    {overlayIndex === null ? <App /> : <Overlay index={overlayIndex} />}
-  </React.StrictMode>,
+// Each window loads only its own code: the capture overlays stay loaded in
+// the background all the time, so they leave out the library and the editor.
+const view =
+  overlayIndex === null
+    ? import("./App").then(({ App }) => <App />)
+    : import("./capture/Overlay").then(({ Overlay }) => <Overlay index={overlayIndex} />);
+
+void view.then((element) =>
+  ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+    <React.StrictMode>{element}</React.StrictMode>,
+  ),
 );

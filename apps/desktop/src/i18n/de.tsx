@@ -71,6 +71,11 @@ export const de = {
     theme: "Darstellung",
     systemTheme: "Wie das System",
     themes: { light: "Hell", dark: "Dunkel" },
+    startup: "Start",
+    autostart: "Bei der Anmeldung starten",
+    autostartHint:
+      "Zwopp wartet dann im Infobereich, ohne Fenster. Ein geschlossenes Fenster gibt nach zwei Minuten seinen Speicher frei; der Hotkey geht immer.",
+    autostartDev: "Nur in der installierten App – dies ist eine Entwicklungsversion.",
     capture: "Aufnahme",
     hotkey: "Tastenkürzel",
     hotkeyNone: "Keins – Aufnahme über das Tray-Menü oder die Bibliothek",

@@ -28,7 +28,10 @@ The downloads are not signed, so your system asks once before the first start:
 To check a download, compare it with `SHA256SUMS.txt` from the same release.
 
 Zwopp runs in the system tray (menu bar on macOS). Closing the window keeps it
-running; quit from the tray menu.
+running; quit from the tray menu. To have it ready after every login, turn on
+**Settings › General › Start at login**: Zwopp then starts in the tray, without a window.
+While it waits it uses no CPU; a closed window gives back its memory after two minutes.
+Starting Zwopp a second time brings the running one to the front.
 
 ## Taking a screenshot
 
@@ -147,6 +150,8 @@ annotation stays editable.
 Open them with ⚙ in the library or **Settings** in the tray menu.
 
 - **Language:** like the system, German or English.
+- **Appearance:** light, dark or like the system.
+- **Start at login:** Zwopp starts in the tray when you log in.
 - **Hotkey:** click **Change** and press the new combination. It needs Ctrl/⌘ or Alt,
   except for function keys and Print. If another app already uses it, the old hotkey
   stays. **Default** takes the first free one of Ctrl+Shift+X, Ctrl+Alt+X and

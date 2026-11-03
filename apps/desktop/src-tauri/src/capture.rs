@@ -14,7 +14,7 @@ use tauri_plugin_clipboard_manager::ClipboardExt;
 use zwopp_core::capture::{self, DesktopRect, PlacedFrame, WindowInfo};
 use zwopp_core::library::LibraryItem;
 
-use crate::{AppState, platform};
+use crate::{AppState, main_window, platform};
 
 pub const OVERLAY_PREFIX: &str = "overlay-";
 /// Tells the (already loaded) overlays that a new capture is ready.
@@ -242,8 +242,7 @@ pub fn complete(app: &AppHandle, rect: DesktopRect) -> Result<LibraryItem, Strin
         save_app_icon(app, name, pid);
     }
     if edit {
-        crate::show_main(app);
-        let _ = app.emit_to("main", "capture:edit", &item);
+        main_window::show_view(app, main_window::View::Editor { item: item.clone() });
     }
     if !copy {
         return Ok(item);
@@ -289,7 +288,7 @@ pub fn finish(app: &AppHandle) {
         }
     }
     if session.is_some_and(|s| s.main_hidden) {
-        crate::show_main(app);
+        main_window::show(app);
     }
 }
 

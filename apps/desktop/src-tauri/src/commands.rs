@@ -10,6 +10,7 @@ use std::time::Duration;
 use serde::Serialize;
 use tauri::ipc::{InvokeBody, Request, Response};
 use tauri::{AppHandle, Manager, State};
+use tauri_plugin_autostart::ManagerExt as _;
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::DialogExt;
 use uuid::Uuid;
@@ -18,7 +19,7 @@ use zwopp_core::export::{self, ExportFormat};
 use zwopp_core::library::{ItemUpdate, Library, LibraryItem, ListQuery, Overview};
 use zwopp_core::settings::Settings;
 
-use crate::{AppState, capture, settings, tray};
+use crate::{AppState, capture, main_window, settings, tray};
 
 type CmdResult<T> = Result<T, String>;
 
@@ -162,6 +163,36 @@ pub async fn open_text_file(app: AppHandle, title: String) -> CmdResult<Option<S
 #[tauri::command]
 pub fn restart(app: AppHandle) {
     app.restart();
+}
+
+/// The view the main window should switch to, if one waits (see `main_window`).
+#[tauri::command]
+pub fn take_view(app: AppHandle) -> Option<main_window::View> {
+    main_window::take_view(&app)
+}
+
+/// Whether Zwopp starts at login; `None` for a development build, which
+/// never registers itself (only the installed app should start).
+#[tauri::command]
+pub fn autostart(app: AppHandle) -> CmdResult<Option<bool>> {
+    if tauri::is_dev() {
+        return Ok(None);
+    }
+    app.autolaunch().is_enabled().map(Some).map_err(err)
+}
+
+#[tauri::command]
+pub fn set_autostart(app: AppHandle, enabled: bool) -> CmdResult<()> {
+    if tauri::is_dev() {
+        return Err("a development build does not start at login".into());
+    }
+    let launcher = app.autolaunch();
+    if enabled {
+        launcher.enable()
+    } else {
+        launcher.disable()
+    }
+    .map_err(err)
 }
 
 /// The UI language ("de", "en") as the web UI picked it, for the tray menu.

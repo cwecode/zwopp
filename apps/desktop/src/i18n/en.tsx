@@ -65,6 +65,11 @@ export const en: Messages = {
     theme: "Appearance",
     systemTheme: "Like the system",
     themes: { light: "Light", dark: "Dark" },
+    startup: "Start",
+    autostart: "Start at login",
+    autostartHint:
+      "Zwopp then waits in the tray, without a window. A closed window frees its memory after two minutes; the hotkey always works.",
+    autostartDev: "Only in the installed app – this is a development build.",
     capture: "Capture",
     hotkey: "Hotkey",
     hotkeyNone: "None – capture from the tray menu or the library",

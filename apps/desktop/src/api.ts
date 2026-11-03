@@ -95,6 +95,14 @@ export const saveTextFile = (title: string, name: string, contents: string) =>
 /** Asks for a JSON file; resolves to its contents, or null if cancelled. */
 export const openTextFile = (title: string) => invoke<string | null>("open_text_file", { title });
 export const restart = () => invoke<void>("restart");
+/** Whether Zwopp starts at login; null in a development build, which cannot. */
+export const getAutostart = () => invoke<boolean | null>("autostart");
+export const setAutostart = (enabled: boolean) => invoke<void>("set_autostart", { enabled });
+
+/** A view the main window should switch to (`main_window::View`). */
+export type RequestedView = { kind: "settings" } | { kind: "editor"; item: LibraryItem };
+/** The view waiting for the main window, if any; the backend announces one with `app:view`. */
+export const takeView = () => invoke<RequestedView | null>("take_view");
 
 export const captureShortcut = () => invoke<string | null>("capture_shortcut");
 /** Starts a capture, after `delay` seconds if given. */

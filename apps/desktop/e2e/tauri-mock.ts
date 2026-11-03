@@ -74,6 +74,9 @@ export function tauriMock({ items, latencyMs }: MockOptions) {
   const commands: Record<string, (args: Args) => unknown> = {
     capture_shortcut: () => "CommandOrControl+Shift+X",
     set_language: () => null,
+    take_view: () => null,
+    autostart: () => false,
+    set_autostart: () => null,
     get_settings: () => ({
       settings: {
         language: null,

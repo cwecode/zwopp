@@ -3,6 +3,7 @@ import { emit, listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { cancelCapture, captureLayout, finishCapture, overlayFrame, type CaptureLayout, type Rect } from "../api";
 import { useT } from "../i18n";
+import { useTrayLanguage } from "../trayLanguage";
 
 interface Point {
   x: number;
@@ -42,6 +43,7 @@ const hex = (v: number) => v.toString(16).padStart(2, "0");
  */
 export function Overlay({ index }: { index: number }) {
   const t = useT();
+  useTrayLanguage(index === 0);
   const [src, setSrc] = useState<string>();
   const [layout, setLayout] = useState<CaptureLayout>();
   /** Selection being drawn, from whichever overlay has the mouse (desktop px). */

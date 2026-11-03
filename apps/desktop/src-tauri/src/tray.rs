@@ -2,9 +2,9 @@ use std::time::Duration;
 
 use tauri::menu::{Menu, MenuItem, Submenu};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Emitter, Manager, Wry};
+use tauri::{AppHandle, Manager, Wry};
 
-use crate::{capture, show_main};
+use crate::{capture, main_window};
 
 /// Delays offered for a capture, in seconds.
 pub const DELAYS: [u64; 3] = [3, 5, 10];
@@ -76,16 +76,13 @@ pub fn create(app: &AppHandle, capture_shortcut: Option<&str>) -> tauri::Result<
     let menu = Menu::with_items(app, &[&capture, &delayed, &library, &settings, &quit])?;
 
     let mut tray = TrayIconBuilder::with_id("main")
-        .tooltip("Zwopp")
+        .tooltip(crate::app_name(app))
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "capture" => capture::start_in_background(app.clone(), Duration::ZERO),
-            "library" => show_main(app),
-            "settings" => {
-                show_main(app);
-                let _ = app.emit_to("main", "app:settings", ());
-            }
+            "library" => main_window::show(app),
+            "settings" => main_window::show_view(app, main_window::View::Settings),
             "quit" => app.exit(0),
             id => {
                 if let Some(seconds) = id.strip_prefix("delay-").and_then(|s| s.parse().ok()) {
@@ -100,7 +97,7 @@ pub fn create(app: &AppHandle, capture_shortcut: Option<&str>) -> tauri::Result<
                 ..
             } = event
             {
-                show_main(tray.app_handle());
+                main_window::show(tray.app_handle());
             }
         });
     if let Some(icon) = app.default_window_icon() {

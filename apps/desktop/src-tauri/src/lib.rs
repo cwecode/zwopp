@@ -1,5 +1,6 @@
 mod capture;
 mod commands;
+mod main_window;
 mod platform;
 mod settings;
 mod thumbs;
@@ -7,7 +8,7 @@ mod tray;
 
 use std::sync::{Arc, Mutex};
 
-use tauri::{AppHandle, Emitter, Manager, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, RunEvent, WindowEvent};
 use tauri_plugin_global_shortcut::ShortcutState;
 use zwopp_core::library::Library;
 use zwopp_core::settings::Settings;
@@ -39,19 +40,43 @@ fn maintain_library(app: AppHandle, library: Arc<Library>) {
     });
 }
 
-/// Brings the main (library) window to the front.
-pub fn show_main(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.unminimize();
-        let _ = window.show();
-        let _ = window.set_focus();
+/// The argument the system passes when it starts Zwopp at login: it then
+/// starts in the tray, without opening the window.
+pub const AUTOSTART_ARG: &str = "--autostart";
+
+/// "Zwopp", or "Zwopp Dev" for a development build.
+pub fn app_name(app: &AppHandle) -> String {
+    app.config()
+        .product_name
+        .clone()
+        .unwrap_or_else(|| "Zwopp".into())
+}
+
+/// The configuration, for a development build changed so it never meets an
+/// installed Zwopp: its own identifier gives it its own settings, library,
+/// webview data and single-instance lock (see ADR 0008).
+fn context() -> tauri::Context {
+    let mut context = tauri::generate_context!();
+    if tauri::is_dev() {
+        let config = context.config_mut();
+        config.identifier.push_str(".dev");
+        config.product_name = Some("Zwopp Dev".into());
     }
+    context
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // First, so a second start only brings the running Zwopp forward.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            main_window::show(app)
+        }))
         .register_asynchronous_uri_scheme_protocol(thumbs::SCHEME, thumbs::handle)
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec![AUTOSTART_ARG]),
+        ))
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_drag::init())
@@ -87,10 +112,8 @@ pub fn run() {
             );
             let library = Arc::new(Library::open_index(root)?);
             maintain_library(app.handle().clone(), library.clone());
-            if let Some(main) = app.get_webview_window("main") {
-                platform::disable_hide_animation(&main);
-            }
             tray::create(app.handle(), capture_shortcut.as_deref())?;
+            app.manage(main_window::MainWindow::default());
             app.manage(AppState {
                 library,
                 session: Mutex::default(),
@@ -103,15 +126,18 @@ pub fn run() {
             if let Err(e) = capture::prepare_overlays(app.handle(), &monitors) {
                 eprintln!("could not prepare the capture overlays: {e}");
             }
+            if !std::env::args().any(|arg| arg == AUTOSTART_ARG) {
+                main_window::show(app.handle());
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
-            // Closing the library only hides it; the app keeps running in the tray.
+            // Closing the window keeps the app running in the tray.
             if let WindowEvent::CloseRequested { api, .. } = event
-                && window.label() == "main"
+                && window.label() == main_window::LABEL
             {
                 api.prevent_close();
-                let _ = window.hide();
+                main_window::close(window);
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -144,7 +170,20 @@ pub fn run() {
             commands::copy_item,
             commands::export_item,
             commands::drag_file,
+            commands::take_view,
+            commands::autostart,
+            commands::set_autostart,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(context())
+        .expect("error while building tauri application")
+        .run(|_app, event| {
+            // Without windows (the main one is destroyed while closed) the app
+            // stays in the tray; only "Quit" (an explicit exit code) ends it.
+            if let RunEvent::ExitRequested {
+                code: None, api, ..
+            } = event
+            {
+                api.prevent_exit();
+            }
+        });
 }

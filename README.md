@@ -140,6 +140,10 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all
 ```
 
+The development build runs as **Zwopp Dev** (identifier `digital.weier.zwopp.dev`), with
+its own settings and library, next to an installed Zwopp; it never starts at login
+(see [ADR 0008](docs/adr/0008-running-in-the-background.md)).
+
 ### Performance
 
 The library is built for 100 000+ screenshots (see [ADR 0004](docs/adr/0004-library-performance.md)).
