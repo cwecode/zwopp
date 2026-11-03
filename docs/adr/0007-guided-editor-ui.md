@@ -13,8 +13,9 @@ away.
 
 ## Decision
 
-1. **Tool families in a rail on the left.** Seven families (Select, Arrow, Shape, Text,
-   Steps, Emphasize, Hide; `FAMILIES` in `tools.ts`) take one slot each. A slot shows the
+1. **Tool families in a rail on the left.** Eight families (Select, Arrow, Shape, Text,
+   Callout, Steps, Emphasize, Hide; `FAMILIES` in `tools.ts`) take one slot each. The
+   callout is a family of its own because it is one of the most used annotations. A slot shows the
    family's tool used last; the corner triangle or a right-click opens the others. Every
    tool keeps its key. The rail leaves the top bar to the tool's options.
 2. **Primary and secondary options.** The top bar shows colour and size, plus what a tool

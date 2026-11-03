@@ -140,6 +140,7 @@ export const en: Messages = {
     arrow: "Arrow",
     shape: "Shape",
     text: "Text",
+    callout: "Callout",
     steps: "Steps",
     emphasize: "Emphasize",
     hide: "Hide",

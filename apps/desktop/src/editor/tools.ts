@@ -22,7 +22,7 @@ export type Tool =
 
 /** The tools in toolbar order; their names are in the translations (`tools`). */
 export const TOOLS: { id: Tool; key: string; icon: string }[] = [
-  { id: "select", key: "v", icon: "↖" },
+  { id: "select", key: "v", icon: "👆" },
   { id: "arrow", key: "a", icon: "➚" },
   { id: "line", key: "l", icon: "╱" },
   { id: "rect", key: "r", icon: "▭" },
@@ -40,7 +40,7 @@ export const TOOLS: { id: Tool; key: string; icon: string }[] = [
   { id: "wand", key: "w", icon: "✨" },
 ];
 
-export type Family = "select" | "arrow" | "shape" | "text" | "steps" | "emphasize" | "hide";
+export type Family = "select" | "arrow" | "shape" | "text" | "callout" | "steps" | "emphasize" | "hide";
 
 /**
  * The tool rail: related tools share one slot, which shows the one used last.
@@ -51,7 +51,8 @@ export const FAMILIES: { id: Family; tools: Tool[] }[] = [
   { id: "select", tools: ["select"] },
   { id: "arrow", tools: ["arrow", "line", "pen"] },
   { id: "shape", tools: ["rect", "ellipse", "fill"] },
-  { id: "text", tools: ["text", "callout"] },
+  { id: "text", tools: ["text"] },
+  { id: "callout", tools: ["callout"] },
   { id: "steps", tools: ["step", "stamp", "emoji"] },
   { id: "emphasize", tools: ["highlight", "magnify"] },
   { id: "hide", tools: ["blur", "wand"] },

@@ -147,6 +147,7 @@ export const de = {
     arrow: "Pfeil",
     shape: "Form",
     text: "Text",
+    callout: "Sprechblase",
     steps: "Schritte",
     emphasize: "Betonen",
     hide: "Verbergen",

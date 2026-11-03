@@ -69,8 +69,8 @@ with the untouched original, the annotations and the finished image.
 
 ## The editor
 
-The tools are down the left edge, in seven families: **Select, Arrow, Shape, Text,
-Steps, Emphasize, Hide**. A family shows the tool you used last; the small triangle in its
+The tools are down the left edge, in eight families: **Select, Arrow, Shape, Text,
+Callout, Steps, Emphasize, Hide**. A family shows the tool you used last; the small triangle in its
 corner (or a right-click) opens its other tools. Every tool also has a key (below), which
 works whatever the family shows. If you'd rather see every tool on its own, turn on
 **Settings › Editor › Show every tool on its own**.

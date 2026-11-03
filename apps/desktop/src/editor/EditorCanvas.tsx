@@ -1343,7 +1343,8 @@ export const EditorCanvas = forwardRef<CanvasHandle, Props>(function EditorCanva
         ))
       : null;
 
-  const cursor = panning ? "grabbing" : tool === "select" ? "default" : tool === "text" || tool === "callout" ? "text" : "crosshair";
+  // Selecting shows the pointing hand, like the tool's icon.
+  const cursor = panning ? "grabbing" : tool === "select" ? "pointer" : tool === "text" || tool === "callout" ? "text" : "crosshair";
 
   return (
     <div className="editor-stage" style={{ cursor }}>
