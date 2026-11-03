@@ -13,7 +13,7 @@ chrono = { version = "0.4.45", features = ["serde"] }
 gif = "0.14.2"
 image = "0.25.9"
 rayon = "1.12.0"
-rusqlite = { version = "0.40.2", features = ["bundled"] }
+rusqlite = { version = "0.41.1", features = ["bundled"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 thiserror = "2.0.21"
