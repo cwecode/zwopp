@@ -3,7 +3,11 @@
 All notable changes to Zwopp. The release workflow takes the notes of a version
 from its section here, so each release starts with a `## <version>` heading.
 
-## Unreleased
+## 1.2.0
+
+Panorama and GIF recordings join the screenshot, the editor gets a guided tool rail, and
+Zwopp can start at login and wait in the tray at almost no cost. Existing libraries are
+updated on the first start.
 
 ### Easier to start with
 

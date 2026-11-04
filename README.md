@@ -4,8 +4,8 @@ A lean, open-source screenshot tool for **Windows, macOS and Linux**: select a r
 the screenshot lands in a **library**, and an **editor** lets you add arrows, callouts,
 highlights, step numbers, emojis and more.
 
-> **Version 1.1.** Capture, library, the full editor and the settings; the library stays
-> fast with 100 000 screenshots. See the [user guide](docs/user-guide.md), the
+> **Version 1.2.** Screenshots, panoramas and GIFs, library, the full editor and the
+> settings; the library stays fast with 100 000 screenshots. See the [user guide](docs/user-guide.md), the
 > [feature list](docs/spec/features.md) and the [project plan](docs/PLAN.md) (German).
 
 ![A click sequence recorded as a GIF with Zwopp](docs/media/demo.gif)
@@ -39,14 +39,18 @@ pixelating what nobody should see.
 - "Freeze first, select later": all monitors are frozen, then you drag a region, also across
   monitors, with a magnifier at the cursor. Click = the window under the mouse,
   Shift+click = whole monitor, Esc / right-click = cancel. Optional delay of 3/5/10 s.
+- **Capture modes** (bar at the bottom, ←/→): screenshot, **panorama** (scroll down in the
+  area, Zwopp joins it into one tall image) and **GIF** of a click sequence, with pointer
+  and clicks; copy, drag or export the GIF and it stays animated
 - Every capture is saved to the library, copied to the clipboard and opened in the editor
 - **Library:** a sidebar by favorites, recent days, year and month, and the application a
   screenshot was taken in (with its icon); thumbnails, search (title, tags), tags, copy,
   export, drag into other apps, delete
-- **Editor:** arrow, line, rectangle, ellipse (outlined or filled), text box (three fonts,
+- **Editor:** tools in a rail of eight families, with one-time tips; arrow, line, pen,
+  rectangle, ellipse (outlined or filled), text box (three fonts,
   optional coloured background), callout, step numbers (counting or fixed), mouse stamps
   (clicks, scroll, drag), emoji stickers, magnifier,
-  highlighter, pixelate; colors, sizes
+  highlighter, pixelate, fill bucket, magic wand (cut out objects); colors, sizes
   and arrowheads (filled, open, at either end);
   move/resize; undo/redo; autosave; copy the annotated image, export it as PNG, JPG or WebP,
   or drag it into another app. Draw outside the screenshot
@@ -57,9 +61,11 @@ pixelating what nobody should see.
   Annotations stay editable ([format](docs/spec/document-format.md)), the original is never changed
 - **Quick styles:** save a tool's colour, size and shape with "+", apply it with a click or
   1–9, share them as a file. Every tool starts with its style from last time
-- **Settings** (⚙ in the library or the tray menu): language, capture hotkey, library folder,
-  whether a capture is copied and opened in the editor
-- Runs in the system tray; closing the window keeps it running
+- **Settings** (⚙ in the library or the tray menu): language, light or dark appearance,
+  start at login, capture hotkey, library folder, whether a capture is copied and opened
+  in the editor
+- Runs in the system tray; closing the window keeps it running and frees its memory
+  after two minutes
 
 ### Editor shortcuts
 
@@ -68,6 +74,7 @@ pixelating what nobody should see.
 | V / A / L / R / E | Select / Arrow / Line / Rectangle / Ellipse |
 | T / C / N | Text / Callout / Step number (Shift+click repeats the last) |
 | K | Mouse stamp |
+| P / F / W | Pen / Fill bucket / Magic wand |
 | S / M | Emoji sticker / Magnifier |
 | H / B | Highlighter / Pixelate |
 | 1 – 9 | Apply the tool's first nine quick styles |
