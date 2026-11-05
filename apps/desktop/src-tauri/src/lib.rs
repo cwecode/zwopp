@@ -6,6 +6,7 @@ mod recording;
 mod settings;
 mod thumbs;
 mod tray;
+mod update;
 
 use std::sync::{Arc, Mutex};
 
@@ -85,6 +86,9 @@ pub fn run() {
         .plugin(tauri_plugin_drag::init())
         .plugin(
             // Only the capture hotkey is ever registered.
+            tauri_plugin_updater::Builder::new().build(),
+        )
+        .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
                     // During a recording the hotkey ends it.
@@ -118,6 +122,8 @@ pub fn run() {
             maintain_library(app.handle().clone(), library.clone());
             tray::create(app.handle(), capture_shortcut.as_deref())?;
             app.manage(main_window::MainWindow::default());
+            app.manage(update::Updates::default());
+            update::watch(app.handle().clone());
             app.manage(AppState {
                 library,
                 session: Mutex::default(),
@@ -179,6 +185,9 @@ pub fn run() {
             commands::start_recording,
             commands::stop_recording,
             commands::cancel_recording,
+            commands::update_status,
+            commands::check_update,
+            commands::install_update,
             commands::autostart,
             commands::set_autostart,
         ])

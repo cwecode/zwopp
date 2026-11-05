@@ -101,6 +101,27 @@ export const restart = () => invoke<void>("restart");
 export const getAutostart = () => invoke<boolean | null>("autostart");
 export const setAutostart = (enabled: boolean) => invoke<void>("set_autostart", { enabled });
 
+/** A newer Zwopp on offer (`update::Available`). */
+export interface AvailableUpdate {
+  version: string;
+  notes: string | null;
+}
+export interface UpdateStatus {
+  /** False in a development build, which does not look for updates. */
+  enabled: boolean;
+  available: AvailableUpdate | null;
+}
+/** Download progress of an update, sent as `update:progress`. */
+export interface UpdateProgress {
+  downloaded: number;
+  total: number | null;
+}
+export const updateStatus = () => invoke<UpdateStatus>("update_status");
+/** Looks for an update now; the backend also does so by itself every few hours. */
+export const checkUpdate = () => invoke<AvailableUpdate | null>("check_update");
+/** Downloads and installs the update, then Zwopp restarts. */
+export const installUpdate = () => invoke<void>("install_update");
+
 /** A view the main window should switch to (`main_window::View`). */
 export type RequestedView = { kind: "settings" } | { kind: "editor"; item: LibraryItem };
 /** The view waiting for the main window, if any; the backend announces one with `app:view`. */

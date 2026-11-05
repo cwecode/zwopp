@@ -3,6 +3,15 @@
 All notable changes to Zwopp. The release workflow takes the notes of a version
 from its section here, so each release starts with a `## <version>` heading.
 
+## Unreleased
+
+### General
+
+- Updates on request: Zwopp looks for a new version now and then and offers it above the
+  library and in the tray menu; one click installs it, nothing happens by itself.
+  *Settings › General › Updates* shows the version and looks for updates on request.
+  This version has to be installed by hand once; later ones come this way.
+
 ## 1.2.0
 
 Panorama and GIF recordings join the screenshot, the editor gets a guided tool rail, and

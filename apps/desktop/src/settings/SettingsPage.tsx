@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 import * as api from "../api";
 import { formatAccelerator, useT, type Language } from "../i18n";
 import { parseQuickStyles, readEditorSettings, serializeQuickStyles, type QuickStyle } from "../editor/quickStyles";
@@ -22,12 +23,20 @@ export function SettingsPage({ onClose }: { onClose(): void }) {
 
   /** Undefined while loading, null in a development build. */
   const [autostart, setAutostart] = useState<boolean | null>();
+  const [version, setVersion] = useState<string>();
+  const [updatesEnabled, setUpdatesEnabled] = useState(false);
+  const [checking, setChecking] = useState(false);
 
   const report = (e: unknown) => setMessage(String(e));
   useEffect(() => {
     api.getSettings().then(setInfo).catch(report);
     // The system keeps this, not settings.json: it can also be turned off there.
     api.getAutostart().then(setAutostart).catch(report);
+    getVersion().then(setVersion).catch(report);
+    api
+      .updateStatus()
+      .then((status) => setUpdatesEnabled(status.enabled))
+      .catch(report);
   }, []);
 
   const change = (patch: Partial<api.Settings>) => updateSettings(patch).then(setInfo).catch(report);
@@ -133,6 +142,28 @@ export function SettingsPage({ onClose }: { onClose(): void }) {
               <option value="dark">{t.settings.themes.dark}</option>
             </select>
           </label>
+          <div className="setting">
+            <span>{t.settings.updates}</span>
+            <div className="setting-value">
+              {version && <span>{t.settings.currentVersion(version)}</span>}
+              <button
+                disabled={!updatesEnabled || checking}
+                onClick={() => {
+                  setChecking(true);
+                  api
+                    .checkUpdate()
+                    .then((found) =>
+                      setMessage(found ? t.settings.updateFound(found.version) : t.settings.upToDate),
+                    )
+                    .catch(report)
+                    .finally(() => setChecking(false));
+                }}
+              >
+                {checking ? t.settings.checking : t.settings.checkUpdates}
+              </button>
+            </div>
+            <p className="hint">{updatesEnabled ? t.settings.updatesHint : t.settings.updatesDev}</p>
+          </div>
           <div className="setting">
             <span>{t.settings.startup}</span>
             <div className="setting-value checks">

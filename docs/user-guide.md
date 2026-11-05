@@ -1,7 +1,7 @@
 # Zwopp user guide
 
 Zwopp takes screenshots, keeps them in a library and lets you annotate them. This
-guide covers everything in version 1.0. The keyboard shortcuts name Windows/Linux keys;
+guide covers everything in version 1.2. The keyboard shortcuts name Windows/Linux keys;
 on macOS use ⌘ for Ctrl and ⌥ for Alt.
 
 ## Install and first start
@@ -26,6 +26,12 @@ The downloads are not signed, so your system asks once before the first start:
   On Wayland the desktop asks for permission on the first capture.
 
 To check a download, compare it with `SHA256SUMS.txt` from the same release.
+
+**Updates:** Zwopp looks for a new version now and then. When there is one, the library
+shows "Zwopp x.y is available" with **Update now**, and the tray menu has an entry for it.
+Nothing is installed until you click; then the update is downloaded, checked against the
+project's signature and installed, and Zwopp starts again. **Later** hides the hint until
+the next start. *Settings › General › Updates* looks for an update right away.
 
 Zwopp runs in the system tray (menu bar on macOS). Closing the window keeps it
 running; quit from the tray menu. To have it ready after every login, turn on

@@ -111,6 +111,37 @@ kbd {
   flex: 1;
 }
 
+/* A newer version on offer, above the library. */
+.update-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.update-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.update-notes summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.update-notes pre {
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: inherit;
+  font-size: 12px;
+}
+
 input {
   font: inherit;
   color: inherit;

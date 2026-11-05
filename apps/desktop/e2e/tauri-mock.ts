@@ -75,6 +75,9 @@ export function tauriMock({ items, latencyMs }: MockOptions) {
     capture_shortcut: () => "CommandOrControl+Shift+X",
     set_language: () => null,
     take_view: () => null,
+    update_status: () => ({ enabled: false, available: null }),
+    check_update: () => null,
+    install_update: () => null,
     autostart: () => false,
     set_autostart: () => null,
     get_settings: () => ({

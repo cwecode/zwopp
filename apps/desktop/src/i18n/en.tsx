@@ -77,6 +77,16 @@ export const en: Messages = {
     toLight: "Light appearance",
   },
 
+  update: {
+    available: (version: string) => `Zwopp ${version} is available.`,
+    whatsNew: "What's new?",
+    install: "Update now",
+    later: "Later",
+    downloading: "Downloading the update …",
+    downloadingPercent: (percent: number) => `Downloading the update … ${percent} %`,
+    failed: (error: string) => `The update failed: ${error}`,
+  },
+
   settings: {
     title: "Settings",
     back: "Back",
@@ -87,6 +97,14 @@ export const en: Messages = {
     theme: "Appearance",
     systemTheme: "Like the system",
     themes: { light: "Light", dark: "Dark" },
+    updates: "Updates",
+    currentVersion: (version: string) => `Installed: Zwopp ${version}`,
+    checkUpdates: "Check for updates",
+    checking: "Checking …",
+    upToDate: "Zwopp is up to date.",
+    updateFound: (version: string) => `Zwopp ${version} is available – install it at the top of the library.`,
+    updatesHint: "Zwopp looks for updates at start and every six hours and offers them; it only installs one when you click.",
+    updatesDev: "Only in the installed app – this is a development build.",
     startup: "Start",
     autostart: "Start at login",
     autostartHint:

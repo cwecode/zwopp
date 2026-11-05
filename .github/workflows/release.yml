@@ -130,10 +130,15 @@ jobs:
       - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Signs the update files; the public key is in tauri.conf.json (ADR 0010).
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: apps/desktop
           releaseId: ${{ needs.create.outputs.release-id }}
           args: ${{ matrix.args }}
+          # latest.json, which installed apps ask for new versions.
+          uploadUpdaterJson: true
 
   checksums:
     name: checksums

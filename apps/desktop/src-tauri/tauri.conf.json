@@ -31,9 +31,17 @@
       }
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IERCMEQ4RjE2Nzk4MUQ1MjkKUldRcDFZRjVGbzhOMi8xZHZGcUI0eGZTMHJSQUlmL3BpdEc3TnBzY1NMZ3RIdS9IZnRlQlFzY2sK",
+      "endpoints": ["https://github.com/cwecode/zwopp/releases/latest/download/latest.json"],
+      "windows": { "installMode": "passive" }
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

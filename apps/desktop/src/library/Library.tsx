@@ -22,6 +22,7 @@ import { updateSettings, useSettings } from "../settings/store";
 import { useSystemDark } from "../settings/theme";
 import { Popover } from "../editor/Popover";
 import { AppIcon } from "./AppIcon";
+import { UpdateBanner } from "./UpdateBanner";
 import { LibraryNav } from "./LibraryNav";
 import { ALL, queryFor, recentSince, stillListed, type NavSelection } from "./nav";
 import { useLibraryPages } from "./useLibraryPages";
@@ -295,6 +296,8 @@ export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): voi
           ⚙
         </button>
       </header>
+
+      <UpdateBanner />
 
       {message && (
         <div className="notice" role="status">

@@ -19,7 +19,7 @@ use zwopp_core::export::{self, ExportFormat};
 use zwopp_core::library::{ItemUpdate, Library, LibraryItem, ListQuery, Overview};
 use zwopp_core::settings::Settings;
 
-use crate::{AppState, capture, main_window, recording, settings, tray};
+use crate::{AppState, capture, main_window, recording, settings, tray, update};
 
 type CmdResult<T> = Result<T, String>;
 
@@ -88,6 +88,34 @@ pub async fn start_recording(
     mode: recording::Mode,
 ) -> CmdResult<()> {
     recording::start(&app, rect, mode).await
+}
+
+/// The update on offer, if the last check found one; `enabled` is false for
+/// a development build, which does not look for updates.
+#[derive(Serialize)]
+pub struct UpdateStatus {
+    enabled: bool,
+    available: Option<update::Available>,
+}
+
+#[tauri::command]
+pub fn update_status(app: AppHandle) -> UpdateStatus {
+    UpdateStatus {
+        enabled: update::enabled(),
+        available: update::available(&app),
+    }
+}
+
+/// Looks for an update now (Settings › Updates).
+#[tauri::command]
+pub async fn check_update(app: AppHandle) -> CmdResult<Option<update::Available>> {
+    update::check(&app).await
+}
+
+/// Downloads and installs the update, then restarts Zwopp; only on request.
+#[tauri::command]
+pub async fn install_update(app: AppHandle) -> CmdResult<()> {
+    update::install(&app).await
 }
 
 /// Ends the recording and saves it to the library.

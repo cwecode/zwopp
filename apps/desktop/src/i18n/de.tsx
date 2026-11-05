@@ -83,6 +83,16 @@ export const de = {
     toLight: "Helle Darstellung",
   },
 
+  update: {
+    available: (version: string) => `Zwopp ${version} ist da.`,
+    whatsNew: "Was ist neu?",
+    install: "Jetzt aktualisieren",
+    later: "Später",
+    downloading: "Update wird geladen …",
+    downloadingPercent: (percent: number) => `Update wird geladen … ${percent} %`,
+    failed: (error: string) => `Das Update hat nicht geklappt: ${error}`,
+  },
+
   settings: {
     title: "Einstellungen",
     back: "Zurück",
@@ -93,6 +103,14 @@ export const de = {
     theme: "Darstellung",
     systemTheme: "Wie das System",
     themes: { light: "Hell", dark: "Dunkel" },
+    updates: "Updates",
+    currentVersion: (version: string) => `Installiert: Zwopp ${version}`,
+    checkUpdates: "Nach Updates suchen",
+    checking: "Suche …",
+    upToDate: "Zwopp ist auf dem neuesten Stand.",
+    updateFound: (version: string) => `Zwopp ${version} ist verfügbar – oben in der Bibliothek installieren.`,
+    updatesHint: "Zwopp sucht beim Start und alle sechs Stunden nach Updates und bietet sie an; installiert wird nur auf deinen Klick.",
+    updatesDev: "Nur in der installierten App – dies ist eine Entwicklungsversion.",
     startup: "Start",
     autostart: "Bei der Anmeldung starten",
     autostartHint:
