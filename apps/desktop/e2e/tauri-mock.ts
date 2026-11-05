@@ -76,6 +76,7 @@ export function tauriMock({ items, latencyMs }: MockOptions) {
     set_language: () => null,
     take_view: () => null,
     update_status: () => ({ enabled: false, available: null }),
+    report_info: () => ({ version: "0.0.0", os: "Windows 11", osDetails: "test", log: "" }),
     check_update: () => null,
     install_update: () => null,
     autostart: () => false,

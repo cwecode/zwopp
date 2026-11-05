@@ -197,5 +197,9 @@ unless you tell the Windows uninstaller to delete the app data.
 - **The hotkey does nothing:** another app may use it. Pick another one in the settings.
 - **macOS shows only the desktop background:** allow *Screen Recording* for Zwopp in
   *System Settings → Privacy & Security*, then restart Zwopp.
-- **Something else:** open an issue on
-  [GitHub](https://github.com/cwecode/zwopp/issues).
+- **Something else:** choose **Report a problem …** in the tray menu or the settings. Zwopp
+  shows what it would add (version, system, the last lines of its log without your user
+  name) and opens a filled-in form on [GitHub](https://github.com/cwecode/zwopp/issues);
+  you check it there and submit it, nothing is sent before. Ideas go the same way with
+  **Suggest an idea**. Without a GitHub account, **Copy details** puts the same text on the
+  clipboard.

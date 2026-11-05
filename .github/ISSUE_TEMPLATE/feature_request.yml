@@ -18,3 +18,8 @@ body:
     attributes:
       label: How do you do it today?
       description: A workaround, another tool, or not at all.
+  - type: input
+    id: version
+    attributes:
+      label: Zwopp version
+      description: Filled in by Zwopp's "Suggest an idea"; Settings › Updates shows it.

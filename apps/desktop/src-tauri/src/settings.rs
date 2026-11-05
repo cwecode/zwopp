@@ -45,7 +45,7 @@ pub fn default_library_dir(app: &AppHandle) -> tauri::Result<PathBuf> {
 pub fn load(app: &AppHandle) -> tauri::Result<Settings> {
     let path = file(app)?;
     Ok(Settings::load(&path).unwrap_or_else(|e| {
-        eprintln!("could not read the settings, using defaults: {e}");
+        log::warn!("could not read the settings, using defaults: {e}");
         let _ = std::fs::rename(&path, path.with_extension("json.broken"));
         Settings::default()
     }))
@@ -69,7 +69,7 @@ pub fn register_capture_shortcut(app: &AppHandle, preferred: Option<&str>) -> Op
         .find(|accelerator| match register(app, accelerator) {
             Ok(()) => true,
             Err(err) => {
-                eprintln!("could not register {err}");
+                log::warn!("could not register {err}");
                 false
             }
         })

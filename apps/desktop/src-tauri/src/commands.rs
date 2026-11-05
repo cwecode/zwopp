@@ -19,7 +19,7 @@ use zwopp_core::export::{self, ExportFormat};
 use zwopp_core::library::{ItemUpdate, Library, LibraryItem, ListQuery, Overview};
 use zwopp_core::settings::Settings;
 
-use crate::{AppState, capture, main_window, recording, settings, tray, update};
+use crate::{AppState, capture, main_window, recording, report, settings, tray, update};
 
 type CmdResult<T> = Result<T, String>;
 
@@ -88,6 +88,23 @@ pub async fn start_recording(
     mode: recording::Mode,
 ) -> CmdResult<()> {
     recording::start(&app, rect, mode).await
+}
+
+/// What a problem report would contain (shown before anything is opened).
+#[tauri::command]
+pub fn report_info(app: AppHandle) -> report::ReportInfo {
+    report::info(&app)
+}
+
+/// Opens a prefilled issue form of Zwopp on GitHub in the browser.
+#[tauri::command]
+pub fn open_issue(app: AppHandle, url: String) -> CmdResult<()> {
+    report::open_issue(&app, &url)
+}
+
+#[tauri::command]
+pub fn open_log_folder(app: AppHandle) -> CmdResult<()> {
+    report::open_log_folder(&app)
 }
 
 /// The update on offer, if the last check found one; `enabled` is false for

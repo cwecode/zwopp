@@ -83,6 +83,22 @@ export const de = {
     toLight: "Helle Darstellung",
   },
 
+  report: {
+    title: "Problem melden",
+    open: "Problem melden …",
+    howTitle: "So geht's",
+    how: "Zwopp öffnet ein vorausgefülltes Formular auf GitHub. Dort beschreibst du, was passiert ist (gern auch mit einer Idee, wie man es lösen könnte), und schickst es ab. Aus Zwopp selbst wird nichts gesendet; du brauchst ein kostenloses GitHub-Konto.",
+    bug: "Fehler melden auf GitHub",
+    idea: "Idee vorschlagen",
+    includedTitle: "Das kommt ins Formular",
+    included: "Version und System; auf Wunsch die letzten Zeilen des Protokolls, ohne deinen Benutzernamen. Du kannst alles auf GitHub vor dem Absenden ändern.",
+    withLog: "Letzte Einträge aus dem Protokoll anhängen",
+    noLog: "Das Protokoll ist leer.",
+    copy: "Infos kopieren",
+    copied: "Kopiert – z. B. für eine Mail, wenn du kein GitHub-Konto hast.",
+    logFolder: "Protokollordner öffnen",
+  },
+
   update: {
     available: (version: string) => `Zwopp ${version} ist da.`,
     whatsNew: "Was ist neu?",

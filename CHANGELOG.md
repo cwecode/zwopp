@@ -11,6 +11,9 @@ from its section here, so each release starts with a `## <version>` heading.
   library and in the tray menu; one click installs it, nothing happens by itself.
   *Settings › General › Updates* shows the version and looks for updates on request.
   This version has to be installed by hand once; later ones come this way.
+- Report a problem (tray menu, settings): Zwopp shows what it would add – version, system,
+  the last lines of its new log file without your user name – and opens a filled-in bug
+  or idea form on GitHub, where you check and submit it. Or copy the details.
 
 ## 1.2.0
 

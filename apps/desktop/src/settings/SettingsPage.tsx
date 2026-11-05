@@ -12,7 +12,7 @@ import { updateEditorSettings, updateSettings, useSettings } from "./store";
 const DEFAULT_HOTKEYS = ["CommandOrControl+Shift+X", "CommandOrControl+Alt+X", "CommandOrControl+Shift+2"];
 const LANGUAGES: Language[] = ["de", "en"];
 
-export function SettingsPage({ onClose }: { onClose(): void }) {
+export function SettingsPage({ onClose, onReport }: { onClose(): void; onReport(): void }) {
   const t = useT();
   const settings = useSettings();
   const [info, setInfo] = useState<api.SettingsInfo>();
@@ -163,6 +163,12 @@ export function SettingsPage({ onClose }: { onClose(): void }) {
               </button>
             </div>
             <p className="hint">{updatesEnabled ? t.settings.updatesHint : t.settings.updatesDev}</p>
+          </div>
+          <div className="setting">
+            <span>{t.report.title}</span>
+            <div className="setting-value">
+              <button onClick={onReport}>{t.report.open}</button>
+            </div>
           </div>
           <div className="setting">
             <span>{t.settings.startup}</span>

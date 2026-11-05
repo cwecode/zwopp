@@ -101,6 +101,20 @@ export const restart = () => invoke<void>("restart");
 export const getAutostart = () => invoke<boolean | null>("autostart");
 export const setAutostart = (enabled: boolean) => invoke<void>("set_autostart", { enabled });
 
+/** What a problem report can contain (`report::ReportInfo`). */
+export interface ReportInfo {
+  version: string;
+  /** One of the operating systems of the bug form's dropdown. */
+  os: string;
+  osDetails: string;
+  /** The end of the log, with home folder and user name left out. */
+  log: string;
+}
+export const reportInfo = () => invoke<ReportInfo>("report_info");
+/** Opens a prefilled issue form of Zwopp on GitHub in the browser. */
+export const openIssue = (url: string) => invoke<void>("open_issue", { url });
+export const openLogFolder = () => invoke<void>("open_log_folder");
+
 /** A newer Zwopp on offer (`update::Available`). */
 export interface AvailableUpdate {
   version: string;
@@ -123,7 +137,7 @@ export const checkUpdate = () => invoke<AvailableUpdate | null>("check_update");
 export const installUpdate = () => invoke<void>("install_update");
 
 /** A view the main window should switch to (`main_window::View`). */
-export type RequestedView = { kind: "settings" } | { kind: "editor"; item: LibraryItem };
+export type RequestedView = { kind: "settings" } | { kind: "report" } | { kind: "editor"; item: LibraryItem };
 /** The view waiting for the main window, if any; the backend announces one with `app:view`. */
 export const takeView = () => invoke<RequestedView | null>("take_view");
 

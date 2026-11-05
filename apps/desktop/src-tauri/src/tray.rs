@@ -18,6 +18,7 @@ pub struct TrayMenu {
     delays: Vec<MenuItem<Wry>>,
     library: MenuItem<Wry>,
     settings: MenuItem<Wry>,
+    report: MenuItem<Wry>,
     quit: MenuItem<Wry>,
     /// "Install update …", at the top of the menu while an update is offered.
     update: MenuItem<Wry>,
@@ -33,6 +34,7 @@ struct Texts {
     seconds: fn(u64) -> String,
     library: &'static str,
     settings: &'static str,
+    report: &'static str,
     quit: &'static str,
     update: fn(&str) -> String,
 }
@@ -46,6 +48,7 @@ fn texts(language: &str) -> Texts {
             seconds: |s| format!("In {s} Sekunden"),
             library: "Bibliothek öffnen",
             settings: "Einstellungen",
+            report: "Problem melden …",
             quit: "Beenden",
             update: |v| format!("Update auf {v} installieren"),
         },
@@ -55,6 +58,7 @@ fn texts(language: &str) -> Texts {
             seconds: |s| format!("In {s} seconds"),
             library: "Open library",
             settings: "Settings",
+            report: "Report a problem …",
             quit: "Quit",
             update: |v| format!("Install update {v}"),
         },
@@ -82,8 +86,12 @@ pub fn create(app: &AppHandle, capture_shortcut: Option<&str>) -> tauri::Result<
     let delayed = Submenu::with_items(app, text.delayed, true, &delay_refs)?;
     let library = MenuItem::with_id(app, "library", text.library, true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", text.settings, true, None::<&str>)?;
+    let report = MenuItem::with_id(app, "report", text.report, true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", text.quit, true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&capture, &delayed, &library, &settings, &quit])?;
+    let menu = Menu::with_items(
+        app,
+        &[&capture, &delayed, &library, &settings, &report, &quit],
+    )?;
     // Added to the menu only while an update is offered (`offer_update`).
     let update = MenuItem::with_id(app, "update", "", true, None::<&str>)?;
 
@@ -95,6 +103,7 @@ pub fn create(app: &AppHandle, capture_shortcut: Option<&str>) -> tauri::Result<
             "capture" => capture::start_in_background(app.clone(), Duration::ZERO),
             "library" => main_window::show(app),
             "settings" => main_window::show_view(app, main_window::View::Settings),
+            "report" => main_window::show_view(app, main_window::View::Report),
             "update" => update::install_in_background(app.clone()),
             "quit" => app.exit(0),
             id => {
@@ -124,6 +133,7 @@ pub fn create(app: &AppHandle, capture_shortcut: Option<&str>) -> tauri::Result<
         delays,
         library,
         settings,
+        report,
         quit,
         update,
         offered: Mutex::default(),
@@ -162,6 +172,7 @@ pub fn set_language(menu: &TrayMenu, language: &str) -> tauri::Result<()> {
     }
     menu.library.set_text(text.library)?;
     menu.settings.set_text(text.settings)?;
+    menu.report.set_text(text.report)?;
     menu.quit.set_text(text.quit)
 }
 

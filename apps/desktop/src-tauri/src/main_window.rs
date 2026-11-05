@@ -28,8 +28,12 @@ const VIEW_EVENT: &str = "app:view";
 #[derive(Clone, Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum View {
-    Editor { item: Box<LibraryItem> },
+    Editor {
+        item: Box<LibraryItem>,
+    },
     Settings,
+    /// "Report a problem".
+    Report,
 }
 
 #[derive(Default)]
@@ -50,7 +54,7 @@ pub fn show(app: &AppHandle) {
         window.set_focus()
     });
     if let Err(e) = shown {
-        eprintln!("could not show the main window: {e}");
+        log::warn!("could not show the main window: {e}");
     }
 }
 

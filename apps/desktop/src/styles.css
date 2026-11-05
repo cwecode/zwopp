@@ -111,6 +111,22 @@ kbd {
   flex: 1;
 }
 
+/* What a problem report contains. */
+.report-details {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  white-space: pre-wrap;
+  font-size: 12px;
+}
+
+.report-log {
+  max-height: 220px;
+  overflow: auto;
+}
+
 /* A newer version on offer, above the library. */
 .update-banner {
   display: flex;

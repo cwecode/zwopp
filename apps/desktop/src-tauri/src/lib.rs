@@ -3,6 +3,7 @@ mod commands;
 mod main_window;
 mod platform;
 mod recording;
+mod report;
 mod settings;
 mod thumbs;
 mod tray;
@@ -12,6 +13,7 @@ use std::sync::{Arc, Mutex};
 
 use tauri::{AppHandle, Emitter, Manager, RunEvent, WindowEvent};
 use tauri_plugin_global_shortcut::ShortcutState;
+use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
 use zwopp_core::library::Library;
 use zwopp_core::settings::Settings;
 
@@ -34,15 +36,18 @@ fn maintain_library(app: AppHandle, library: Arc<Library>) {
     std::thread::spawn(move || {
         match library.reindex() {
             Ok(()) => drop(app.emit("library:indexed", ())),
-            Err(err) => eprintln!("reindex failed: {err}"),
+            Err(err) => log::warn!("reindex failed: {err}"),
         }
         match library.ensure_thumbnails() {
             Ok(0) => {}
             Ok(_) => drop(app.emit("library:thumbnails", ())),
-            Err(err) => eprintln!("thumbnails failed: {err}"),
+            Err(err) => log::warn!("thumbnails failed: {err}"),
         }
     });
 }
+
+/// The log file is started anew beyond this size (the previous one is kept).
+const LOG_FILE_SIZE: u128 = 512 * 1024;
 
 /// The argument the system passes when it starts Zwopp at login: it then
 /// starts in the tray, without opening the window.
@@ -76,6 +81,22 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             main_window::show(app)
         }))
+        // Warnings and errors go to a small log file, which "Report a problem"
+        // offers to attach (report.rs).
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .targets([
+                    Target::new(TargetKind::LogDir {
+                        file_name: Some(report::LOG_FILE.into()),
+                    }),
+                    Target::new(TargetKind::Stderr),
+                ])
+                .level(log::LevelFilter::Info)
+                .max_file_size(LOG_FILE_SIZE)
+                .rotation_strategy(RotationStrategy::KeepOne)
+                .build(),
+        )
+        .plugin(tauri_plugin_opener::init())
         .register_asynchronous_uri_scheme_protocol(thumbs::SCHEME, thumbs::handle)
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
@@ -84,11 +105,9 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_drag::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             // Only the capture hotkey is ever registered.
-            tauri_plugin_updater::Builder::new().build(),
-        )
-        .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
                     // During a recording the hotkey ends it.
@@ -99,6 +118,19 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
+            log::info!(
+                "{} {} on {} ({})",
+                app_name(app.handle()),
+                app.package_info().version,
+                os_info::get(),
+                std::env::consts::ARCH
+            );
+            // A crash leaves a line in the log, for "Report a problem".
+            let previous = std::panic::take_hook();
+            std::panic::set_hook(Box::new(move |panic| {
+                log::error!("{panic}");
+                previous(panic);
+            }));
             let settings = settings::load(app.handle())?;
             // ZWOPP_LIBRARY_DIR points the app at another library, e.g. a
             // generated one for performance tests (see README); it wins over
@@ -135,7 +167,7 @@ pub fn run() {
             // Loaded now, so the first capture does not wait for webviews to start.
             let monitors = app.available_monitors()?;
             if let Err(e) = capture::prepare_overlays(app.handle(), &monitors) {
-                eprintln!("could not prepare the capture overlays: {e}");
+                log::warn!("could not prepare the capture overlays: {e}");
             }
             if !std::env::args().any(|arg| arg == AUTOSTART_ARG) {
                 main_window::show(app.handle());
@@ -185,6 +217,9 @@ pub fn run() {
             commands::start_recording,
             commands::stop_recording,
             commands::cancel_recording,
+            commands::report_info,
+            commands::open_issue,
+            commands::open_log_folder,
             commands::update_status,
             commands::check_update,
             commands::install_update,

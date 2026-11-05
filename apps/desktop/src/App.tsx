@@ -4,6 +4,7 @@ import * as api from "./api";
 import type { LibraryItem } from "./api";
 import { Editor, type EditorHandle } from "./editor/Editor";
 import { Library } from "./library/Library";
+import { ReportPage } from "./report/ReportPage";
 import { SettingsPage } from "./settings/SettingsPage";
 import { useTrayLanguage } from "./trayLanguage";
 
@@ -61,7 +62,9 @@ export function App() {
         />
       );
     case "settings":
-      return <SettingsPage onClose={toLibrary} />;
+      return <SettingsPage onClose={toLibrary} onReport={() => setView({ kind: "report" })} />;
+    case "report":
+      return <ReportPage onClose={toLibrary} />;
     case "library":
       return <Library onOpen={open} onSettings={() => setView({ kind: "settings" })} />;
   }

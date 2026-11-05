@@ -98,7 +98,7 @@ pub async fn start(app: &AppHandle, rect: DesktopRect, mode: Mode) -> Result<(),
         cancel: cancel.clone(),
     });
     if let Err(e) = open_windows(app, rect) {
-        eprintln!("could not open the recording bar: {e}");
+        log::warn!("could not open the recording bar: {e}");
     }
 
     let app = app.clone();
@@ -112,10 +112,10 @@ pub async fn start(app: &AppHandle, rect: DesktopRect, mode: Mode) -> Result<(),
             Ok(_) if cancel.load(Ordering::Relaxed) => {}
             Ok(capture) => {
                 if let Err(e) = capture::store(&app, capture, pid) {
-                    eprintln!("could not save the recording: {e}");
+                    log::error!("could not save the recording: {e}");
                 }
             }
-            Err(e) => eprintln!("recording failed: {e}"),
+            Err(e) => log::error!("recording failed: {e}"),
         }
         if main_hidden {
             main_window::show(&app);

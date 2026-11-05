@@ -85,6 +85,7 @@ see [document-format.md](document-format.md). Changes are saved automatically.
 | Feature | Description | Status |
 |---|---|---|
 | Language | German and English, picked from the system language or set in the settings; tooltips name keys as on the keyboard (Strg / Ctrl / ⌘) | ✅ (2) |
+| Report a problem | Tray menu and settings: shows version, system and the last log lines (user name left out), then opens GitHub's bug or idea form filled in with them; copy the details instead; log file with rotation (ADR 0011) | ✅ (4) |
 | Updates on request | A new version is offered above the library and in the tray menu; one click downloads, verifies (signed) and installs it; "check for updates" in the settings (ADR 0010) | ✅ (4) |
 | Background | Start at login (into the tray, no window); one instance, a second start brings it forward; a closed window is unloaded after two minutes, so waiting costs no CPU and little memory (ADR 0008) | ✅ (3) |
 | Settings | Language, appearance (light, dark or like the system; also ☀️/🌙 in the library), capture hotkey (press to record), library folder (after a restart), copy / open in the editor after a capture, reset tool styles, quick styles; also from the tray menu | ✅ (2) |

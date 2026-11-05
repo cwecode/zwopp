@@ -50,7 +50,7 @@ pub struct Layout {
 pub fn start_in_background(app: AppHandle, delay: Duration) {
     tauri::async_runtime::spawn(async move {
         if let Err(err) = start(&app, delay).await {
-            eprintln!("capture failed: {err}");
+            log::error!("capture failed: {err}");
             finish(&app);
         }
     });
@@ -292,7 +292,7 @@ pub fn store(app: &AppHandle, capture: Capture, pid: Option<u32>) -> Result<Libr
             Capture::Animation { .. } => copy_file(&clipboard, id),
         };
         if let Err(e) = copied {
-            eprintln!("could not copy to clipboard: {e}");
+            log::warn!("could not copy to clipboard: {e}");
         }
     });
     Ok(item)
@@ -345,7 +345,7 @@ fn save_app_icon(app: &AppHandle, name: String, pid: u32) {
             Ok(()) => {
                 let _ = app.emit("library:icons", ());
             }
-            Err(e) => eprintln!("could not save the icon of {name}: {e}"),
+            Err(e) => log::warn!("could not save the icon of {name}: {e}"),
         }
     });
 }

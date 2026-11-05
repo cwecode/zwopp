@@ -77,6 +77,22 @@ export const en: Messages = {
     toLight: "Light appearance",
   },
 
+  report: {
+    title: "Report a problem",
+    open: "Report a problem …",
+    howTitle: "How it works",
+    how: "Zwopp opens a prefilled form on GitHub. Describe there what happened (ideas for a fix are welcome) and submit it. Nothing is sent from Zwopp itself; you need a free GitHub account.",
+    bug: "Report a bug on GitHub",
+    idea: "Suggest an idea",
+    includedTitle: "What goes into the form",
+    included: "Version and system; if you like, the last lines of the log, without your user name. You can change everything on GitHub before submitting.",
+    withLog: "Attach the last entries of the log",
+    noLog: "The log is empty.",
+    copy: "Copy details",
+    copied: "Copied – e.g. for an email if you have no GitHub account.",
+    logFolder: "Open the log folder",
+  },
+
   update: {
     available: (version: string) => `Zwopp ${version} is available.`,
     whatsNew: "What's new?",

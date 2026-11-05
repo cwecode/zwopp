@@ -57,7 +57,7 @@ pub fn watch(app: AppHandle) {
         pause(FIRST_CHECK).await;
         loop {
             if let Err(e) = check(&app).await {
-                eprintln!("could not look for updates: {e}");
+                log::warn!("could not look for updates: {e}");
             }
             pause(CHECK_EVERY).await;
         }
@@ -83,7 +83,7 @@ pub async fn check(app: &AppHandle) -> Result<Option<Available>, String> {
     };
     *app.state::<Updates>().available.lock().unwrap() = Some(available.clone());
     if let Err(e) = tray::offer_update(&app.state::<tray::TrayMenu>(), &available.version) {
-        eprintln!("could not offer the update in the tray: {e}");
+        log::warn!("could not offer the update in the tray: {e}");
     }
     let _ = app.emit("update:available", &available);
     Ok(Some(available))
@@ -105,7 +105,7 @@ pub async fn install(app: &AppHandle) -> Result<(), String> {
 pub fn install_in_background(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         if let Err(e) = install(&app).await {
-            eprintln!("update failed: {e}");
+            log::error!("update failed: {e}");
             let _ = app.emit("update:failed", e);
         }
     });
