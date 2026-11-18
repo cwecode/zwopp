@@ -4,8 +4,8 @@ A lean, open-source screenshot tool for **Windows, macOS and Linux**: select a r
 the screenshot lands in a **library**, and an **editor** lets you add arrows, callouts,
 highlights, step numbers, emojis and more.
 
-> **Version 1.2.** Screenshots, panoramas and GIFs, library, the full editor and the
-> settings; the library stays fast with 100 000 screenshots. See the [user guide](docs/user-guide.md), the
+> **Version 1.3.** Screenshots, panoramas and GIFs, library, the full editor and the
+> settings, updates on request; the library stays fast with 100 000 screenshots. See the [user guide](docs/user-guide.md), the
 > [feature list](docs/spec/features.md) and the [project plan](docs/PLAN.md) (German).
 
 ![A click sequence recorded as a GIF with Zwopp](docs/media/demo.gif)
@@ -66,6 +66,10 @@ pixelating what nobody should see.
   in the editor
 - Runs in the system tray; closing the window keeps it running and frees its memory
   after two minutes
+- **Updates on request:** Zwopp offers a new version above the library and in the tray
+  menu and installs it after one click, never by itself (from 1.3 on)
+- **Report a problem** (tray menu, settings): opens a GitHub issue filled in with version,
+  system and the last log lines; nothing is sent from Zwopp
 
 ### Editor shortcuts
 

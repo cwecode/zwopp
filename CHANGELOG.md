@@ -3,7 +3,10 @@
 All notable changes to Zwopp. The release workflow takes the notes of a version
 from its section here, so each release starts with a `## <version>` heading.
 
-## Unreleased
+## 1.3.0
+
+Zwopp now offers new versions itself and helps to report a problem. This version has to
+be installed by hand once; from here on, updates are one click.
 
 ### General
 
