@@ -8,6 +8,18 @@ highlights, step numbers, emojis and more.
 > settings, updates on request; the library stays fast with 100 000 screenshots. See the [user guide](docs/user-guide.md), the
 > [feature list](docs/spec/features.md) and the [project plan](docs/PLAN.md) (German).
 
+## Download
+
+| | Latest version | |
+|---|---|---|
+| **Windows** 10/11 | [**Download for Windows**](https://github.com/cwecode/zwopp/releases/latest/download/Zwopp-windows-x64-setup.exe) | installer, 64-bit |
+| **macOS** | [**Download for Apple silicon**](https://github.com/cwecode/zwopp/releases/latest/download/Zwopp-macos-apple-silicon.dmg) · [Intel](https://github.com/cwecode/zwopp/releases/latest/download/Zwopp-macos-intel.dmg) | M1 or newer · older Macs |
+| **Linux** | [**Download for Linux (AppImage)**](https://github.com/cwecode/zwopp/releases/latest/download/Zwopp-linux-x86_64.AppImage) · [.deb](https://github.com/cwecode/zwopp/releases/latest/download/Zwopp-linux-amd64.deb) · [.rpm](https://github.com/cwecode/zwopp/releases/latest/download/Zwopp-linux-x86_64.rpm) | Ubuntu 24.04, Debian 13 or newer |
+
+The first start asks once, since the downloads are not signed: see [Install](#install).
+After that, Zwopp offers new versions itself. All files and checksums are on the
+[Releases](https://github.com/cwecode/zwopp/releases/latest) page.
+
 ![A click sequence recorded as a GIF with Zwopp](docs/media/demo.gif)
 
 **Capture modes:** a bar at the bottom of the screen switches between a screenshot, a

@@ -163,6 +163,19 @@ jobs:
         run: |
           mkdir dist && cd dist
           gh release download "$TAG" --repo "${{ github.repository }}"
+          # Copies without the version in the name, for the README's download links
+          # (…/releases/latest/download/<name> always points at the newest release).
+          version="${TAG#v}"
+          version="${version%%-*}"
+          cp "Zwopp_${version}_x64-setup.exe" Zwopp-windows-x64-setup.exe
+          cp "Zwopp_${version}_aarch64.dmg" Zwopp-macos-apple-silicon.dmg
+          cp "Zwopp_${version}_x64.dmg" Zwopp-macos-intel.dmg
+          cp "Zwopp_${version}_amd64.AppImage" Zwopp-linux-x86_64.AppImage
+          cp "Zwopp_${version}_amd64.deb" Zwopp-linux-amd64.deb
+          cp "Zwopp-${version}-1.x86_64.rpm" Zwopp-linux-x86_64.rpm
+          gh release upload "$TAG" Zwopp-windows-x64-setup.exe Zwopp-macos-apple-silicon.dmg \
+            Zwopp-macos-intel.dmg Zwopp-linux-x86_64.AppImage Zwopp-linux-amd64.deb \
+            Zwopp-linux-x86_64.rpm --repo "${{ github.repository }}" --clobber
           sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt
           gh release upload "$TAG" SHA256SUMS.txt --repo "${{ github.repository }}" --clobber
