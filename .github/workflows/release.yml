@@ -145,6 +145,20 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
+      - uses: actions/checkout@v7
+
+      # tauri-action leaves the notes empty when it uploads to an existing
+      # release; the update offer in the app shows them ("What's new?").
+      - name: Release notes into latest.json
+        run: |
+          version="${TAG#v}"
+          base="${version%%-*}"
+          awk -v v="$base" '$0 == "## " v {on=1; next} /^## / {on=0} on' CHANGELOG.md > notes.md
+          gh release download "$TAG" --repo "${{ github.repository }}" -p latest.json -D updater
+          jq --rawfile notes notes.md '.notes = ($notes | sub("^\\s+"; "") | sub("\\s+$"; ""))' \
+            updater/latest.json > latest.json
+          gh release upload "$TAG" latest.json --repo "${{ github.repository }}" --clobber
+
       - name: SHA256SUMS.txt for all downloads
         run: |
           mkdir dist && cd dist

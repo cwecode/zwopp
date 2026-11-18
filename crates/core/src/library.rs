@@ -63,7 +63,7 @@ const THUMB_QUALITY: f32 = 80.0;
 const READERS: usize = 4;
 
 /// Current database schema, stored in SQLite's `user_version`.
-const SCHEMA_VERSION: i32 = 4;
+const SCHEMA_VERSION: i32 = 5;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -243,10 +243,7 @@ impl Library {
             title: String::new(),
             favorite: false,
             tags: Vec::new(),
-            app: app
-                .map(str::trim)
-                .filter(|a| !a.is_empty())
-                .map(str::to_owned),
+            app: app.and_then(app_label),
             animated: gif.is_some(),
         };
         let dir = self.dir(metadata.id);
@@ -825,6 +822,19 @@ fn migrate(db: &Connection) -> Result<()> {
         // GIF recordings.
         db.execute_batch("ALTER TABLE items ADD COLUMN animated INTEGER NOT NULL DEFAULT 0;")?;
     }
+    if version < 5 {
+        // Store apps were saved with their full path (see `app_label`).
+        let paths: Vec<String> = db
+            .prepare("SELECT DISTINCT app FROM items WHERE app LIKE '%\\%' OR app LIKE '%/%'")?
+            .query_map([], |row| row.get(0))?
+            .collect::<Result<_, _>>()?;
+        for path in paths {
+            db.execute(
+                "UPDATE items SET app = ?1 WHERE app = ?2",
+                params![app_label(&path), path],
+            )?;
+        }
+    }
     db.pragma_update(None, "user_version", SCHEMA_VERSION)?;
     Ok(())
 }
@@ -965,7 +975,25 @@ fn conversion_error(
 fn read_metadata(dir: &Path) -> Result<Metadata> {
     let path = dir.join(METADATA);
     let bytes = fs::read(&path).at(&path)?;
-    Ok(serde_json::from_slice(&bytes)?)
+    let mut metadata: Metadata = serde_json::from_slice(&bytes)?;
+    metadata.app = metadata.app.as_deref().and_then(app_label);
+    Ok(metadata)
+}
+
+/// The name an application is shown under. Where Windows does not describe a
+/// program (apps from the Store), its full path arrives; the file name is
+/// shown instead, e.g. "Notepad" for `C:\Program Files\WindowsApps\…\Notepad.exe`.
+pub(crate) fn app_label(app: &str) -> Option<String> {
+    let app = app.trim();
+    let name = if app.contains(['\\', '/']) {
+        let file = app.rsplit(['\\', '/']).next().unwrap_or(app);
+        file.strip_suffix(".exe")
+            .or_else(|| file.strip_suffix(".EXE"))
+            .unwrap_or(file)
+    } else {
+        app
+    };
+    (!name.is_empty()).then(|| name.to_owned())
 }
 
 fn write_metadata(dir: &Path, metadata: &Metadata) -> Result<()> {
@@ -1492,7 +1520,7 @@ mod tests {
             .add_from(&RgbaImage::new(1, 1), Some("Word"))
             .unwrap();
         library
-            .add_from(&RgbaImage::new(1, 1), Some("C:\\..\\Evil/App"))
+            .add_from(&RgbaImage::new(1, 1), Some("Evil..App"))
             .unwrap();
         assert!(library.app_icon("Word").is_none());
         assert!(
@@ -1508,8 +1536,13 @@ mod tests {
             .save_app_icon("Word", &RgbaImage::new(48, 48))
             .unwrap();
         library
+            .save_app_icon("Evil..App", &RgbaImage::new(48, 48))
+            .unwrap();
+        // Also a name that tries to leave the icons folder.
+        library
             .save_app_icon("C:\\..\\Evil/App", &RgbaImage::new(48, 48))
             .unwrap();
+        assert!(root.path().join(ICONS).read_dir().unwrap().count() == 3);
         let icons: Vec<_> = library
             .overview(Utc::now())
             .unwrap()
@@ -1523,6 +1556,30 @@ mod tests {
             assert_eq!(icon.parent().unwrap(), root.path().join(ICONS));
             assert_eq!(image::open(icon).unwrap().width(), 48);
         }
+    }
+
+    #[test]
+    fn store_apps_are_named_after_their_program() {
+        let path = r"C:\Program Files\WindowsApps\Microsoft.WindowsNotepad_11_x64__8we\Notepad\Notepad.exe";
+        assert_eq!(app_label(path).as_deref(), Some("Notepad"));
+        assert_eq!(app_label("/usr/bin/gimp").as_deref(), Some("gimp"));
+        assert_eq!(app_label(" Firefox ").as_deref(), Some("Firefox"));
+        assert_eq!(app_label("  "), None);
+
+        // Saved before: renamed when the library opens.
+        let root = tempfile::tempdir().unwrap();
+        let id = Library::open(root.path())
+            .unwrap()
+            .add(&RgbaImage::new(1, 1))
+            .unwrap()
+            .id;
+        {
+            let db = Connection::open(root.path().join(DATABASE)).unwrap();
+            db.execute("UPDATE items SET app = ?1", [path]).unwrap();
+            db.pragma_update(None, "user_version", 4).unwrap();
+        }
+        let library = Library::open(root.path()).unwrap();
+        assert_eq!(library.get(id).unwrap().app.as_deref(), Some("Notepad"));
     }
 
     #[test]

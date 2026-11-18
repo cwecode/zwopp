@@ -309,8 +309,7 @@ pub fn app_name(pid: u32) -> Option<String> {
         .find(|w| w.pid().is_ok_and(|p| p == pid))?
         .app_name()
         .ok()
-        .map(|name| name.trim().to_owned())
-        .filter(|name| !name.is_empty())
+        .and_then(|name| crate::library::app_label(&name))
 }
 
 /// Encodes a frozen frame as PNG for the selection overlay. Speed matters
