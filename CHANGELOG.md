@@ -3,6 +3,19 @@
 All notable changes to Zwopp. The release workflow takes the notes of a version
 from its section here, so each release starts with a `## <version>` heading.
 
+## 1.3.1
+
+The first update that arrives through Zwopp itself.
+
+### Library
+
+- Apps from the Microsoft Store (e.g. Notepad) appear under their name instead of their
+  full program path; screenshots taken before are renamed on the first start.
+
+### General
+
+- The update offer shows the release notes under "What's new?".
+
 ## 1.3.0
 
 Zwopp now offers new versions itself and helps to report a problem. This version has to
