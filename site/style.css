@@ -147,6 +147,22 @@ h2 { font-size: clamp(28px, 3.6vw, 40px); letter-spacing: -0.03em; line-height: 
 .split { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
 .split p { color: var(--muted); }
 
+kbd {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.85em;
+  padding: 0.05em 0.4em;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.explain { grid-template-columns: 1.15fr 1fr; }
+.explain figure { margin: 0; }
+.explain img { border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+
 .ticks { padding: 0; margin: 20px 0 0; list-style: none; }
 .ticks li { padding-left: 28px; position: relative; margin-bottom: 10px; color: var(--muted); }
 .ticks li::before { content: "✓"; position: absolute; left: 0; color: var(--accent); font-weight: 800; }
@@ -195,7 +211,7 @@ h2 { font-size: clamp(28px, 3.6vw, 40px); letter-spacing: -0.03em; line-height: 
 /* Narrow screens */
 
 @media (max-width: 960px) {
-  .hero-inner, .split { grid-template-columns: 1fr; }
+  .hero-inner, .split, .explain { grid-template-columns: 1fr; }
   .hero-shots { max-width: 640px; }
   .grid { grid-template-columns: repeat(2, 1fr); }
   .showcase, .downloads { grid-template-columns: 1fr; }

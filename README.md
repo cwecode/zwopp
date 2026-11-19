@@ -21,30 +21,31 @@
   <a href="https://github.com/cwecode/zwopp/discussions">Discussions</a>
 </p>
 
-
 # Zwopp
 
-A lean, open-source screenshot tool for **Windows, macOS and Linux**: select a region,
-the screenshot lands in a **library**, and an **editor** lets you add arrows, callouts,
-step numbers, emojis and more – so a screenshot explains itself.
+A lean, open-source screenshot tool for **Windows, macOS and Linux**: take a screenshot,
+add **arrows, numbered steps and callouts** in seconds, and paste it straight into
+**Teams, Slack, an email or a ticket** – for work instructions, quick answers in chat and
+bug reports. Every shot stays in a **library** you can search.
 
 ## Why Zwopp?
 
+- **An editor made for explaining.** Arrows, step numbers, callouts, mouse stamps, a
+  magnifier, highlighter and pixelate – a how-to in one picture. Annotations stay
+  editable; the original is never changed.
+- **Shared in seconds.** Ctrl+Shift+C copies the finished image; or drag it into Teams,
+  Slack, an email or a ticket. GIFs stay animated.
 - **A library, not a folder of files.** Every capture is kept, sorted by date and by the
   application it came from, and found again by title or tag – fast even with 100 000.
-- **An editor made for explaining.** Arrows, step numbers, callouts, mouse stamps, a
-  magnifier, highlighter and pixelate; annotations stay editable, the original is never
-  changed.
 - **Scrolling screenshots and GIFs.** A panorama joins a long page while you scroll; a GIF
   records a click sequence, ready to paste into a chat.
 - **Freeze first, select later.** One hotkey freezes every monitor; drag a region, click a
   window, or Shift+click a whole screen.
 - **For scripts and AI agents.** `zwopp capture --window Firefox` takes a screenshot from
   the command line; Claude Code gets a skill with one click.
-- **Local and private.** No account, no cloud, no telemetry: Zwopp sends nothing anywhere
-  and opens no network port.
-- **Yours to take along.** Export the whole library with readable file names, tags as XMP,
-  and a JSON and CSV index.
+- **Local, private, yours.** No account, no cloud, no telemetry: Zwopp sends nothing
+  anywhere and opens no network port. Export the whole library any time, with readable
+  file names, tags as XMP and a JSON and CSV index.
 - **Open source, on every desktop.** Windows 10/11, macOS (Apple silicon and Intel) and
   Linux including Wayland; MIT or Apache-2.0.
 
