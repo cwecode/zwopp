@@ -97,12 +97,41 @@ kbd {
   margin: 0;
 }
 
-/* Library, editor and a new screenshot, in every view (AppNav.tsx). */
-.app-nav {
+/* The top bar of every view (AppNav.tsx): navigation left, the view's actions in the
+   middle, light/dark and settings right. The outer parts keep their place: they stay on
+   the first row when the actions wrap, and the actions never push them. */
+.app-bar {
+  align-items: flex-start;
+}
+
+.app-nav,
+.app-bar-actions,
+.app-bar-global {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 32px;
+}
+
+.app-nav,
+.app-bar-global {
   flex-shrink: 0;
+}
+
+.app-bar-actions {
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.app-bar-actions h1 {
+  font-size: 16px;
+  margin: 0;
+}
+
+.app-bar-global .tool.active {
+  border-color: var(--selection);
+  background: color-mix(in srgb, var(--selection) 14%, var(--surface));
 }
 
 .app-nav-views {
@@ -685,10 +714,6 @@ button.tool.active {
   height: 100vh;
 }
 
-.editor-toolbar {
-  flex-wrap: wrap;
-  gap: 8px;
-}
 
 .tool-group {
   display: flex;

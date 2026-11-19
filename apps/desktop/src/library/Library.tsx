@@ -17,12 +17,9 @@ import {
   type Overview,
 } from "../api";
 import { formatAccelerator, useT } from "../i18n";
-import { updateSettings, useSettings } from "../settings/store";
-import { useSystemDark } from "../settings/theme";
 import { AppIcon } from "./AppIcon";
-import { useUpdate } from "../update/store";
 import { UpdateToast } from "../update/UpdateToast";
-import { AppNav, type Navigation } from "../AppNav";
+import { AppBar, type Navigation } from "../AppNav";
 import { LibraryNav } from "./LibraryNav";
 import { ALL, queryFor, recentSince, stillListed, type NavSelection } from "./nav";
 import { useLibraryPages } from "./useLibraryPages";
@@ -45,16 +42,13 @@ export function Library({
   nav: appNav,
   notice,
   onOpen,
-  onSettings,
 }: {
   nav: Navigation;
   /** A message from elsewhere in the app, shown once per `at`. */
   notice?: { text: string; at: number };
   onOpen(item: LibraryItem): void;
-  onSettings(): void;
 }) {
   const t = useT();
-  const updateOffered = useUpdate().available !== null;
   const [search, setSearch] = useState("");
   const [nav, setNav] = useState<NavSelection>(ALL);
   // Starts as what the debounce below produces, so opening loads only once.
@@ -131,9 +125,6 @@ export function Library({
   }, []);
 
   const shortcut = accelerator && formatAccelerator(t, accelerator);
-  // The toggle switches to the other theme; the settings also offer "like the system".
-  const { theme } = useSettings();
-  const dark = useSystemDark(theme);
   const dateFormat = useMemo(
     () => new Intl.DateTimeFormat(t.locale, { dateStyle: "medium", timeStyle: "short" }),
     [t.locale],
@@ -253,27 +244,9 @@ export function Library({
 
   return (
     <div className="library">
-      <header className="toolbar">
-        <AppNav at="library" nav={appNav} />
+      <AppBar at="library" nav={appNav}>
         {pages.count !== null && <span className="meta">{t.library.count(count)}</span>}
-        <span className="spacer" />
-        <button
-          className="tool"
-          onClick={() => updateSettings({ theme: dark ? "light" : "dark" }).catch(report)}
-          title={dark ? t.library.toLight : t.library.toDark}
-          aria-label={dark ? t.library.toLight : t.library.toDark}
-        >
-          <span className="emoji-current">{dark ? "☀️" : "🌙"}</span>
-        </button>
-        <button
-          className="tool has-badge"
-          onClick={onSettings}
-          title={updateOffered ? t.update.badge : t.library.settings}
-          aria-label={updateOffered ? t.update.badge : t.library.settings}
-        >
-          ⚙{updateOffered && <span className="badge-dot" aria-hidden="true" />}
-        </button>
-      </header>
+      </AppBar>
 
       <UpdateToast />
 

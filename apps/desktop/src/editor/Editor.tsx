@@ -57,7 +57,7 @@ import {
 import { nextTip, pickTool, readGuide, type Guide } from "./guide";
 import { STACK_MOVES } from "./LayersPanel";
 import { DEFAULT_TOLERANCE, TOLERANCES, type Mask } from "./mask";
-import { AppNav, type Navigation } from "../AppNav";
+import { AppBar, type Navigation } from "../AppNav";
 import { ContextMenu, Popover } from "./Popover";
 import { ToolRail } from "./ToolRail";
 import { STAMPS } from "./stamps";
@@ -749,9 +749,8 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, na
 
   return (
     <div className="editor">
-      <header className="toolbar editor-toolbar">
-        {/* Leaving saves first: App's show() flushes the editor. */}
-        <AppNav at="editor" nav={nav} />
+      {/* Leaving saves first: App's show() flushes the editor. */}
+      <AppBar at="editor" nav={nav} className="editor-toolbar">
 
         {showColor && (
           <div className="tool-group" aria-label={t.editor.color}>
@@ -989,7 +988,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, na
         <button className="primary" onClick={copyImage} title={`${t.editor.copyImageTitle} (${k("mod", "shift", "C")})`}>
           {t.editor.copyImage}
         </button>
-      </header>
+      </AppBar>
 
       {message && (
         <div className="notice" role="status">

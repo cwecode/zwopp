@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import * as api from "../api";
-import { AppNav, type Navigation } from "../AppNav";
+import { AppBar, type Navigation } from "../AppNav";
 import { useT } from "../i18n";
 import { details, issueUrl, type IssueKind } from "./issue";
 
@@ -23,10 +23,9 @@ export function ReportPage({ nav }: { nav: Navigation }) {
 
   return (
     <div className="settings">
-      <header className="toolbar">
-        <AppNav at="other" nav={nav} />
+      <AppBar at="other" nav={nav}>
         <h1>{t.report.title}</h1>
-      </header>
+      </AppBar>
 
       {message && (
         <div className="notice" role="status">

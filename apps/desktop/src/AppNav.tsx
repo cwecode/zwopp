@@ -1,18 +1,73 @@
-// The same bar at the same place in every view of the main window: the
-// library, the editor and a new screenshot, each one click away. Nothing in
-// it changes size between views, so the buttons do not jump.
-import { useEffect, useState } from "react";
+// The top bar of every view of the main window, the same everywhere:
+//   left    library, editor and a new screenshot (AppNav)
+//   middle  the view's own actions, which may wrap onto a second row
+//   right   light/dark and the settings
+// The outer parts never change size between views, so nothing jumps.
+import { useEffect, useState, type ReactNode } from "react";
 import * as api from "./api";
 import { Popover } from "./editor/Popover";
 import { formatAccelerator, useT } from "./i18n";
+import { updateSettings, useSettings } from "./settings/store";
+import { useSystemDark } from "./settings/theme";
+import { useUpdate } from "./update/store";
 
-export type Place = "library" | "editor" | "other";
+export type Place = "library" | "editor" | "settings" | "other";
 
 export interface Navigation {
   /** Shows the library. */
   library(): void;
   /** Opens the editor: the screenshot edited last, else the newest one. */
   editor(): void;
+  /** Shows the settings. */
+  settings(): void;
+}
+
+export function AppBar({
+  at,
+  nav,
+  className,
+  children,
+}: {
+  at: Place;
+  nav: Navigation;
+  className?: string;
+  /** The view's own actions. */
+  children?: ReactNode;
+}) {
+  const t = useT();
+  const updateOffered = useUpdate().available !== null;
+  // The toggle switches to the other theme; the settings also offer "like the system".
+  const { theme } = useSettings();
+  const dark = useSystemDark(theme);
+  const settingsLabel = updateOffered ? t.update.badge : t.library.settings;
+
+  return (
+    <header className={className ? `toolbar app-bar ${className}` : "toolbar app-bar"}>
+      <AppNav at={at} nav={nav} />
+      <div className="app-bar-actions">{children}</div>
+      <div className="app-bar-global">
+        <button
+          className="tool"
+          onClick={() =>
+            updateSettings({ theme: dark ? "light" : "dark" }).catch((e) => console.error("could not change the theme", e))
+          }
+          title={dark ? t.library.toLight : t.library.toDark}
+          aria-label={dark ? t.library.toLight : t.library.toDark}
+        >
+          <span className="emoji-current">{dark ? "☀️" : "🌙"}</span>
+        </button>
+        <button
+          className={at === "settings" ? "tool has-badge active" : "tool has-badge"}
+          aria-current={at === "settings" ? "page" : undefined}
+          onClick={() => at !== "settings" && nav.settings()}
+          title={settingsLabel}
+          aria-label={settingsLabel}
+        >
+          ⚙{updateOffered && <span className="badge-dot" aria-hidden="true" />}
+        </button>
+      </div>
+    </header>
+  );
 }
 
 /** Capture delays offered next to "Screenshot", in seconds (0 = now). */
@@ -29,7 +84,7 @@ function storedDelay(): number {
   }
 }
 
-export function AppNav({ at, nav }: { at: Place; nav: Navigation }) {
+function AppNav({ at, nav }: { at: Place; nav: Navigation }) {
   const t = useT();
   const [delay, setDelay] = useState(storedDelay);
   const [accelerator, setAccelerator] = useState<string | null>(null);

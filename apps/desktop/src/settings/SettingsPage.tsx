@@ -6,7 +6,7 @@ import { useT, type Language } from "../i18n";
 import { parseQuickStyles, readEditorSettings, serializeQuickStyles, type QuickStyle } from "../editor/quickStyles";
 import { StyleSwatch } from "../editor/StyleIcons";
 import { readGuide } from "../editor/guide";
-import { AppNav, type Navigation } from "../AppNav";
+import { AppBar, type Navigation } from "../AppNav";
 import { HotkeyPicker } from "./HotkeyPicker";
 import { updateEditorSettings, updateSettings, useSettings } from "./store";
 import { checkForUpdate, installUpdate, useUpdate } from "../update/store";
@@ -104,10 +104,9 @@ export function SettingsPage({ nav, onReport }: { nav: Navigation; onReport(): v
 
   return (
     <div className="settings">
-      <header className="toolbar">
-        <AppNav at="other" nav={nav} />
+      <AppBar at="settings" nav={nav}>
         <h1>{t.settings.title}</h1>
-      </header>
+      </AppBar>
 
       {message && (
         <div className="notice" role="status">

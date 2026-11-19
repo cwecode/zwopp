@@ -80,6 +80,7 @@ export function App() {
   const nav: Navigation = useMemo(
     () => ({
       library: () => void show({ kind: "library" }),
+      settings: () => void show({ kind: "settings" }),
       editor: () =>
         void editorTarget(lastEdited.current)
           .then((item) => {
@@ -111,7 +112,7 @@ export function App() {
     case "report":
       return <ReportPage nav={nav} />;
     case "library":
-      return <Library nav={nav} notice={notice} onOpen={open} onSettings={() => setView({ kind: "settings" })} />;
+      return <Library nav={nav} notice={notice} onOpen={open} />;
   }
 }
 

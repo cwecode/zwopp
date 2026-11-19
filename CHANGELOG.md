@@ -12,6 +12,8 @@ offer in the app leaves it out.
 - **Library**, **Editor** and **Screenshot** stay at the same place when you switch
   views, instead of moving: the bar is the first thing at the top of every view, and
   **Screenshot** (with its delay ▾) sits right next to it everywhere, also in the library.
+- Light/dark and the settings are at the top right of every view, also in the editor; the
+  middle of the bar holds what the view offers (the editor's tools, the library's count).
 
 ## 1.4.1
 
