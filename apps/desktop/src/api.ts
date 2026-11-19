@@ -75,7 +75,18 @@ export interface Settings {
   editAfterCapture: boolean;
   /** Owned by the editor (see `editor/quickStyles.ts`). */
   editor: Record<string, unknown>;
+  /** The first-start setup was done or skipped. */
+  setupDone: boolean;
 }
+
+/** Why a combination cannot be the capture hotkey (`hotkeys::Reserved`). */
+export type HotkeyReserved = "typing" | "appShortcut" | "system" | "invalid";
+/** Why `accelerator` cannot be the capture hotkey on this system, or null if it can. */
+export const hotkeyCheck = (accelerator: string) => invoke<HotkeyReserved | null>("hotkey_check", { accelerator });
+/** Whether Windows' Snipping Tool has the Print key; null off Windows. */
+export const printKeyForSnipping = () => invoke<boolean | null>("print_key_for_snipping");
+/** Gives the Print key to the Snipping Tool (true) or frees it for Zwopp (false). */
+export const setPrintKeyForSnipping = (on: boolean) => invoke<void>("set_print_key_for_snipping", { on });
 
 export interface SettingsInfo {
   settings: Settings;

@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+use zwopp_core::hotkeys::{self, Os};
 use zwopp_core::settings::Settings;
 
 use crate::{AppState, tray};
@@ -65,6 +66,8 @@ fn register(app: &AppHandle, accelerator: &str) -> Result<(), String> {
 pub fn register_capture_shortcut(app: &AppHandle, preferred: Option<&str>) -> Option<String> {
     preferred
         .into_iter()
+        // A reserved one (set by hand in settings.json) falls back to the defaults.
+        .filter(|hotkey| hotkeys::reserved(hotkey, Os::current()).is_none())
         .chain(CAPTURE_SHORTCUTS.iter().copied())
         .find(|accelerator| match register(app, accelerator) {
             Ok(()) => true,
@@ -119,6 +122,18 @@ pub fn info(app: &AppHandle) -> tauri::Result<SettingsInfo> {
 pub fn save(app: &AppHandle, mut next: Settings) -> Result<SettingsInfo, String> {
     let state = app.state::<AppState>();
     let current = state.settings.lock().unwrap().clone();
+    if let Some(hotkey) = next.capture_hotkey.as_deref()
+        && let Some(reason) = hotkeys::reserved(hotkey, Os::current())
+    {
+        // The UI words it from the reason (`reserved:appShortcut` …).
+        return Err(format!(
+            "reserved:{}",
+            serde_json::to_value(reason)
+                .map_err(err)?
+                .as_str()
+                .unwrap_or("")
+        ));
+    }
     if next.capture_hotkey != current.capture_hotkey {
         change_capture_shortcut(app, next.capture_hotkey.as_deref())?;
     }

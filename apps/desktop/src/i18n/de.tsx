@@ -87,6 +87,23 @@ export const de = {
     toLight: "Helle Darstellung",
   },
 
+  welcome: {
+    step: (n: number, of: number) => `Schritt ${n} von ${of}`,
+    title: "Willkommen bei Zwopp",
+    intro: "Drei kurze Fragen, dann kannst du loslegen. Alles lässt sich später in den Einstellungen ändern.",
+    language: "Sprache",
+    hotkeyTitle: "Deine Aufnahme-Taste",
+    hotkeyIntro: "Mit dieser Tastenkombination startest du jederzeit einen Screenshot – egal, welches Programm gerade vorne ist. Kombinationen, die andere Programme oder das System brauchen, lässt Zwopp nicht zu.",
+    readyTitle: "Fertig!",
+    readyHotkey: (hotkey: string) => `Drück ${hotkey}, um einen Screenshot aufzunehmen.`,
+    readyNoHotkey: "Starte Aufnahmen über das Zwopp-Symbol im Infobereich.",
+    readyBar: "Unten im Aufnahmebildschirm wechselst du zwischen Screenshot, Panorama und GIF – und kommst mit „Bibliothek“ und „Editor“ direkt in die App.",
+    skip: "Überspringen",
+    back: "Zurück",
+    next: "Weiter",
+    done: "Los geht's",
+  },
+
   report: {
     title: "Problem melden",
     open: "Problem melden …",
@@ -160,7 +177,18 @@ export const de = {
     hotkeyRecording: "Tastenkombination drücken … (Esc = Abbrechen)",
     hotkeyDefault: "Standard",
     hotkeyDefaultTitle: (list: string) => `Das erste freie von ${list}`,
-    hotkeyHint: "Mit Strg/⌘ oder Alt – oder eine Funktionstaste bzw. Druck allein.",
+    hotkeyReserved: {
+      typing: "Diese Taste tippt oder wird von Programmen gebraucht. Nimm Strg/⌘ oder Alt dazu – oder die Druck-Taste.",
+      appShortcut: "Diese Kombination nutzt fast jedes Programm (z. B. Kopieren, Speichern). Bitte eine andere.",
+      system: "Diese Kombination gehört dem Betriebssystem und bleibt frei.",
+      invalid: "Diese Kombination versteht Zwopp nicht.",
+    },
+    printKey: "Druck-Taste",
+    printKeyTake: "Druck-Taste für Zwopp nehmen",
+    printKeyTakeHint: "Windows öffnet mit der Druck-Taste sonst das Snipping Tool. Zwopp schaltet das in den Windows-Einstellungen aus und legt die Aufnahme auf die Druck-Taste.",
+    printKeyGiveBack: "Dem Snipping Tool zurückgeben",
+    printKeyTaken: "Die Druck-Taste startet jetzt Zwopp. Falls nicht sofort: einmal ab- und wieder anmelden.",
+    hotkeyHint:"Mit Strg/⌘ oder Alt – oder eine Funktionstaste bzw. Druck allein.",
     hotkeyTaken: (shortcut: string) =>
       `${shortcut} ist nicht verfügbar, vermutlich nutzt es eine andere App. Das bisherige Kürzel gilt weiter.`,
     hotkeyFallback: (wanted: string) => `${wanted} war beim Start belegt, deshalb gilt dieses Kürzel.`,

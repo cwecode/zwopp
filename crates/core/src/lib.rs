@@ -7,6 +7,7 @@ pub mod archive;
 pub mod capture;
 pub mod error;
 pub mod export;
+pub mod hotkeys;
 pub mod library;
 pub mod record;
 pub mod settings;

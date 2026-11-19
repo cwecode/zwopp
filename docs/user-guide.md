@@ -11,10 +11,10 @@ Download the file for your system from the
 
 | System | File |
 |---|---|
-| Windows 10/11 | `Zwopp_<version>_x64-setup.exe` (or the `.msi`) |
-| macOS, Apple silicon | `Zwopp_<version>_aarch64.dmg` |
-| macOS, Intel | `Zwopp_<version>_x64.dmg` |
-| Linux | `.AppImage` (any distribution), `.deb` (Debian/Ubuntu) or `.rpm` (Fedora) – Ubuntu 24.04, Debian 13 or similarly recent |
+| Windows 10/11 | `Zwopp-windows-x64-setup.exe` (or the `.msi`) |
+| macOS, Apple silicon | `Zwopp-macos-apple-silicon.dmg` |
+| macOS, Intel | `Zwopp-macos-intel.dmg` |
+| Linux | `Zwopp-linux-x86_64.AppImage` (any distribution), `Zwopp-linux-amd64.deb` (Debian/Ubuntu) or `Zwopp-linux-x86_64.rpm` (Fedora) – Ubuntu 24.04, Debian 13 or similarly recent |
 
 The downloads are not signed, so your system asks once before the first start:
 
@@ -38,6 +38,10 @@ running; quit from the tray menu. To have it ready after every login, turn on
 **Settings › General › Start at login**: Zwopp then starts in the tray, without a window.
 While it waits it uses no CPU; a closed window gives back its memory after two minutes.
 Starting Zwopp a second time brings the running one to the front.
+
+On the first start a short setup asks for the language and the capture hotkey and offers
+*Start at login*. **Skip** keeps the defaults; everything can be changed later in the
+settings.
 
 ## Taking a screenshot
 
@@ -174,8 +178,12 @@ Open them with ⚙ in the library or **Settings** in the tray menu.
 - **Appearance:** light, dark or like the system.
 - **Start at login:** Zwopp starts in the tray when you log in.
 - **Hotkey:** click **Change** and press the new combination. It needs Ctrl/⌘ or Alt,
-  except for function keys and Print. If another app already uses it, the old hotkey
-  stays. **Default** takes the first free one of Ctrl+Shift+X, Ctrl+Alt+X and
+  except for function keys and Print. Combinations you need elsewhere are refused, with
+  the reason: plain keys while typing, app shortcuts like Ctrl+C or Ctrl+S, and system
+  keys like Alt+Tab or the Windows key. If another app already uses it, the old hotkey
+  stays. On Windows, **Use the Print key for Zwopp** takes it over from the Snipping Tool
+  (**Give it back to the Snipping Tool** returns it); Windows may need a new sign-in.
+  Win+Shift+S stays with Windows. **Default** takes the first free one of Ctrl+Shift+X, Ctrl+Alt+X and
   Ctrl+Shift+2.
 - **After a capture:** copy to the clipboard, open in the editor.
 - **Library folder:** applies after a restart (**Restart now**). Existing screenshots stay

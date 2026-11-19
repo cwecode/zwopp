@@ -6,6 +6,8 @@ import { Editor, type EditorHandle } from "./editor/Editor";
 import { Library } from "./library/Library";
 import { ReportPage } from "./report/ReportPage";
 import { SettingsPage } from "./settings/SettingsPage";
+import { updateSettings, useSettings } from "./settings/store";
+import { WelcomePage } from "./settings/WelcomePage";
 import { useTrayLanguage } from "./trayLanguage";
 
 type View = { kind: "library" } | api.RequestedView;
@@ -15,6 +17,22 @@ export function App() {
   const [view, setView] = useState<View>({ kind: "library" });
   const editor = useRef<EditorHandle>(null);
   useTrayLanguage();
+  const { setupDone } = useSettings();
+  /** The first-start setup is showing. */
+  const [welcome, setWelcome] = useState(false);
+
+  // A new user gets the setup once; someone who already has screenshots
+  // (they used a version without it) does not.
+  useEffect(() => {
+    if (setupDone) return;
+    api
+      .countItems({})
+      .then(async (count) => {
+        if (count > 0) await updateSettings({ setupDone: true });
+        else setWelcome(true);
+      })
+      .catch((e) => console.error("could not check for the first start", e));
+  }, [setupDone]);
 
   /** Switches the view, saving the editor's changes first. */
   const show = useCallback(async (next: View) => {
@@ -48,6 +66,8 @@ export function App() {
       setView((v) => (v.kind === "editor" && v.item.id === item.id ? { kind: "editor", item } : v)),
     [],
   );
+
+  if (welcome) return <WelcomePage onDone={() => setWelcome(false)} />;
 
   switch (view.kind) {
     case "editor":

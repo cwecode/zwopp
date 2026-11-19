@@ -76,6 +76,8 @@ export function tauriMock({ items, latencyMs }: MockOptions) {
     set_language: () => null,
     take_view: () => null,
     update_status: () => ({ enabled: false, available: null }),
+    hotkey_check: () => null,
+    print_key_for_snipping: () => null,
     agent_setup: () => ({
       available: false,
       executable: "C:\\Zwopp\\zwopp.exe",
@@ -97,6 +99,7 @@ export function tauriMock({ items, latencyMs }: MockOptions) {
         copyAfterCapture: true,
         editAfterCapture: true,
         editor: {},
+        setupDone: true,
       },
       libraryDir: "/library",
       defaultLibraryDir: "/library",

@@ -81,6 +81,23 @@ export const en: Messages = {
     toLight: "Light appearance",
   },
 
+  welcome: {
+    step: (n: number, of: number) => `Step ${n} of ${of}`,
+    title: "Welcome to Zwopp",
+    intro: "Three short questions and you are ready. You can change everything later in the settings.",
+    language: "Language",
+    hotkeyTitle: "Your capture key",
+    hotkeyIntro: "This key combination starts a screenshot any time, whatever program is in front. Zwopp does not allow combinations other programs or the system need.",
+    readyTitle: "All set!",
+    readyHotkey: (hotkey: string) => `Press ${hotkey} to take a screenshot.`,
+    readyNoHotkey: "Start captures from the Zwopp icon in the tray.",
+    readyBar: "At the bottom of the capture screen you switch between screenshot, panorama and GIF – and reach the app with “Library” and “Editor”.",
+    skip: "Skip",
+    back: "Back",
+    next: "Next",
+    done: "Let's go",
+  },
+
   report: {
     title: "Report a problem",
     open: "Report a problem …",
@@ -154,7 +171,18 @@ export const en: Messages = {
     hotkeyRecording: "Press a key combination … (Esc = cancel)",
     hotkeyDefault: "Default",
     hotkeyDefaultTitle: (list: string) => `The first free one of ${list}`,
-    hotkeyHint: "With Ctrl/⌘ or Alt – or a function key or Print on its own.",
+    hotkeyReserved: {
+      typing: "This key types or programs need it. Add Ctrl/⌘ or Alt – or use the Print key.",
+      appShortcut: "Nearly every program uses this combination (copy, save …). Please choose another.",
+      system: "This combination belongs to the operating system and stays free.",
+      invalid: "Zwopp does not understand this combination.",
+    },
+    printKey: "Print key",
+    printKeyTake: "Use the Print key for Zwopp",
+    printKeyTakeHint: "Otherwise Windows opens the Snipping Tool with the Print key. Zwopp turns that off in Windows' settings and puts capturing on the Print key.",
+    printKeyGiveBack: "Give it back to the Snipping Tool",
+    printKeyTaken: "The Print key now starts Zwopp. If not right away: sign out and in once.",
+    hotkeyHint:"With Ctrl/⌘ or Alt – or a function key or Print on its own.",
     hotkeyTaken: (shortcut: string) =>
       `${shortcut} is not available, probably another app uses it. The previous hotkey stays.`,
     hotkeyFallback: (wanted: string) => `${wanted} was taken at startup, so this hotkey applies.`,

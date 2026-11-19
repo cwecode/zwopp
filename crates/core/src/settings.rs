@@ -27,6 +27,8 @@ pub struct Settings {
     /// Editor defaults and quick styles. Only the UI reads them, so the core
     /// stores them as they come.
     pub editor: serde_json::Value,
+    /// The first-start setup (language, hotkey, start at login) was done or skipped.
+    pub setup_done: bool,
 }
 
 impl Default for Settings {
@@ -39,6 +41,7 @@ impl Default for Settings {
             copy_after_capture: true,
             edit_after_capture: true,
             editor: serde_json::Value::Object(Default::default()),
+            setup_done: false,
         }
     }
 }

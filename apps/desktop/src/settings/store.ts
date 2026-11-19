@@ -14,6 +14,8 @@ export const DEFAULT_SETTINGS: api.Settings = {
   copyAfterCapture: true,
   editAfterCapture: true,
   editor: {},
+  // Until the real settings arrive, no first-start setup flashes up.
+  setupDone: true,
 };
 
 let current = DEFAULT_SETTINGS;

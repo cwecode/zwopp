@@ -19,7 +19,9 @@ use zwopp_core::export::{self, ExportFormat};
 use zwopp_core::library::{ItemUpdate, Library, LibraryItem, ListQuery, Overview};
 use zwopp_core::settings::Settings;
 
-use crate::{AppState, agents, capture, main_window, recording, report, settings, tray, update};
+use crate::{
+    AppState, agents, capture, main_window, platform, recording, report, settings, tray, update,
+};
 
 type CmdResult<T> = Result<T, String>;
 
@@ -119,6 +121,25 @@ pub async fn start_recording(
     mode: recording::Mode,
 ) -> CmdResult<()> {
     recording::start(&app, rect, mode).await
+}
+
+/// Why `accelerator` cannot be the capture hotkey here, if it cannot (ADR 0014).
+#[tauri::command]
+pub fn hotkey_check(accelerator: String) -> Option<zwopp_core::hotkeys::Reserved> {
+    zwopp_core::hotkeys::reserved(&accelerator, zwopp_core::hotkeys::Os::current())
+}
+
+/// Whether Windows' Snipping Tool has the Print key; `None` off Windows.
+#[tauri::command]
+pub fn print_key_for_snipping() -> Option<bool> {
+    platform::print_key_for_snipping()
+}
+
+/// Gives the Print key to Windows' Snipping Tool (`true`) or frees it for
+/// Zwopp (`false`), as the switch in Windows' settings does.
+#[tauri::command]
+pub fn set_print_key_for_snipping(on: bool) -> CmdResult<()> {
+    platform::set_print_key_for_snipping(on)
 }
 
 /// Asks for a folder and exports the whole library into a new folder there

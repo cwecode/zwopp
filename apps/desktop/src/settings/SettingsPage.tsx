@@ -2,16 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { listen } from "@tauri-apps/api/event";
 import * as api from "../api";
-import { formatAccelerator, useT, type Language } from "../i18n";
+import { useT, type Language } from "../i18n";
 import { parseQuickStyles, readEditorSettings, serializeQuickStyles, type QuickStyle } from "../editor/quickStyles";
 import { StyleSwatch } from "../editor/StyleIcons";
 import { readGuide } from "../editor/guide";
-import { acceleratorFromEvent } from "./accelerator";
+import { HotkeyPicker } from "./HotkeyPicker";
 import { updateEditorSettings, updateSettings, useSettings } from "./store";
 
-/** The built-in hotkeys, tried in this order (`CAPTURE_SHORTCUTS` in settings.rs). */
-const DEFAULT_HOTKEYS = ["CommandOrControl+Shift+X", "CommandOrControl+Alt+X", "CommandOrControl+Shift+2"];
-const LANGUAGES: Language[] = ["de", "en"];
+export const LANGUAGES: Language[] = ["de", "en"];
 
 /** Registers Zwopp's MCP server with Claude Code (ADR 0012). */
 const mcpCommand = (exe: string) => `claude mcp add zwopp -- "${exe}" mcp`;
@@ -23,7 +21,6 @@ export function SettingsPage({ onClose, onReport }: { onClose(): void; onReport(
   const t = useT();
   const settings = useSettings();
   const [info, setInfo] = useState<api.SettingsInfo>();
-  const [recording, setRecording] = useState(false);
   const [message, setMessage] = useState<string>();
   const quickStyles = useMemo(() => readEditorSettings(settings.editor).quickStyles, [settings.editor]);
   const guide = useMemo(() => readGuide(settings.editor), [settings.editor]);
@@ -76,26 +73,6 @@ export function SettingsPage({ onClose, onReport }: { onClose(): void; onReport(
 
   const change = (patch: Partial<api.Settings>) => updateSettings(patch).then(setInfo).catch(report);
 
-  // While recording, the next valid key combination becomes the hotkey.
-  useEffect(() => {
-    if (!recording) return;
-    const onKey = (e: KeyboardEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.key === "Escape") return setRecording(false);
-      const accelerator = acceleratorFromEvent(e);
-      if (!accelerator) return;
-      setRecording(false);
-      updateSettings({ captureHotkey: accelerator })
-        .then((next) => {
-          setInfo(next);
-          setMessage(undefined);
-        })
-        .catch(() => setMessage(t.settings.hotkeyTaken(formatAccelerator(t, accelerator))));
-    };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [recording, t]);
 
   const setQuickStyles = (next: QuickStyle[]) => updateEditorSettings({ quickStyles: next }).catch(report);
 
@@ -131,7 +108,6 @@ export function SettingsPage({ onClose, onReport }: { onClose(): void; onReport(
   };
 
   const shortcut = info?.captureShortcut;
-  const wanted = settings.captureHotkey;
   const libraryTarget = settings.libraryDir ?? info?.defaultLibraryDir;
   const restartPending = info && !info.libraryDirFromEnv && libraryTarget !== info.libraryDir;
 
@@ -232,30 +208,7 @@ export function SettingsPage({ onClose, onReport }: { onClose(): void; onReport(
           <h2>{t.settings.capture}</h2>
           <div className="setting">
             <span>{t.settings.hotkey}</span>
-            <div className="setting-value">
-              {recording ? (
-                <kbd className="recording">{t.settings.hotkeyRecording}</kbd>
-              ) : shortcut ? (
-                <kbd>{formatAccelerator(t, shortcut)}</kbd>
-              ) : (
-                <em>{t.settings.hotkeyNone}</em>
-              )}
-              <button onClick={() => setRecording((r) => !r)} aria-pressed={recording}>
-                {t.settings.hotkeyChange}
-              </button>
-              <button
-                disabled={wanted === null}
-                title={t.settings.hotkeyDefaultTitle(DEFAULT_HOTKEYS.map((h) => formatAccelerator(t, h)).join(", "))}
-                onClick={() => change({ captureHotkey: null })}
-              >
-                {t.settings.hotkeyDefault}
-              </button>
-            </div>
-            <p className="hint">
-              {wanted && shortcut !== wanted
-                ? t.settings.hotkeyFallback(formatAccelerator(t, wanted))
-                : t.settings.hotkeyHint}
-            </p>
+            <HotkeyPicker shortcut={shortcut} onChange={setInfo} onMessage={setMessage} />
           </div>
           <div className="setting">
             <span>{t.settings.afterCapture}</span>

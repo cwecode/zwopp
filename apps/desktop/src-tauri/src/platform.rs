@@ -162,6 +162,99 @@ pub fn copy_files(_paths: &[std::path::PathBuf]) -> Result<(), String> {
     Err("copying files is only possible on Windows yet; drag or export the GIF".into())
 }
 
+/// Where Windows keeps "Use the Print screen key to open screen capture".
+#[cfg(windows)]
+const SNIPPING_KEY: &str = r"Control Panel\Keyboard";
+#[cfg(windows)]
+const SNIPPING_VALUE: &str = "PrintScreenKeyForSnippingEnabled";
+
+/// Whether the Print key opens Windows' own screen capture (Snipping Tool)
+/// instead of reaching programs; `None` where there is no such setting.
+#[cfg(windows)]
+pub fn print_key_for_snipping() -> Option<bool> {
+    use windows_sys::Win32::Foundation::ERROR_SUCCESS;
+    use windows_sys::Win32::System::Registry::{HKEY_CURRENT_USER, RRF_RT_REG_DWORD, RegGetValueW};
+
+    let key = wide(SNIPPING_KEY);
+    let value = wide(SNIPPING_VALUE);
+    let mut data = 0u32;
+    let mut size = size_of::<u32>() as u32;
+    // SAFETY: reads one DWORD into `data`, whose size is passed along.
+    let found = unsafe {
+        RegGetValueW(
+            HKEY_CURRENT_USER,
+            key.as_ptr(),
+            value.as_ptr(),
+            RRF_RT_REG_DWORD,
+            std::ptr::null_mut(),
+            (&raw mut data).cast(),
+            &mut size,
+        )
+    };
+    // Windows 11 has it on unless the user turned it off.
+    Some(if found == ERROR_SUCCESS {
+        data != 0
+    } else {
+        true
+    })
+}
+
+#[cfg(not(windows))]
+pub fn print_key_for_snipping() -> Option<bool> {
+    None
+}
+
+/// Turns Windows' use of the Print key for its screen capture on or off, as
+/// the switch in Windows' settings does, so Zwopp can have the key.
+#[cfg(windows)]
+pub fn set_print_key_for_snipping(on: bool) -> Result<(), String> {
+    use windows_sys::Win32::Foundation::ERROR_SUCCESS;
+    use windows_sys::Win32::System::Registry::{HKEY_CURRENT_USER, REG_DWORD, RegSetKeyValueW};
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        HWND_BROADCAST, SMTO_ABORTIFHUNG, SendMessageTimeoutW, WM_SETTINGCHANGE,
+    };
+
+    let key = wide(SNIPPING_KEY);
+    let value = wide(SNIPPING_VALUE);
+    let data = u32::from(on);
+    // SAFETY: writes one DWORD under the current user's keyboard settings;
+    // then tells running programs that a setting changed.
+    unsafe {
+        let result = RegSetKeyValueW(
+            HKEY_CURRENT_USER,
+            key.as_ptr(),
+            value.as_ptr(),
+            REG_DWORD,
+            (&raw const data).cast(),
+            size_of::<u32>() as u32,
+        );
+        if result != ERROR_SUCCESS {
+            return Err("could not change the Windows setting".into());
+        }
+        let area = wide("Policy");
+        SendMessageTimeoutW(
+            HWND_BROADCAST,
+            WM_SETTINGCHANGE,
+            0,
+            area.as_ptr() as isize,
+            SMTO_ABORTIFHUNG,
+            1000,
+            std::ptr::null_mut(),
+        );
+    }
+    Ok(())
+}
+
+#[cfg(not(windows))]
+pub fn set_print_key_for_snipping(_on: bool) -> Result<(), String> {
+    Err("only on Windows".into())
+}
+
+#[cfg(windows)]
+fn wide(text: &str) -> Vec<u16> {
+    text.encode_utf16().chain([0]).collect()
+}
+
 /// Edge length of application icons, in pixels.
 #[cfg(windows)]
 const APP_ICON_SIZE: u32 = 48;

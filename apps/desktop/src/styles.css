@@ -111,6 +111,85 @@ kbd {
   flex: 1;
 }
 
+/* First-start setup. */
+.welcome {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: var(--bg);
+}
+
+.welcome-card {
+  width: min(560px, 100%);
+  padding: 28px 32px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.welcome-card h1 {
+  margin: 4px 0 8px;
+  font-size: 22px;
+}
+
+.welcome-card h2 {
+  margin: 20px 0 8px;
+  font-size: 14px;
+}
+
+.welcome-card p {
+  line-height: 1.5;
+}
+
+.welcome-step {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.welcome-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.welcome-choices button {
+  padding: 10px 16px;
+}
+
+.welcome-choices button.active {
+  border-color: var(--selection);
+  outline: 1px solid var(--selection);
+}
+
+.welcome-check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.welcome-message {
+  color: var(--accent);
+}
+
+.welcome-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.welcome-actions .link {
+  border: none;
+  background: none;
+  color: var(--muted);
+  padding: 6px 0;
+}
+
 /* What a problem report contains. */
 .report-details {
   margin: 8px 0;
