@@ -1,3 +1,24 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/media/brand/banner-dark.png">
+    <img alt="Zwopp – Explain every screenshot clearly. Windows, macOS, Linux, open source." src="docs/media/brand/banner-light.png" width="800">
+  </picture>
+</p>
+
+<p align="center">
+  <a href="https://github.com/cwecode/zwopp/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/cwecode/zwopp?color=FF6A3D"></a>
+  <a href="https://github.com/cwecode/zwopp/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/cwecode/zwopp/total?color=FFC145"></a>
+  <a href="https://github.com/cwecode/zwopp/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/cwecode/zwopp/ci.yml?branch=main&label=CI"></a>
+  <a href="#license"><img alt="License: MIT or Apache-2.0" src="https://img.shields.io/badge/license-MIT%20%2F%20Apache--2.0-263143"></a>
+</p>
+
+<p align="center">
+  <a href="#download">Download</a> ·
+  <a href="docs/user-guide.md">User guide</a> ·
+  <a href="CHANGELOG.md">Changelog</a> ·
+  <a href="https://github.com/cwecode/zwopp/discussions">Discussions</a>
+</p>
+
 # Zwopp
 
 A lean, open-source screenshot tool for **Windows, macOS and Linux**: select a region,

@@ -1,9 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <!-- Source of all app icons: `npx tauri icon src-tauri/icons/icon.svg` (in apps/desktop). -->
-  <rect x="32" y="32" width="960" height="960" rx="224" fill="#1d1d1b"/>
-  <!-- Two corners of a selection -->
-  <g fill="none" stroke="#e5322d" stroke-width="104" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M260 470 V260 H470"/>
-    <path d="M764 554 V764 H554"/>
-  </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1024" height="1024" viewBox="0 0 1024 1024"><defs>
+<linearGradient id="mark" x1="4%" y1="10%" x2="98%" y2="92%"><stop offset="0%" stop-color="#F65B3A"/><stop offset="52%" stop-color="#FF7E37"/><stop offset="100%" stop-color="#FDB632"/></linearGradient>
+<linearGradient id="markdark" x1="0%" y1="0%" x2="100%" y2="90%"><stop offset="0%" stop-color="#FF8A55"/><stop offset="100%" stop-color="#FFD16E"/></linearGradient>
+<linearGradient id="peachbg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FFF9F2"/><stop offset="100%" stop-color="#FFE8D9"/></linearGradient>
+<linearGradient id="macdark" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#343A4B"/><stop offset="100%" stop-color="#171C28"/></linearGradient>
+<linearGradient id="tintbg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#EDF2F6"/><stop offset="100%" stop-color="#D7E0E9"/></linearGradient>
+<linearGradient id="lightbg" x1="0%" y1="0%" x2="100%" y2="95%"><stop offset="0%" stop-color="#FFFAF5"/><stop offset="53%" stop-color="#FFFDFB"/><stop offset="100%" stop-color="#F5F8FD"/></linearGradient>
+<linearGradient id="bannerbg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FFFBF8"/><stop offset="100%" stop-color="#F7FAFE"/></linearGradient>
+<linearGradient id="warmwash" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#FFDDC6" stop-opacity=".85"/><stop offset="100%" stop-color="#FFEAB8" stop-opacity=".08"/></linearGradient>
+<linearGradient id="darkbg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#131B2B"/><stop offset="100%" stop-color="#253148"/></linearGradient>
+<linearGradient id="thumb" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#22272F"/><stop offset="100%" stop-color="#131820"/></linearGradient>
+<filter id="softshadow" x="-30%" y="-40%" width="170%" height="190%"><feGaussianBlur stdDeviation="15"/></filter>
+<filter id="tinyshadow" x="-10%" y="-10%" width="150%" height="150%"><feGaussianBlur stdDeviation="8"/></filter>
+</defs><style>text{font-family:Inter,"Inter Display",Arial,sans-serif} .word{font-weight:800;letter-spacing:-.055em} .muted{fill:#737F90}</style><g transform="translate(12 -20) scale(0.970000)" opacity="1"><g transform="translate(15 20)" opacity=".11"><path fill="#7C2E20" fill-rule="evenodd" d="M284 146 H716 C831 146 892 209 892 328 V660 C892 781 825 842 705 842 H434 L245 947 C216 963 190 941 200 910 L233 812 C153 790 108 728 108 642 V327 C108 206 173 146 284 146 Z M286 260 C240 260 220 283 220 330 V631 C220 675 245 697 288 708 C309 714 315 730 308 751 L295 790 L396 736 C410 729 419 728 437 728 H707 C755 728 780 704 780 657 V330 C780 283 756 260 713 260 Z"/><path d="M376 613 L651 355 M530 355 H651 V477" fill="none" stroke="#7C2E20" stroke-width="91" stroke-linecap="round" stroke-linejoin="round"/></g><path fill="url(#mark)" fill-rule="evenodd" d="M284 146 H716 C831 146 892 209 892 328 V660 C892 781 825 842 705 842 H434 L245 947 C216 963 190 941 200 910 L233 812 C153 790 108 728 108 642 V327 C108 206 173 146 284 146 Z M286 260 C240 260 220 283 220 330 V631 C220 675 245 697 288 708 C309 714 315 730 308 751 L295 790 L396 736 C410 729 419 728 437 728 H707 C755 728 780 704 780 657 V330 C780 283 756 260 713 260 Z"/><path d="M376 613 L651 355 M531 355 H651 V477" fill="none" stroke="url(#mark)" stroke-width="85" stroke-linecap="round" stroke-linejoin="round"/></g></svg>

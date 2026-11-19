@@ -23,7 +23,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 zwopp-core = { path = "../../../crates/core" }
 zwopp-cli = { path = "../../../crates/cli" }
-tauri = { version = "2", features = ["tray-icon", "protocol-asset"] }
+tauri = { version = "2", features = ["tray-icon", "protocol-asset", "image-png"] }
 tauri-plugin-autostart = "2"
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-dialog = "2"

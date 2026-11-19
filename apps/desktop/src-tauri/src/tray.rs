@@ -122,6 +122,14 @@ pub fn create(app: &AppHandle, capture_shortcut: Option<&str>) -> tauri::Result<
                 main_window::show(tray.app_handle());
             }
         });
+    // macOS: a one-colour template image the menu bar tints for light and dark;
+    // Windows and Linux show the coloured app icon, as their trays expect.
+    #[cfg(target_os = "macos")]
+    {
+        let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/tray-template.png"))?;
+        tray = tray.icon(icon).icon_as_template(true);
+    }
+    #[cfg(not(target_os = "macos"))]
     if let Some(icon) = app.default_window_icon() {
         tray = tray.icon(icon.clone());
     }
