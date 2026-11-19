@@ -25,8 +25,9 @@ A lean, open-source screenshot tool for **Windows, macOS and Linux**: select a r
 the screenshot lands in a **library**, and an **editor** lets you add arrows, callouts,
 highlights, step numbers, emojis and more.
 
-> **Version 1.3.** Screenshots, panoramas and GIFs, library, the full editor and the
-> settings, updates on request; the library stays fast with 100 000 screenshots. See the [user guide](docs/user-guide.md), the
+> **Version 1.4.** Screenshots, panoramas and GIFs, library, the full editor and the
+> settings, updates on request, a command line and MCP server for AI agents, and an
+> export of the whole library; the library stays fast with 100 000 screenshots. See the [user guide](docs/user-guide.md), the
 > [feature list](docs/spec/features.md) and the [project plan](docs/PLAN.md) (German).
 
 ## Download

@@ -3,7 +3,10 @@
 All notable changes to Zwopp. The release workflow takes the notes of a version
 from its section here, so each release starts with a `## <version>` heading.
 
-## Unreleased
+## 1.4.0
+
+AI agents and scripts take and find screenshots, the whole library can be exported, a
+short setup welcomes you on the first start, and Zwopp has a new logo.
 
 ### Command line and AI agents
 
@@ -34,6 +37,11 @@ from its section here, so each release starts with a `## <version>` heading.
 - The hotkey cannot take keys you need elsewhere (typing, Ctrl+C/V/S and other app
   shortcuts, Alt+Tab, the Windows key …); the reason is shown.
 - On Windows, the Print key can be taken over from the Snipping Tool (and given back).
+
+### General
+
+- A new logo and app icon; on macOS the menu bar shows a one-colour icon that follows
+  light and dark mode.
 
 ## 1.3.1
 
