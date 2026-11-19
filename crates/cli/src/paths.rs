@@ -9,7 +9,7 @@ use zwopp_core::settings::Settings;
 
 /// tauri.conf.json's identifier; a development build adds ".dev" (ADR 0008).
 const IDENTIFIER: &str = "digital.weier.zwopp";
-/// Points the app and the command line at another library (see README).
+/// Points the app and the command line at another library (see docs/development.md).
 const LIBRARY_ENV: &str = "ZWOPP_LIBRARY_DIR";
 
 fn identifier(dev: bool) -> String {

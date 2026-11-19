@@ -156,7 +156,7 @@ pub fn run() {
             }));
             let settings = settings::load(app.handle())?;
             // ZWOPP_LIBRARY_DIR points the app at another library, e.g. a
-            // generated one for performance tests (see README); it wins over
+            // generated one for performance tests (see docs/development.md); it wins over
             // the folder from the settings.
             let custom = std::env::var_os("ZWOPP_LIBRARY_DIR")
                 .map(std::path::PathBuf::from)

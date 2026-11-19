@@ -214,7 +214,7 @@ Voraussetzungen (alles kostenlos):
 - Git, **Rust** (via `rustup`), **Node.js LTS**
 - Windows: WebView2 (in Windows 11 vorinstalliert) + „Visual Studio Build Tools“ (C++‑Workload)
 - macOS: Xcode Command Line Tools (`xcode-select --install`) – **kein** Apple‑Developer‑Account
-- Linux: `webkit2gtk`‑ und Build‑Pakete (Liste im README pro Distribution)
+- Linux: `webkit2gtk`‑ und Build‑Pakete (Liste in docs/development.md)
 
 Starten:
 ```bash
