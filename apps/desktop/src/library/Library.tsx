@@ -24,6 +24,7 @@ import { Popover } from "../editor/Popover";
 import { AppIcon } from "./AppIcon";
 import { useUpdate } from "../update/store";
 import { UpdateToast } from "../update/UpdateToast";
+import { AppNav, type Navigation } from "../AppNav";
 import { LibraryNav } from "./LibraryNav";
 import { ALL, queryFor, recentSince, stillListed, type NavSelection } from "./nav";
 import { useLibraryPages } from "./useLibraryPages";
@@ -56,7 +57,18 @@ const parseTags = (text: string) =>
     .map((t) => t.trim())
     .filter(Boolean);
 
-export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): void; onSettings(): void }) {
+export function Library({
+  nav: appNav,
+  notice,
+  onOpen,
+  onSettings,
+}: {
+  nav: Navigation;
+  /** A message from elsewhere in the app, shown once per `at`. */
+  notice?: { text: string; at: number };
+  onOpen(item: LibraryItem): void;
+  onSettings(): void;
+}) {
   const t = useT();
   const updateOffered = useUpdate().available !== null;
   const [search, setSearch] = useState("");
@@ -74,6 +86,10 @@ export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): voi
 
   const report = (e: unknown) => setMessage(String(e));
   const refresh = () => setVersion((v) => v + 1);
+
+  useEffect(() => {
+    if (notice) setMessage(notice.text);
+  }, [notice]);
 
   useEffect(() => {
     captureShortcut()
@@ -256,6 +272,7 @@ export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): voi
     <div className="library">
       <header className="toolbar">
         <h1>Zwopp</h1>
+        <AppNav at="library" nav={appNav} capture={false} />
         {pages.count !== null && <span className="meta">{t.library.count(count)}</span>}
         <span className="spacer" />
         <div className="split-button">

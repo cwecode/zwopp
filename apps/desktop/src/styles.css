@@ -97,6 +97,42 @@ kbd {
   margin: 0;
 }
 
+/* Library, editor and a new screenshot, in every view (AppNav.tsx). */
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.app-nav-views {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.app-nav-views button {
+  border: none;
+  border-radius: 0;
+  white-space: nowrap;
+}
+
+.app-nav-views button + button {
+  border-left: 1px solid var(--border);
+}
+
+.app-nav-views button[aria-current="page"] {
+  background: color-mix(in srgb, var(--selection) 14%, var(--surface));
+  color: var(--selection);
+  font-weight: 600;
+  cursor: default;
+}
+
+.app-nav > button.primary {
+  white-space: nowrap;
+}
+
 .notice {
   display: flex;
   justify-content: space-between;

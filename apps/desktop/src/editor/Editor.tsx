@@ -57,6 +57,7 @@ import {
 import { nextTip, pickTool, readGuide, type Guide } from "./guide";
 import { STACK_MOVES } from "./LayersPanel";
 import { DEFAULT_TOLERANCE, TOLERANCES, type Mask } from "./mask";
+import { AppNav, type Navigation } from "../AppNav";
 import { ContextMenu, Popover } from "./Popover";
 import { ToolRail } from "./ToolRail";
 import { STAMPS } from "./stamps";
@@ -70,7 +71,7 @@ export interface EditorHandle {
 
 interface Props {
   item: LibraryItem;
-  onClose(): void;
+  nav: Navigation;
   /** Switch the editor to another library item. */
   onOpen(item: LibraryItem): void;
   onSaved(item: LibraryItem): void;
@@ -141,7 +142,7 @@ function isTyping(event: KeyboardEvent) {
   return target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
 }
 
-export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, onClose, onOpen, onSaved }, ref) {
+export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, nav, onOpen, onSaved }, ref) {
   const t = useT();
   /** A key combination with this language's key names, e.g. "Strg+Z". */
   const k = (...combo: string[]) => keys(t, combo);
@@ -400,11 +401,6 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
       commit(removeShapes(doc, selectedIds));
     }
     setSelectedIds([]);
-  };
-
-  const close = async () => {
-    await flush();
-    onClose();
   };
 
   const open = async (target: LibraryItem) => {
@@ -754,9 +750,8 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ item, on
   return (
     <div className="editor">
       <header className="toolbar editor-toolbar">
-        <button onClick={close} title={t.editor.backTitle}>
-          ← {t.editor.back}
-        </button>
+        {/* Leaving saves first: App's show() flushes the editor. */}
+        <AppNav at="editor" nav={nav} />
 
         {showColor && (
           <div className="tool-group" aria-label={t.editor.color}>

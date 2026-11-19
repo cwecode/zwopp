@@ -6,13 +6,14 @@ import { useT, type Language } from "../i18n";
 import { parseQuickStyles, readEditorSettings, serializeQuickStyles, type QuickStyle } from "../editor/quickStyles";
 import { StyleSwatch } from "../editor/StyleIcons";
 import { readGuide } from "../editor/guide";
+import { AppNav, type Navigation } from "../AppNav";
 import { HotkeyPicker } from "./HotkeyPicker";
 import { updateEditorSettings, updateSettings, useSettings } from "./store";
 import { checkForUpdate, installUpdate, useUpdate } from "../update/store";
 
 export const LANGUAGES: Language[] = ["de", "en"];
 
-export function SettingsPage({ onClose, onReport }: { onClose(): void; onReport(): void }) {
+export function SettingsPage({ nav, onReport }: { nav: Navigation; onReport(): void }) {
   const t = useT();
   const settings = useSettings();
   const [info, setInfo] = useState<api.SettingsInfo>();
@@ -104,7 +105,7 @@ export function SettingsPage({ onClose, onReport }: { onClose(): void; onReport(
   return (
     <div className="settings">
       <header className="toolbar">
-        <button onClick={onClose}>← {t.settings.back}</button>
+        <AppNav at="other" nav={nav} />
         <h1>{t.settings.title}</h1>
       </header>
 

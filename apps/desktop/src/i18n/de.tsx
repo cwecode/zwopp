@@ -11,6 +11,18 @@ export const de = {
   /** Quotes a short text, e.g. a text box in the layers panel. */
   quote: (text: string) => `„${text}“`,
 
+  /** The navigation at the top of every view of the main window. */
+  nav: {
+    label: "Navigation",
+    capture: "Screenshot",
+    captureTitle: "Neuen Screenshot aufnehmen",
+    library: "Bibliothek",
+    libraryTitle: "Zur Bibliothek",
+    editor: "Editor",
+    editorTitle: "Den zuletzt bearbeiteten Screenshot im Editor öffnen, sonst den neuesten",
+    noScreenshot: "Noch kein Screenshot zum Bearbeiten – nimm erst einen auf.",
+  },
+
   capture: {
     hints: {
       screenshot: "Bereich aufziehen · Klick = Fenster · Umschalt+Klick = ganzer Bildschirm · Esc = Abbrechen",
@@ -135,7 +147,6 @@ export const de = {
 
   settings: {
     title: "Einstellungen",
-    back: "Zurück",
     general: "Allgemein",
     language: "Sprache",
     systemLanguage: "Wie das System",
@@ -280,7 +291,6 @@ export const de = {
   },
 
   editor: {
-    back: "Bibliothek",
     moreTools: (family: string) => `Weitere Werkzeuge: ${family}`,
     newTool: "Neu",
     more: "Mehr",
@@ -290,7 +300,6 @@ export const de = {
     dragOut: "In eine App ziehen",
     share: "Teilen",
     shareTitle: "Kopieren, exportieren oder in eine App ziehen",
-    backTitle: "Zurück zur Bibliothek",
     tools: "Werkzeuge",
     block: "Block",
     makeBlock: "Block bilden",

@@ -82,6 +82,11 @@ editor. The settings turn copying and opening off.
 
 ## The library
 
+The bar at the top of the window has **Library** and **Editor** in every view – the
+library, the editor, the settings and *Report a problem* – and, outside the library,
+**Screenshot** for a new capture. **Editor** opens the screenshot you edited last, or the
+newest one.
+
 - The sidebar on the left shows all screenshots, the **favorites**, the **last 7 days**,
   each **year and month**, and the **applications** they were taken in, with counts. Click
   ▸ to open a year or the applications.

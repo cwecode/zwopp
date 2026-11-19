@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import * as api from "./api";
 import type { LibraryItem } from "./api";
+import type { Navigation } from "./AppNav";
+import { useT } from "./i18n";
 import { Editor, type EditorHandle } from "./editor/Editor";
 import { Library } from "./library/Library";
 import { ReportPage } from "./report/ReportPage";
@@ -16,6 +18,7 @@ type View = { kind: "library" } | api.RequestedView;
 export function App() {
   const [view, setView] = useState<View>({ kind: "library" });
   const editor = useRef<EditorHandle>(null);
+  const t = useT();
   useTrayLanguage();
   const { setupDone } = useSettings();
   /** The first-start setup is showing. */
@@ -54,17 +57,39 @@ export function App() {
     return () => void unlisten.then((fn) => fn());
   }, [show]);
 
+  // The screenshot shown in the editor last, for the editor button.
+  const lastEdited = useRef<LibraryItem | null>(null);
+  useEffect(() => {
+    if (view.kind === "editor") lastEdited.current = view.item;
+  }, [view]);
+  /** Shown in the library when the editor button finds nothing to open. */
+  const [notice, setNotice] = useState<{ text: string; at: number }>();
+
   // A GIF cannot be edited yet; it stays in the library.
   const open = useCallback(
     (item: LibraryItem) => show(item.animationPath ? { kind: "library" } : { kind: "editor", item }),
     [show],
   );
-  const toLibrary = useCallback(() => setView({ kind: "library" }), []);
   // Only refreshes the item while it is still open.
   const onSaved = useCallback(
     (item: LibraryItem) =>
       setView((v) => (v.kind === "editor" && v.item.id === item.id ? { kind: "editor", item } : v)),
     [],
+  );
+
+  const nav: Navigation = useMemo(
+    () => ({
+      library: () => void show({ kind: "library" }),
+      editor: () =>
+        void editorTarget(lastEdited.current)
+          .then((item) => {
+            if (item) return show({ kind: "editor", item });
+            setNotice({ text: t.nav.noScreenshot, at: Date.now() });
+            return show({ kind: "library" });
+          })
+          .catch((e) => console.error("could not open the editor", e)),
+    }),
+    [show, t],
   );
 
   if (welcome) return <WelcomePage onDone={() => setWelcome(false)} />;
@@ -76,16 +101,24 @@ export function App() {
           key={view.item.id}
           ref={editor}
           item={view.item}
-          onClose={toLibrary}
+          nav={nav}
           onOpen={(item) => setView(item.animationPath ? { kind: "library" } : { kind: "editor", item })}
           onSaved={onSaved}
         />
       );
     case "settings":
-      return <SettingsPage onClose={toLibrary} onReport={() => setView({ kind: "report" })} />;
+      return <SettingsPage nav={nav} onReport={() => setView({ kind: "report" })} />;
     case "report":
-      return <ReportPage onClose={toLibrary} />;
+      return <ReportPage nav={nav} />;
     case "library":
-      return <Library onOpen={open} onSettings={() => setView({ kind: "settings" })} />;
+      return <Library nav={nav} notice={notice} onOpen={open} onSettings={() => setView({ kind: "settings" })} />;
   }
+}
+
+/** The screenshot the editor button opens: `last` if it is still in the
+ * library, else the newest one that is not a GIF (those cannot be edited). */
+async function editorTarget(last: LibraryItem | null): Promise<LibraryItem | null> {
+  if (last && (await api.itemPosition(last.id)) !== null) return last;
+  const newest = await api.listItems({}, 0, 50);
+  return newest.find((item) => !item.animationPath) ?? null;
 }

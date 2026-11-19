@@ -7,7 +7,14 @@ offer in the app leaves it out.
 
 ## 1.4.1
 
-New versions are offered more quietly, and AI agents use the command line only.
+Library, editor and a new screenshot are one click away from everywhere, new versions are
+offered more quietly, and AI agents use the command line only.
+
+### Navigation
+
+- Every view of the window – library, editor, settings and *Report a problem* – has
+  **Library** and **Editor** at the top, and outside the library **Screenshot**. **Editor**
+  opens the screenshot you edited last, or the newest one.
 
 ### Command line and AI agents
 

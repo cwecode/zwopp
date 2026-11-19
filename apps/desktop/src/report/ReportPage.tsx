@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import * as api from "../api";
+import { AppNav, type Navigation } from "../AppNav";
 import { useT } from "../i18n";
 import { details, issueUrl, type IssueKind } from "./issue";
 
@@ -7,7 +8,7 @@ import { details, issueUrl, type IssueKind } from "./issue";
  * "Report a problem": shows what would go into an issue, then opens GitHub's
  * form filled in with it. Nothing is sent from Zwopp itself (ADR 0011).
  */
-export function ReportPage({ onClose }: { onClose(): void }) {
+export function ReportPage({ nav }: { nav: Navigation }) {
   const t = useT();
   const [info, setInfo] = useState<api.ReportInfo>();
   const [withLog, setWithLog] = useState(true);
@@ -23,7 +24,7 @@ export function ReportPage({ onClose }: { onClose(): void }) {
   return (
     <div className="settings">
       <header className="toolbar">
-        <button onClick={onClose}>← {t.settings.back}</button>
+        <AppNav at="other" nav={nav} />
         <h1>{t.report.title}</h1>
       </header>
 

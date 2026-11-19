@@ -9,6 +9,17 @@ export const en: Messages = {
   untitled: "Untitled",
   quote: (text: string) => `“${text}”`,
 
+  nav: {
+    label: "Navigation",
+    capture: "Screenshot",
+    captureTitle: "Take a new screenshot",
+    library: "Library",
+    libraryTitle: "Go to the library",
+    editor: "Editor",
+    editorTitle: "Open the screenshot you edited last in the editor, else the newest one",
+    noScreenshot: "No screenshot to edit yet – take one first.",
+  },
+
   capture: {
     hints: {
       screenshot: "Drag to select an area · Click = window · Shift+click = whole screen · Esc = cancel",
@@ -129,7 +140,6 @@ export const en: Messages = {
 
   settings: {
     title: "Settings",
-    back: "Back",
     general: "General",
     language: "Language",
     systemLanguage: "Same as the system",
@@ -273,7 +283,6 @@ export const en: Messages = {
   },
 
   editor: {
-    back: "Library",
     moreTools: (family: string) => `More tools: ${family}`,
     newTool: "New",
     more: "More",
@@ -283,7 +292,6 @@ export const en: Messages = {
     dragOut: "Drag into an app",
     share: "Share",
     shareTitle: "Copy, export or drag into an app",
-    backTitle: "Back to the library",
     tools: "Tools",
     block: "Block",
     makeBlock: "Make block",
