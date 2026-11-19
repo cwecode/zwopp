@@ -1,9 +1,7 @@
-//! What the command line and the MCP server do, on the same code path.
+//! What the commands do.
 
-use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
-use image::{ImageFormat, RgbaImage};
 use serde::Serialize;
 use uuid::Uuid;
 use zwopp_core::capture::{self, DesktopRect, WindowEntry};
@@ -23,7 +21,7 @@ pub enum Target {
     Region(DesktopRect),
 }
 
-/// An item as the command line and agents see it.
+/// An item as the command line shows it.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Item {
@@ -71,7 +69,7 @@ pub fn capture(
     target: &Target,
     title: Option<String>,
     tags: Vec<String>,
-) -> Result<(Item, RgbaImage), String> {
+) -> Result<Item, String> {
     let (image, app) = match target {
         Target::Screen(index) => {
             let index = match index {
@@ -111,7 +109,7 @@ pub fn capture(
             )
             .map_err(err)?;
     }
-    Ok((item.into(), image))
+    Ok(item.into())
 }
 
 /// The topmost window whose title or application contains `query` (any case).
@@ -129,14 +127,9 @@ pub fn find_window(query: &str) -> Result<WindowEntry, String> {
         .ok_or_else(|| format!("no window matches \"{query}\" (see `zwopp windows`)"))
 }
 
-pub fn list(
-    library: &Library,
-    query: &ListQuery,
-    offset: u64,
-    limit: u32,
-) -> Result<Vec<Item>, String> {
+pub fn list(library: &Library, query: &ListQuery, limit: u32) -> Result<Vec<Item>, String> {
     Ok(library
-        .list_page(query, offset, limit)
+        .list_page(query, 0, limit)
         .map_err(err)?
         .into_iter()
         .map(Item::from)
@@ -145,10 +138,6 @@ pub fn list(
 
 pub fn get(library: &Library, id: &str) -> Result<Item, String> {
     Ok(library.get(parse_id(id)?).map_err(err)?.into())
-}
-
-pub fn update(library: &Library, id: &str, update: ItemUpdate) -> Result<Item, String> {
-    Ok(library.update(parse_id(id)?, update).map_err(err)?.into())
 }
 
 /// Writes item `id` to `path`, in the format its extension names (PNG if none).
@@ -176,37 +165,6 @@ pub fn export_library(
         progress,
     )
     .map_err(err)
-}
-
-/// The item as a PNG at most `max_edge` pixels wide or high (a recording's
-/// first frame), e.g. for an agent to look at.
-pub fn preview_png(library: &Library, id: &str, max_edge: u32) -> Result<Vec<u8>, String> {
-    let item = library.get(parse_id(id)?).map_err(err)?;
-    let path = item.render_path.unwrap_or(item.original_path);
-    let image = image::open(&path).map_err(err)?.to_rgba8();
-    png(&image, max_edge)
-}
-
-/// `image` as a PNG at most `max_edge` pixels wide or high.
-pub fn png(image: &RgbaImage, max_edge: u32) -> Result<Vec<u8>, String> {
-    let (w, h) = image.dimensions();
-    let scale = (max_edge as f64 / w.max(h) as f64).min(1.0);
-    let resized;
-    let image = if scale < 1.0 {
-        let (nw, nh) = (
-            ((w as f64 * scale).round() as u32).max(1),
-            ((h as f64 * scale).round() as u32).max(1),
-        );
-        resized = image::imageops::resize(image, nw, nh, image::imageops::FilterType::Triangle);
-        &resized
-    } else {
-        image
-    };
-    let mut bytes = Vec::new();
-    image
-        .write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png)
-        .map_err(err)?;
-    Ok(bytes)
 }
 
 fn parse_id(id: &str) -> Result<Uuid, String> {

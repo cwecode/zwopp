@@ -1,6 +1,6 @@
 //! Platform-independent core of Zwopp.
 //!
-//! Every frontend (desktop UI today; CLI, HTTP API and MCP server later) goes
+//! Every frontend (the desktop UI and the command line) goes
 //! through this crate so that all of them share a single code path.
 
 pub mod archive;

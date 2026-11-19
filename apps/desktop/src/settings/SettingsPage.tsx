@@ -12,12 +12,6 @@ import { checkForUpdate, installUpdate, useUpdate } from "../update/store";
 
 export const LANGUAGES: Language[] = ["de", "en"];
 
-/** Registers Zwopp's MCP server with Claude Code (ADR 0012). */
-const mcpCommand = (exe: string) => `claude mcp add zwopp -- "${exe}" mcp`;
-/** The same for agents configured with JSON (Claude Desktop, Cursor, …). */
-const mcpJson = (exe: string) =>
-  JSON.stringify({ mcpServers: { zwopp: { command: exe, args: ["mcp"] } } });
-
 export function SettingsPage({ onClose, onReport }: { onClose(): void; onReport(): void }) {
   const t = useT();
   const settings = useSettings();
@@ -264,18 +258,6 @@ export function SettingsPage({ onClose, onReport }: { onClose(): void; onReport(
                 <p className="hint">
                   {agents.available ? t.settings.skillHint(agents.skillDir ?? "~/.claude/skills/zwopp") : t.settings.agentsDev}
                 </p>
-              </div>
-              <div className="setting">
-                <span>{t.settings.mcp}</span>
-                <div className="setting-value">
-                  <code className="path">{mcpCommand(agents.executable)}</code>
-                  <button onClick={() => copy(mcpCommand(agents.executable))}>{t.settings.copy}</button>
-                </div>
-                <div className="setting-value">
-                  <code className="path">{mcpJson(agents.executable)}</code>
-                  <button onClick={() => copy(mcpJson(agents.executable))}>{t.settings.copy}</button>
-                </div>
-                <p className="hint">{t.settings.mcpHint}</p>
               </div>
               <div className="setting">
                 <span>{t.settings.commandLine}</span>

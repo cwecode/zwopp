@@ -13,7 +13,7 @@ depend on Zwopp or on reading its code.
 ## Decision
 
 1. **One export of everything** (`archive::export_library` in `zwopp-core`), from
-   *Settings › Library › Export library …*, `zwopp export-library <dir>` and the MCP tool
+   *Settings › Library › Export library …*, `zwopp export-library <dir>` and (until 1.4.1) the MCP tool
    `export_library`. It creates a new folder `Zwopp-Export <date>` (numbered if it exists).
 2. **Layout** (`zwopp-export/1`):
    - `images/<date> <time> <title>.png|gif`: every screenshot as Zwopp shows it

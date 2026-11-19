@@ -7,7 +7,13 @@ offer in the app leaves it out.
 
 ## 1.4.1
 
-New versions are offered more quietly.
+New versions are offered more quietly, and AI agents use the command line only.
+
+### Command line and AI agents
+
+- The MCP server (`zwopp mcp`) is removed again, with its part of the settings. AI agents
+  run Zwopp's command line – Claude Code through the skill – and Zwopp opens no network
+  port and sends nothing anywhere. Agents without a terminal cannot use Zwopp for now.
 
 ### General
 

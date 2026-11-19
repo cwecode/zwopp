@@ -53,10 +53,6 @@ A GIF recording exported as `.gif` stays animated; other formats get its first f
 
 `zwopp open ID` – shows the screenshot in the Zwopp editor (starts Zwopp if needed).
 
-## mcp
-
-`zwopp mcp` – the same as an MCP server over stdio, for agents without a terminal.
-
 ## Exit codes
 
 `0` success, `1` failure (message on stderr), `2` wrong usage.

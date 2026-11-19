@@ -1,10 +1,9 @@
 //! Zwopp from the command line and for AI agents (ADR 0012).
 //!
 //! The app's own executable runs these when it is started with a command
-//! (`zwopp capture …`, `zwopp mcp`), so installing Zwopp is all it takes;
+//! (`zwopp capture …`, `zwopp list`), so installing Zwopp is all it takes;
 //! without one it starts the app as usual.
 
-mod mcp;
 mod ops;
 mod paths;
 
@@ -27,7 +26,6 @@ const COMMANDS: &[&str] = &[
     "windows",
     "monitors",
     "open",
-    "mcp",
     "help",
     "--help",
     "-h",
@@ -48,7 +46,7 @@ pub struct Context {
     name = "zwopp",
     version,
     about = "Zwopp from the command line: capture, find and export screenshots.",
-    after_help = "Without a command, Zwopp starts as usual. `zwopp mcp` serves AI agents (MCP over stdio)."
+    after_help = "Without a command, Zwopp starts as usual."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -125,8 +123,6 @@ enum Command {
     },
     /// Open a screenshot in the Zwopp editor.
     Open { id: String },
-    /// Serve AI agents: an MCP server over stdin/stdout.
-    Mcp,
 }
 
 /// Runs a command if `args` (with the program name first) has one; `None`
@@ -136,9 +132,7 @@ pub fn run_if_command(args: Vec<OsString>, context: &Context) -> Option<i32> {
     if !COMMANDS.contains(&first) {
         return None;
     }
-    if first != "mcp" {
-        attach_console();
-    }
+    attach_console();
     let cli = match Cli::try_parse_from(&args) {
         Ok(cli) => cli,
         Err(e) => {
@@ -174,7 +168,7 @@ fn run(command: Command, context: &Context) -> Result<(), String> {
                 _ => Target::Screen(screen),
             };
             let library = paths::open_library(context.dev)?;
-            let (item, _) = ops::capture(&library, &target, title, tags)?;
+            let item = ops::capture(&library, &target, title, tags)?;
             if let Some(out) = out {
                 ops::export(&library, &item.id.to_string(), &out)?;
             }
@@ -204,7 +198,7 @@ fn run(command: Command, context: &Context) -> Result<(), String> {
                 favorites_only: favorites,
                 ..ListQuery::default()
             };
-            let items = ops::list(&library, &query, 0, limit)?;
+            let items = ops::list(&library, &query, limit)?;
             if json {
                 print_json(&items);
             } else {
@@ -290,11 +284,6 @@ fn run(command: Command, context: &Context) -> Result<(), String> {
                 .args(["--open", &id])
                 .spawn()
                 .map_err(ops::err)?;
-        }
-        Command::Mcp => {
-            let server =
-                mcp::Server::new(paths::open_library(context.dev)?, context.app_exe.clone());
-            server.serve().map_err(ops::err)?;
         }
     }
     Ok(())

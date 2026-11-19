@@ -1,7 +1,18 @@
 # ADR 0012: Command line and MCP server
 
-- Status: accepted
+- Status: accepted; the MCP server (points 3, 5 and 6) removed again, see *Update*
 - Date: 2026-11-19
+
+## Update (2026-11-19): no MCP server
+
+The MCP server is gone again; agents use the command line, Claude Code through the
+skill. Zwopp is meant to stay small, local and easy to check: one way in for agents
+is less code to keep secure and current with a changing protocol, and the command line
+already does everything the tools did except setting a title or tags afterwards.
+Agents without a terminal (Claude Desktop and the like) cannot use Zwopp for now.
+`zwopp mcp`, the MCP part of the settings and the dependencies only it needed
+(`base64`, `image` in `crates/cli`) were removed in 1.4.1. The text below is the
+original decision.
 
 ## Context
 

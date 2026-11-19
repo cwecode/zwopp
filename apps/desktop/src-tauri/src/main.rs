@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    // `zwopp capture …`, `zwopp mcp` and the other commands run without the
+    // `zwopp capture …`, `zwopp list` and the other commands run without the
     // app (ADR 0012); anything else starts it.
     let context = zwopp_cli::Context {
         dev: tauri::is_dev(),

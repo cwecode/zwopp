@@ -27,7 +27,7 @@ the screenshot lands in a **library**, and an **editor** lets you add arrows, ca
 highlights, step numbers, emojis and more.
 
 > **Version 1.4.** Screenshots, panoramas and GIFs, library, the full editor and the
-> settings, updates on request, a command line and MCP server for AI agents, and an
+> settings, updates on request, a command line for scripts and AI agents, and an
 > export of the whole library; the library stays fast with 100 000 screenshots. See the [user guide](docs/user-guide.md), the
 > [feature list](docs/spec/features.md) and the [project plan](docs/PLAN.md) (German).
 
@@ -46,15 +46,14 @@ After that, Zwopp offers new versions itself. All files and checksums are on the
 ### Screenshots for your AI agent
 
 AI agents take screenshots, find them in your library and look at them – "take a
-screenshot of the login dialog and attach it to the issue". On Windows, macOS and Linux,
-*Settings › AI agents and command line* connects them:
+screenshot of the login dialog and attach it to the issue". They run Zwopp's command
+line, on Windows, macOS and Linux; Zwopp opens no network port and sends nothing.
 
-- **Claude Code (recommended): Install skill.** A [skill](skills/zwopp/SKILL.md) tells
-  Claude Code when and how to run Zwopp's command line; it costs context only when it is
-  used. Other tools that read Agent Skills can use [`skills/zwopp`](skills/zwopp) too.
-- **Agents without a terminal (Claude Desktop, Cursor …): MCP.** `zwopp mcp` is an MCP
-  server; the settings show the command and the JSON with the path of your installation,
-  e.g. `claude mcp add zwopp -- "<path to zwopp>" mcp`.
+- **Claude Code: Install skill** in *Settings › AI agents and command line*. A
+  [skill](skills/zwopp/SKILL.md) tells Claude Code when and how to run Zwopp; it costs
+  context only when it is used.
+- **Other agents with a terminal** run the same commands; tools that read Agent Skills
+  can use [`skills/zwopp`](skills/zwopp) too.
 
 Scripts use the same executable: `zwopp capture --window Firefox --out shot.png`,
 `zwopp list --json`, `zwopp export <id> shot.webp` ([more](docs/user-guide.md#command-line-and-ai-agents)).
@@ -208,12 +207,12 @@ npm run dev
 ```
 apps/desktop/          Tauri app: React UI (src/) and Rust shell (src-tauri/)
 crates/core/           zwopp-core: capture, library, export (no UI)
-crates/cli/            zwopp-cli: command line and MCP server (run by the app's executable)
+crates/cli/            zwopp-cli: command line (run by the app's executable)
 docs/                  plan, architecture decisions (adr/), feature spec (spec/)
 ```
 
-All functionality lives in `zwopp-core`; the desktop app, the command line and the MCP
-server are thin layers on top and share the same code path.
+All functionality lives in `zwopp-core`; the desktop app and the command line are thin
+layers on top and share the same code path.
 
 ## Development
 

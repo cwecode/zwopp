@@ -1,6 +1,6 @@
 [package]
 name = "zwopp-cli"
-description = "Command line and MCP server of Zwopp: capture, list and export screenshots from scripts and AI agents."
+description = "Command line of Zwopp: capture, list and export screenshots from scripts and AI agents."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,16 +10,11 @@ publish = false
 
 [dependencies]
 zwopp-core = { path = "../core" }
-base64 = "0.22"
 clap = { version = "4.6", features = ["derive"] }
 dirs = "6"
-image = { version = "0.25", default-features = false, features = ["png"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 uuid = "1"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Console"] }
-
-[dev-dependencies]
-tempfile = "3"

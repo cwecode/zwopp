@@ -169,7 +169,7 @@ Beispiel `document.json`:
 |---|---|
 | **CLI** `zwopp capture --region 0,0,800,600 --out shot.png` | Skripte, CI, Doku‑Automatisierung |
 | **Lokale HTTP‑API** (nur `127.0.0.1`, Token‑Auth, OpenAPI‑Spec) | Integration in andere Tools |
-| **MCP‑Server** | KI‑Agenten (Claude, Cursor …) können Screenshots machen, annotieren, aus der Bibliothek lesen |
+| ~~**MCP‑Server**~~ | Gestrichen (1.4.1): KI‑Agenten nutzen die CLI |
 
 Sicherheit: API standardmäßig **aus**, Opt‑in in den Einstellungen, zufälliges Token, nur Loopback.
 
@@ -257,7 +257,7 @@ eigenen Rechner gebaut wurde, gibt es weder unter Windows (SmartScreen) noch unt
 | **2 – Editor komplett** ✅ | Callouts/Sprechblasen, Schritt‑Nummern, Emojis/Sticker, Lupe, Quick Styles, Fenster‑Capture, Einstellungen, i18n (DE/EN) | Vollständiger Editor |
 | **3 – v1.0 Release** ✅ | Release‑Workflow mit unsignierten Downloads, README (Download + erster Start + Build aus Quellcode), Nutzer‑Doku, Git‑Tag v1.0 | Öffentliches Release mit Downloads für alle OS |
 | *später, optional* | Signing (Windows kostenlos über SignPath, Apple 99 $/Jahr), Auto‑Update, winget/Scoop/Flathub | Sobald es Nutzer gibt |
-| **4 – v2** | Aufnahmemodi 🚧 (Panorama ✅, GIF ✅, Video ⬜, siehe 5.0); CLI ✅ und MCP‑Server ✅ (ADR 0012); HTTP‑API (OpenAPI), Rust‑Renderer (Annotieren ohne Webview), OCR | Automatisierbar |
+| **4 – v2** | Aufnahmemodi 🚧 (Panorama ✅, GIF ✅, Video ⬜, siehe 5.0); CLI ✅ (ADR 0012; MCP‑Server in 1.4.1 wieder entfernt); HTTP‑API (OpenAPI), Rust‑Renderer (Annotieren ohne Webview), OCR | Automatisierbar |
 
 ### 5.0 Aufnahmemodi (Screenshot · Panorama · GIF · Video)
 

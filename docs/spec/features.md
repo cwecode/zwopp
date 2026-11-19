@@ -39,7 +39,7 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned · Phase in brackets.
 | Thumbnails | Small lossy WebP previews, generated in the background, served via `thumb://` | ✅ (1.5) |
 | Large libraries | Virtualized grid and filmstrip, pages loaded on demand; tested with 100 000 items | ✅ (1.5) |
 | Drag out | Drag a card from the library, or the "Ziehen" handle in the editor, into another app; it receives a PNG named after the title (a copy, never the library's file) | ✅ (2) |
-| Export everything | Settings, `zwopp export-library`, MCP: a folder with every image under a readable name, title/tags/date/favorite as XMP in each PNG, `screenshots.json`, `screenshots.csv` and a README (ADR 0013) | ✅ (4) |
+| Export everything | Settings, `zwopp export-library`: a folder with every image under a readable name, title/tags/date/favorite as XMP in each PNG, `screenshots.json`, `screenshots.csv` and a README (ADR 0013) | ✅ (4) |
 | Import | A folder of images or another tool's library | ⬜ |
 | OCR | Search text inside screenshots | ⬜ (v2) |
 
@@ -100,7 +100,7 @@ see [document-format.md](document-format.md). Changes are saved automatically.
 | Copy annotated image to the clipboard | ✅ (1) |
 | Export to file (PNG / JPG / WebP): save dialog in the library preview and the editor (Ctrl+Shift+S), format by file extension, named after the title; JPG puts transparency on white, WebP is lossless | ✅ (2) |
 | CLI: `zwopp capture` (monitor, window by title or app, focused window, rectangle), `list`, `show`, `export`, `windows`, `monitors`, `open`; `--json` for scripts; same executable as the app (ADR 0012) | ✅ (4) |
-| MCP server (`zwopp mcp`): agents take, list, look at, export and tag screenshots, list windows and monitors, open one in the editor; setup in the settings | ✅ (4) |
+| ~~MCP server (`zwopp mcp`)~~: removed again in 1.4.1, agents use the command line (ADR 0012) | ❌ |
 | Claude Code skill (`skills/zwopp`): installed from the settings with this installation's path; recommended for agents with a terminal | ✅ (4) |
 | Terminal setup: the command for each system that makes `zwopp` available (PATH, `/usr/local/bin`, `~/.local/bin`) | ✅ (4) |
 | Annotate from the command line (renderer outside the webview) | ⬜ |
