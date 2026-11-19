@@ -19,7 +19,7 @@ use zwopp_core::export::{self, ExportFormat};
 use zwopp_core::library::{ItemUpdate, Library, LibraryItem, ListQuery, Overview};
 use zwopp_core::settings::Settings;
 
-use crate::{AppState, capture, main_window, recording, report, settings, tray, update};
+use crate::{AppState, agents, capture, main_window, recording, report, settings, tray, update};
 
 type CmdResult<T> = Result<T, String>;
 
@@ -90,13 +90,23 @@ pub async fn start_recording(
     recording::start(&app, rect, mode).await
 }
 
-/// The app's executable, for the command line and MCP setup in the settings.
+/// How AI agents and the terminal reach Zwopp (Settings › AI agents).
 #[tauri::command]
-pub fn executable_path() -> CmdResult<String> {
-    Ok(std::env::current_exe()
-        .map_err(err)?
-        .to_string_lossy()
-        .into_owned())
+pub fn agent_setup() -> agents::AgentSetup {
+    agents::setup()
+}
+
+/// Installs the Claude Code skill, with this executable's path.
+#[tauri::command]
+pub fn install_skill() -> CmdResult<agents::AgentSetup> {
+    agents::install_skill()?;
+    Ok(agents::setup())
+}
+
+#[tauri::command]
+pub fn remove_skill() -> CmdResult<agents::AgentSetup> {
+    agents::remove_skill()?;
+    Ok(agents::setup())
 }
 
 /// What a problem report would contain (shown before anything is opened).

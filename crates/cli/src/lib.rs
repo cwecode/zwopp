@@ -303,13 +303,20 @@ fn print_json(value: &impl serde::Serialize) {
 }
 
 /// The app is a GUI program on Windows, without a console of its own; a
-/// command writes to the terminal it was started from.
+/// command started from a terminal writes to that terminal. Output that is
+/// already redirected (a script, an agent reading a pipe) stays where it goes.
 #[cfg(windows)]
 fn attach_console() {
-    use windows_sys::Win32::System::Console::{ATTACH_PARENT_PROCESS, AttachConsole};
-    // SAFETY: only attaches this process to its parent's console, if any.
+    use windows_sys::Win32::System::Console::{
+        ATTACH_PARENT_PROCESS, AttachConsole, GetStdHandle, STD_OUTPUT_HANDLE,
+    };
+    // SAFETY: GetStdHandle only reads this process's standard handle;
+    // AttachConsole only attaches it to its parent's console, if any.
     unsafe {
-        AttachConsole(ATTACH_PARENT_PROCESS);
+        let stdout = GetStdHandle(STD_OUTPUT_HANDLE);
+        if stdout.is_null() || stdout == windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE {
+            AttachConsole(ATTACH_PARENT_PROCESS);
+        }
     }
 }
 

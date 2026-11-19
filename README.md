@@ -22,14 +22,16 @@ After that, Zwopp offers new versions itself. All files and checksums are on the
 
 ### Screenshots for your AI agent
 
-Zwopp is also an MCP server: Claude Code, Cursor and other agents take screenshots, find
-them in your library and look at them – "take a screenshot of the login dialog and attach
-it to the issue". *Settings › AI agents and command line* shows the one command to connect
-it, with the path of your installation:
+AI agents take screenshots, find them in your library and look at them – "take a
+screenshot of the login dialog and attach it to the issue". On Windows, macOS and Linux,
+*Settings › AI agents and command line* connects them:
 
-```bash
-claude mcp add zwopp -- "<path to zwopp.exe>" mcp
-```
+- **Claude Code (recommended): Install skill.** A [skill](skills/zwopp/SKILL.md) tells
+  Claude Code when and how to run Zwopp's command line; it costs context only when it is
+  used. Other tools that read Agent Skills can use [`skills/zwopp`](skills/zwopp) too.
+- **Agents without a terminal (Claude Desktop, Cursor …): MCP.** `zwopp mcp` is an MCP
+  server; the settings show the command and the JSON with the path of your installation,
+  e.g. `claude mcp add zwopp -- "<path to zwopp>" mcp`.
 
 Scripts use the same executable: `zwopp capture --window Firefox --out shot.png`,
 `zwopp list --json`, `zwopp export <id> shot.webp` ([more](docs/user-guide.md#command-line-and-ai-agents)).

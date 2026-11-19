@@ -184,8 +184,10 @@ Open them with ⚙ in the library or **Settings** in the tray menu.
 
 ## Command line and AI agents
 
-The Zwopp executable also takes commands. *Settings › AI agents and command line* shows
-its path on your system (on Windows `zwopp.exe` in the installation folder).
+The Zwopp executable also takes commands, on Windows, macOS and Linux. To type `zwopp` in
+a terminal, run the command *Settings › AI agents and command line › Terminal* shows for
+your system once (Windows: adds Zwopp's folder to your PATH; macOS: a link in
+`/usr/local/bin`; Linux: a link in `~/.local/bin`, not needed for the .deb and .rpm).
 
 | Command | Does |
 |---|---|
@@ -199,12 +201,19 @@ its path on your system (on Windows `zwopp.exe` in the installation folder).
 
 `--json` gives output for scripts; `zwopp --help` and `zwopp capture --help` explain more.
 
-**AI agents (MCP):** Connect Zwopp to Claude Code with the command from the settings,
-`claude mcp add zwopp -- "<path to zwopp.exe>" mcp`; other clients (Claude Desktop,
-Cursor …) take the JSON shown there. The agent can then take screenshots of the screen,
-a window or a region, search your library, look at a screenshot, export or tag it, and
-open one in the editor for you to annotate. Your agent asks before it uses a tool; every
-screenshot it takes lands in your library like your own, where you can delete it.
+**AI agents.** Two ways, both in *Settings › AI agents and command line*:
+
+- **Claude Code: Install skill** (recommended). Puts a short guide into
+  `~/.claude/skills/zwopp` that tells Claude Code when and how to run Zwopp, with the path
+  of your installation. It takes context only when a task needs screenshots. **Update**
+  after moving Zwopp, **Remove** takes it out again.
+- **Agents without a terminal** (Claude Desktop, Cursor …): MCP. Copy the `claude mcp add …`
+  command or the JSON for the agent's configuration.
+
+The agent can then take screenshots of the screen, a window or a region, search your
+library, look at a screenshot, export or tag it, and open one in the editor for you to
+annotate. Your agent asks before it runs Zwopp; every screenshot it takes lands in your
+library like your own, where you can delete it.
 
 ## Where Zwopp keeps its files
 

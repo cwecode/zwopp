@@ -98,5 +98,7 @@ see [document-format.md](document-format.md). Changes are saved automatically.
 | Export to file (PNG / JPG / WebP): save dialog in the library preview and the editor (Ctrl+Shift+S), format by file extension, named after the title; JPG puts transparency on white, WebP is lossless | ✅ (2) |
 | CLI: `zwopp capture` (monitor, window by title or app, focused window, rectangle), `list`, `show`, `export`, `windows`, `monitors`, `open`; `--json` for scripts; same executable as the app (ADR 0012) | ✅ (4) |
 | MCP server (`zwopp mcp`): agents take, list, look at, export and tag screenshots, list windows and monitors, open one in the editor; setup in the settings | ✅ (4) |
+| Claude Code skill (`skills/zwopp`): installed from the settings with this installation's path; recommended for agents with a terminal | ✅ (4) |
+| Terminal setup: the command for each system that makes `zwopp` available (PATH, `/usr/local/bin`, `~/.local/bin`) | ✅ (4) |
 | Annotate from the command line (renderer outside the webview) | ⬜ |
 | Local HTTP API (loopback, token, OpenAPI) | ⬜ (v2) |

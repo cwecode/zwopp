@@ -32,9 +32,10 @@ export function SettingsPage({ onClose, onReport }: { onClose(): void; onReport(
   const [version, setVersion] = useState<string>();
   const [updatesEnabled, setUpdatesEnabled] = useState(false);
   const [checking, setChecking] = useState(false);
-  const [exe, setExe] = useState<string>();
+  const [agents, setAgents] = useState<api.AgentSetup>();
 
   const report = (e: unknown) => setMessage(String(e));
+  const changeAgents = (change: Promise<api.AgentSetup>) => change.then(setAgents).catch(report);
   const copy = (text: string) =>
     navigator.clipboard
       .writeText(text)
@@ -45,7 +46,7 @@ export function SettingsPage({ onClose, onReport }: { onClose(): void; onReport(
     // The system keeps this, not settings.json: it can also be turned off there.
     api.getAutostart().then(setAutostart).catch(report);
     getVersion().then(setVersion).catch(report);
-    api.executablePath().then(setExe).catch(report);
+    api.agentSetup().then(setAgents).catch(report);
     api
       .updateStatus()
       .then((status) => setUpdatesEnabled(status.enabled))
@@ -261,29 +262,57 @@ export function SettingsPage({ onClose, onReport }: { onClose(): void; onReport(
         <section>
           <h2>{t.settings.agents}</h2>
           <p className="hint">{t.settings.agentsHint}</p>
-          {exe && (
+          {agents && (
             <>
               <div className="setting">
-                <span>{t.settings.claudeCode}</span>
+                <span>{t.settings.skill}</span>
                 <div className="setting-value">
-                  <code className="path">{mcpCommand(exe)}</code>
-                  <button onClick={() => copy(mcpCommand(exe))}>{t.settings.copy}</button>
+                  {agents.skillInstalled ? (
+                    <>
+                      <span>{t.settings.skillInstalled}</span>
+                      <button disabled={!agents.available} onClick={() => changeAgents(api.installSkill())}>
+                        {t.settings.skillUpdate}
+                      </button>
+                      <button onClick={() => changeAgents(api.removeSkill())}>{t.settings.skillRemove}</button>
+                    </>
+                  ) : (
+                    <button
+                      className="primary"
+                      disabled={!agents.available}
+                      onClick={() => changeAgents(api.installSkill())}
+                    >
+                      {t.settings.skillInstall}
+                    </button>
+                  )}
                 </div>
+                <p className="hint">
+                  {agents.available ? t.settings.skillHint(agents.skillDir ?? "~/.claude/skills/zwopp") : t.settings.agentsDev}
+                </p>
               </div>
               <div className="setting">
-                <span>{t.settings.otherAgents}</span>
+                <span>{t.settings.mcp}</span>
                 <div className="setting-value">
-                  <code className="path">{mcpJson(exe)}</code>
-                  <button onClick={() => copy(mcpJson(exe))}>{t.settings.copy}</button>
+                  <code className="path">{mcpCommand(agents.executable)}</code>
+                  <button onClick={() => copy(mcpCommand(agents.executable))}>{t.settings.copy}</button>
                 </div>
-                <p className="hint">{t.settings.otherAgentsHint}</p>
+                <div className="setting-value">
+                  <code className="path">{mcpJson(agents.executable)}</code>
+                  <button onClick={() => copy(mcpJson(agents.executable))}>{t.settings.copy}</button>
+                </div>
+                <p className="hint">{t.settings.mcpHint}</p>
               </div>
               <div className="setting">
                 <span>{t.settings.commandLine}</span>
-                <div className="setting-value">
-                  <code className="path">{`"${exe}" capture --window Firefox --out shot.png`}</code>
-                </div>
-                <p className="hint">{t.settings.commandLineHint}</p>
+                {agents.terminalSetup ? (
+                  <div className="setting-value">
+                    <code className="path">{agents.terminalSetup}</code>
+                    <button onClick={() => copy(agents.terminalSetup!)}>{t.settings.copy}</button>
+                  </div>
+                ) : null}
+                <p className="hint">
+                  {agents.terminalSetup ? t.settings.terminalSetupHint : t.settings.terminalReady}{" "}
+                  {t.settings.commandLineHint}
+                </p>
               </div>
             </>
           )}

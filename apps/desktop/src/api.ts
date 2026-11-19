@@ -101,8 +101,22 @@ export const restart = () => invoke<void>("restart");
 export const getAutostart = () => invoke<boolean | null>("autostart");
 export const setAutostart = (enabled: boolean) => invoke<void>("set_autostart", { enabled });
 
-/** zwopp.exe (or the app on macOS/Linux), for the command line and MCP setup. */
-export const executablePath = () => invoke<string>("executable_path");
+/** How AI agents and the terminal reach Zwopp (`agents::AgentSetup`). */
+export interface AgentSetup {
+  /** False in a development build, which installs no skill. */
+  available: boolean;
+  /** The executable agents and scripts run. */
+  executable: string;
+  /** Where the Claude Code skill goes. */
+  skillDir: string | null;
+  skillInstalled: boolean;
+  /** Makes `zwopp` a terminal command on this system; null where it already is. */
+  terminalSetup: string | null;
+}
+export const agentSetup = () => invoke<AgentSetup>("agent_setup");
+/** Installs the Claude Code skill with this executable's path. */
+export const installSkill = () => invoke<AgentSetup>("install_skill");
+export const removeSkill = () => invoke<AgentSetup>("remove_skill");
 
 /** What a problem report can contain (`report::ReportInfo`). */
 export interface ReportInfo {

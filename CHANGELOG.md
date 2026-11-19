@@ -10,9 +10,11 @@ from its section here, so each release starts with a `## <version>` heading.
 - `zwopp capture` takes a screenshot without the overlay – a monitor, a window by its
   title or application, the focused window or a rectangle – and saves it to the library;
   `zwopp list`, `show`, `export`, `windows`, `monitors` and `open` go with it.
-- `zwopp mcp` is an MCP server: AI agents such as Claude Code take screenshots, find and
-  look at them in your library, export or tag them, and open one in the editor for you.
-  *Settings › AI agents and command line* shows how to connect it.
+- AI agents take screenshots, find and look at them in your library, export or tag them,
+  and open one in the editor for you. *Settings › AI agents and command line*: **Install
+  skill** for Claude Code, or connect any other agent through MCP (`zwopp mcp`).
+- The settings also show, for Windows, macOS and Linux, the command that makes `zwopp`
+  available in the terminal.
 - The library shows screenshots added this way when its window comes back into view.
 
 ## 1.3.1

@@ -6,7 +6,10 @@ fn main() {
     // app (ADR 0012); anything else starts it.
     let context = zwopp_cli::Context {
         dev: tauri::is_dev(),
-        app_exe: std::env::current_exe().ok(),
+        // An AppImage runs from a temporary mount; the file itself stays.
+        app_exe: std::env::var_os("APPIMAGE")
+            .map(Into::into)
+            .or_else(|| std::env::current_exe().ok()),
     };
     if let Some(code) = zwopp_cli::run_if_command(std::env::args_os().collect(), &context) {
         std::process::exit(code);

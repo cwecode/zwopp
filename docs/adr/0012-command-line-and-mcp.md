@@ -36,9 +36,19 @@ such as OpenScreen already ship a CLI and an MCP server.
    `ZWOPP_LIBRARY_DIR` variable, the library folder from `settings.json`, or the default
    in the data folder (`.dev` for a development build, ADR 0008). SQLite in WAL mode lets
    both write; the library refreshes when its window comes back into focus.
-5. **Settings › AI agents and command line** shows the commands with the real path of
-   the executable, to copy: `claude mcp add zwopp -- "<exe>" mcp` and the JSON for other
-   clients.
+5. **A skill for Claude Code, recommended over MCP there.** Agents with a terminal run
+   the command line directly; a skill (`skills/zwopp/SKILL.md`, Agent Skills format, with
+   `reference.md` loaded only when needed) tells them when and how, and costs context only
+   when used, while an MCP server's tool descriptions load into every session. MCP stays
+   for agents without a terminal. *Install skill* in the settings writes it to
+   `~/.claude/skills/zwopp` with this installation's path, so the agent need not search.
+6. **Settings › AI agents and command line** offers both ways side by side, with the real
+   path of the executable: the skill, `claude mcp add zwopp -- "<exe>" mcp` and the JSON
+   for other clients, and the command that makes `zwopp` a terminal command once, for
+   each system (Windows: the user's PATH; macOS: a link in `/usr/local/bin`; Linux: a link
+   in `~/.local/bin`, not needed for the packages). Zwopp does not change the PATH itself:
+   that would work on one system only, and agents get the full path anyway. An AppImage
+   reports its own file (`$APPIMAGE`), not its temporary mount.
 
 ## Consequences
 

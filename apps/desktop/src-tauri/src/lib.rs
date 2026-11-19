@@ -1,3 +1,4 @@
+mod agents;
 mod capture;
 mod commands;
 mod main_window;
@@ -240,7 +241,9 @@ pub fn run() {
             commands::start_recording,
             commands::stop_recording,
             commands::cancel_recording,
-            commands::executable_path,
+            commands::agent_setup,
+            commands::install_skill,
+            commands::remove_skill,
             commands::report_info,
             commands::open_issue,
             commands::open_log_folder,
