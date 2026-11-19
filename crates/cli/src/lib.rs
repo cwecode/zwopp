@@ -23,6 +23,7 @@ const COMMANDS: &[&str] = &[
     "list",
     "show",
     "export",
+    "export-library",
     "windows",
     "monitors",
     "open",
@@ -105,6 +106,13 @@ enum Command {
     },
     /// Save a screenshot as a file (PNG, JPG, WebP or GIF by extension).
     Export { id: String, file: PathBuf },
+    /// Export the whole library into a new folder in DIR: images with readable names
+    /// and XMP metadata, screenshots.json, screenshots.csv and a README.
+    ExportLibrary {
+        dir: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
     /// List the visible windows, topmost first.
     Windows {
         #[arg(long)]
@@ -224,6 +232,20 @@ fn run(command: Command, context: &Context) -> Result<(), String> {
         Command::Export { id, file } => {
             let written = ops::export(&paths::open_library(context.dev)?, &id, &file)?;
             println!("{}", written.display());
+        }
+        Command::ExportLibrary { dir, json } => {
+            let library = paths::open_library(context.dev)?;
+            let export = ops::export_library(&library, &dir, |done, total| {
+                if !json && (done % 100 == 0 || done == total) {
+                    eprint!("\r{done}/{total}");
+                }
+            })?;
+            if json {
+                print_json(&export);
+            } else {
+                eprintln!();
+                println!("{} screenshots → {}", export.count, export.dir.display());
+            }
         }
         Command::Windows { json } => {
             let windows = capture::list_windows().map_err(ops::err)?;

@@ -43,13 +43,13 @@ use crate::{Error, Result};
 const DATABASE: &str = "library.db";
 const ORIGINAL: &str = "original.png";
 const METADATA: &str = "item.json";
-const DOCUMENT: &str = "document.json";
+pub(crate) const DOCUMENT: &str = "document.json";
 const RENDER: &str = "render.png";
 const ANIMATION: &str = "animation.gif";
 const THUMB: &str = "thumb.webp";
 /// PNG thumbnails written before version 0.2; replaced in the background.
 const LEGACY_THUMB: &str = "thumb.png";
-const ASSETS: &str = "assets";
+pub(crate) const ASSETS: &str = "assets";
 /// Folder of application icons, next to `items`; one `<name>.png` each.
 const ICONS: &str = "icons";
 
@@ -605,7 +605,7 @@ impl Library {
         self.items_dir.join(id.to_string())
     }
 
-    fn existing_dir(&self, id: Uuid) -> Result<PathBuf> {
+    pub(crate) fn existing_dir(&self, id: Uuid) -> Result<PathBuf> {
         let dir = self.dir(id);
         if dir.is_dir() {
             Ok(dir)

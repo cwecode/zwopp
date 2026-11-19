@@ -101,6 +101,15 @@ export const restart = () => invoke<void>("restart");
 export const getAutostart = () => invoke<boolean | null>("autostart");
 export const setAutostart = (enabled: boolean) => invoke<void>("set_autostart", { enabled });
 
+/** A finished library export (`archive::LibraryExport`). */
+export interface LibraryExport {
+  dir: string;
+  count: number;
+}
+/** Asks for a folder and exports the whole library there; null if cancelled. Progress: `library:export-progress`. */
+export const exportLibrary = (title: string) => invoke<LibraryExport | null>("export_library", { title });
+export const revealFolder = (path: string) => invoke<void>("reveal_folder", { path });
+
 /** How AI agents and the terminal reach Zwopp (`agents::AgentSetup`). */
 export interface AgentSetup {
   /** False in a development build, which installs no skill. */
@@ -175,6 +184,8 @@ export const captureLayout = () => invoke<CaptureLayout>("capture_layout");
 /** Saves `rect` (desktop pixels, may span monitors) as a new library item. */
 export const finishCapture = (rect: Rect) => invoke<LibraryItem>("finish_capture", { rect });
 export const cancelCapture = () => invoke<void>("cancel_capture");
+/** Ends the capture and opens the library instead, or with `editor` the newest screenshot in the editor. */
+export const captureToLibrary = (editor = false) => invoke<void>("capture_to_library", { editor });
 
 /** What the capture overlay takes: a still screenshot or a recording of the region. */
 export type CaptureMode = "screenshot" | "panorama" | "gif";

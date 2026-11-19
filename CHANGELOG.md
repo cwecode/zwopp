@@ -17,6 +17,17 @@ from its section here, so each release starts with a `## <version>` heading.
   available in the terminal.
 - The library shows screenshots added this way when its window comes back into view.
 
+### Library
+
+- Export everything (*Settings › Library*, or `zwopp export-library`): a folder any
+  software understands – every image with a readable name and its title, tags, date and
+  favorite as XMP metadata, plus `screenshots.json`, `screenshots.csv` and a README.
+
+### Capture
+
+- The capture's mode bar has **Library** and **Editor** (the newest screenshot), so one
+  hotkey reaches the whole app.
+
 ## 1.3.1
 
 The first update that arrives through Zwopp itself.

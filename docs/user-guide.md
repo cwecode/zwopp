@@ -65,7 +65,8 @@ The bar at the bottom of the screen switches the **mode** (also with ← / → o
   GIF, at most 60 seconds. Copy it (Windows), drag it or export it to send it; it stays
   animated. GIFs cannot be edited yet.
 
-The mode stays for the next capture.
+The mode stays for the next capture. On the right of the bar, **Library** and **Editor**
+(the newest screenshot) leave the capture for the app: one hotkey gets you everywhere.
 
 A magnifier at the cursor helps to hit the exact pixel. For menus that close when you
 press a key, use a delay: **Take screenshot with delay** in the tray menu or the delay
@@ -195,6 +196,7 @@ your system once (Windows: adds Zwopp's folder to your PATH; macOS: a link in
 | `zwopp list` | The newest screenshots; `--search`, `--app`, `--favorites`, `-n 50` |
 | `zwopp show ID` | One screenshot's details |
 | `zwopp export ID file.png` | Saves it as PNG, JPG, WebP or GIF (by the extension) |
+| `zwopp export-library FOLDER` | Exports the whole library (see *Where Zwopp keeps its files*) |
 | `zwopp windows`, `zwopp monitors` | What `capture` can take |
 | `zwopp open ID` | Opens it in the editor |
 | `zwopp mcp` | The MCP server for AI agents (below) |
@@ -221,6 +223,12 @@ library like your own, where you can delete it.
 |---|---|---|---|
 | Library (default) | `%APPDATA%\digital.weier.zwopp\library` | `~/Library/Application Support/digital.weier.zwopp/library` | `~/.local/share/digital.weier.zwopp/library` |
 | Settings | `%APPDATA%\digital.weier.zwopp\settings.json` | `~/Library/Application Support/digital.weier.zwopp/settings.json` | `~/.config/digital.weier.zwopp/settings.json` |
+
+**Export everything:** *Settings › Library › Export library …* writes a folder any
+software understands: every screenshot with a readable name (`2026-11-03 18-10-35
+Login error.png`), title, tags, date and favorite (as 5 stars) stored in the images as
+XMP metadata, plus `screenshots.json`, `screenshots.csv` and a README. Use it for backups
+or to move to other software. From a terminal: `zwopp export-library <folder>`.
 
 Back up the library folder to keep your screenshots. Uninstalling Zwopp keeps it,
 unless you tell the Windows uninstaller to delete the app data.

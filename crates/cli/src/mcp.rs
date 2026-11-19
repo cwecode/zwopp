@@ -152,6 +152,14 @@ impl Server {
                     update,
                 )?)])
             }
+            "export_library" => {
+                let path = PathBuf::from(str_arg("path").ok_or("missing argument: path")?);
+                if !path.is_absolute() {
+                    return Err("path must be absolute".into());
+                }
+                let export = ops::export_library(&self.library, &path, |_, _| {})?;
+                Ok(vec![json_text(&export)])
+            }
             "list_windows" => Ok(vec![json_text(&capture::list_windows().map_err(ops::err)?)]),
             "list_monitors" => Ok(vec![json_text(&capture::monitors().map_err(ops::err)?)]),
             "open_in_editor" => {
@@ -279,6 +287,15 @@ fn tools() -> Value {
                     "favorite": { "type": "boolean" }
                 },
                 "required": ["id"]
+            }
+        },
+        {
+            "name": "export_library",
+            "description": "Exports the user's whole Zwopp library into a new folder in the given folder: every screenshot as PNG/GIF with a readable name (title, tags and date as XMP), screenshots.json, screenshots.csv and a README. For moving to other software or backups; ask the user first.",
+            "inputSchema": {
+                "type": "object",
+                "properties": { "path": { "type": "string", "description": "Absolute path of the folder to create the export in." } },
+                "required": ["path"]
             }
         },
         {

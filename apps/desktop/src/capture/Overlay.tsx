@@ -4,6 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   cancelCapture,
   captureLayout,
+  captureToLibrary,
   finishCapture,
   overlayFrame,
   startRecording,
@@ -315,6 +316,14 @@ export function Overlay({ index }: { index: number }) {
             <span aria-hidden="true">🎬</span> {t.capture.video}
           </button>
           <span className="overlay-modes-keys">{t.capture.modeKeys}</span>
+          <span className="overlay-modes-divider" aria-hidden="true" />
+          {/* One hotkey reaches everything: from here to the library and the editor. */}
+          <button title={t.capture.toLibraryTitle} onClick={() => void captureToLibrary()}>
+            <span aria-hidden="true">📚</span> {t.capture.toLibrary}
+          </button>
+          <button title={t.capture.toEditorTitle} onClick={() => void captureToLibrary(true)}>
+            <span aria-hidden="true">✏️</span> {t.capture.toEditor}
+          </button>
         </div>
       )}
       {pointer && !selection && (

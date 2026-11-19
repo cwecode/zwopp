@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
+import { listen } from "@tauri-apps/api/event";
 import * as api from "../api";
 import { formatAccelerator, useT, type Language } from "../i18n";
 import { parseQuickStyles, readEditorSettings, serializeQuickStyles, type QuickStyle } from "../editor/quickStyles";
@@ -36,6 +37,26 @@ export function SettingsPage({ onClose, onReport }: { onClose(): void; onReport(
 
   const report = (e: unknown) => setMessage(String(e));
   const changeAgents = (change: Promise<api.AgentSetup>) => change.then(setAgents).catch(report);
+
+  /** [done, total] while the library is exported. */
+  const [exportProgress, setExportProgress] = useState<[number, number]>();
+  const [exported, setExported] = useState<string>();
+  const exportAll = async () => {
+    const unlisten = await listen<[number, number]>("library:export-progress", (e) => setExportProgress(e.payload));
+    setExportProgress([0, 0]);
+    try {
+      const result = await api.exportLibrary(t.settings.exportLibraryDialog);
+      if (result) {
+        setExported(result.dir);
+        setMessage(t.settings.exportedLibrary(result.count, result.dir));
+      }
+    } catch (e) {
+      report(e);
+    } finally {
+      unlisten();
+      setExportProgress(undefined);
+    }
+  };
   const copy = (text: string) =>
     navigator.clipboard
       .writeText(text)
@@ -351,6 +372,20 @@ export function SettingsPage({ onClose, onReport }: { onClose(): void; onReport(
                 </button>
               </p>
             )}
+          </div>
+          <div className="setting">
+            <span>{t.settings.exportLibrary}</span>
+            <div className="setting-value">
+              <button disabled={exportProgress !== undefined} onClick={exportAll}>
+                {exportProgress
+                  ? t.settings.exporting(exportProgress[0], exportProgress[1])
+                  : t.settings.exportLibraryButton}
+              </button>
+              {exported && (
+                <button onClick={() => api.revealFolder(exported).catch(report)}>{t.settings.showExport}</button>
+              )}
+            </div>
+            <p className="hint">{t.settings.exportLibraryHint}</p>
           </div>
         </section>
 

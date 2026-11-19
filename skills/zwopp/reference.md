@@ -37,6 +37,12 @@ first. The search matches title and tags, every word, also parts of words.
 `zwopp export ID FILE` – writes PNG, JPG, WebP or GIF by the extension (PNG if none).
 A GIF recording exported as `.gif` stays animated; other formats get its first frame.
 
+## export-library
+
+`zwopp export-library DIR [--json]` – exports the whole library into a new folder in
+`DIR`: every image with a readable name (title, tags and date as XMP),
+`screenshots.json`, `screenshots.csv` and a README. Only when the user asks for it.
+
 ## windows, monitors
 
 `zwopp windows [--json]` – visible windows, topmost first: `id`, `title`, `app`,

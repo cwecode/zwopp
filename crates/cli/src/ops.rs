@@ -162,6 +162,22 @@ pub fn export(library: &Library, id: &str, path: &Path) -> Result<PathBuf, Strin
     Ok(path)
 }
 
+/// Exports the whole library into a new folder in `parent` (ADR 0013).
+pub fn export_library(
+    library: &Library,
+    parent: &Path,
+    progress: impl FnMut(usize, usize),
+) -> Result<zwopp_core::archive::LibraryExport, String> {
+    std::fs::create_dir_all(parent).map_err(err)?;
+    zwopp_core::archive::export_library(
+        library,
+        parent,
+        concat!("Zwopp ", env!("CARGO_PKG_VERSION")),
+        progress,
+    )
+    .map_err(err)
+}
+
 /// The item as a PNG at most `max_edge` pixels wide or high (a recording's
 /// first frame), e.g. for an agent to look at.
 pub fn preview_png(library: &Library, id: &str, max_edge: u32) -> Result<Vec<u8>, String> {

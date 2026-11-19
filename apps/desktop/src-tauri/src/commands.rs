@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use serde::Serialize;
 use tauri::ipc::{InvokeBody, Request, Response};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_autostart::ManagerExt as _;
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::DialogExt;
@@ -79,6 +79,37 @@ pub async fn cancel_capture(app: AppHandle) {
     capture::finish(&app);
 }
 
+/// Leaves the capture for the library (`editor`: the newest screenshot in the
+/// editor), so one hotkey reaches everything.
+#[tauri::command]
+pub async fn capture_to_library(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    editor: bool,
+) -> CmdResult<()> {
+    capture::finish(&app);
+    let newest = if editor {
+        state
+            .library
+            .list_page(&ListQuery::default(), 0, 1)
+            .map_err(err)?
+            .into_iter()
+            .next()
+    } else {
+        None
+    };
+    match newest {
+        Some(item) => main_window::show_view(
+            &app,
+            main_window::View::Editor {
+                item: Box::new(item),
+            },
+        ),
+        None => main_window::show(&app),
+    }
+    Ok(())
+}
+
 /// Starts a panorama or GIF recording of `rect` (desktop pixels) chosen in
 /// the capture overlay. Async: it creates windows.
 #[tauri::command]
@@ -88,6 +119,45 @@ pub async fn start_recording(
     mode: recording::Mode,
 ) -> CmdResult<()> {
     recording::start(&app, rect, mode).await
+}
+
+/// Asks for a folder and exports the whole library into a new folder there
+/// (ADR 0013), with progress as `library:export-progress` ([done, total]).
+/// `None` if the dialog was cancelled.
+#[tauri::command]
+pub async fn export_library(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    title: String,
+) -> CmdResult<Option<zwopp_core::archive::LibraryExport>> {
+    let mut dialog = app.dialog().file().set_title(title);
+    if let Ok(documents) = app.path().document_dir() {
+        dialog = dialog.set_directory(documents);
+    }
+    let chosen = tauri::async_runtime::spawn_blocking(move || dialog.blocking_pick_folder())
+        .await
+        .map_err(err)?;
+    let Some(parent) = chosen.and_then(|p| p.into_path().ok()) else {
+        return Ok(None);
+    };
+    let exported_by = format!("{} {}", crate::app_name(&app), app.package_info().version);
+    let progress = app.clone();
+    blocking(&state, move |library| {
+        zwopp_core::archive::export_library(library, &parent, &exported_by, |done, total| {
+            if done % 50 == 0 || done == total {
+                let _ = progress.emit("library:export-progress", (done, total));
+            }
+        })
+    })
+    .await
+    .map(Some)
+}
+
+/// Shows a folder in the file manager, e.g. an export.
+#[tauri::command]
+pub fn reveal_folder(app: AppHandle, path: String) -> CmdResult<()> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener().open_path(path, None::<&str>).map_err(err)
 }
 
 /// How AI agents and the terminal reach Zwopp (Settings › AI agents).
