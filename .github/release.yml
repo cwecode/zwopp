@@ -1,0 +1,22 @@
+# Categories for GitHub's generated release notes. The release workflow appends
+# them below the notes from CHANGELOG.md: merged pull requests by label, new
+# contributors and the "Full Changelog" compare link.
+changelog:
+  exclude:
+    labels:
+      - dependencies
+      - github_actions
+    authors:
+      - dependabot
+      - dependabot[bot]
+  categories:
+    - title: New features
+      labels: [enhancement]
+    - title: Fixes
+      labels: [bug, regression]
+    - title: Accessibility
+      labels: [accessibility]
+    - title: Documentation
+      labels: [documentation]
+    - title: Other changes
+      labels: ["*"]

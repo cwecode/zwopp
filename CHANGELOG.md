@@ -1,7 +1,9 @@
 # Changelog
 
 All notable changes to Zwopp. The release workflow takes the notes of a version
-from its section here, so each release starts with a `## <version>` heading.
+from its section here, so each release starts with a `## <version>` heading. A picture
+on a line of its own (`![…](docs/media/…)`) shows on the release page; the update
+offer in the app leaves it out.
 
 ## Unreleased
 

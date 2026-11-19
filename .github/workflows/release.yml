@@ -22,6 +22,9 @@ jobs:
       release-id: ${{ steps.release.outputs.id }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          # All tags, to find the previous release for the compare link.
+          fetch-depth: 0
 
       - name: Tag matches the app version
         run: |
@@ -47,6 +50,10 @@ jobs:
             echo "::error::CHANGELOG.md has no section '## $base'"
             exit 1
           fi
+          # Pictures in the changelog (![…](docs/media/…)) point at the repository
+          # as of this tag, so they show on the release page.
+          raw="https://raw.githubusercontent.com/${{ github.repository }}/$TAG/"
+          sed -i -E "s#(!\[[^]]*\]\()(\./)?([^):/][^):]*\))#\1${raw}\3#g" notes.md
           cat >> notes.md <<'EOF'
 
           ### Downloads
@@ -67,6 +74,24 @@ jobs:
 
           Check a download against `SHA256SUMS.txt`, e.g. `sha256sum -c SHA256SUMS.txt --ignore-missing`.
           EOF
+
+      - name: Pull requests and compare link
+        run: |
+          version="${TAG#v}"
+          base="${version%%-*}"
+          # The newest stable tag before this version (test runs skipped).
+          prev=$({ git tag -l 'v*' | grep -v -- -; echo "v$base"; } | sort -V -u \
+            | grep -B1 -x "v$base" | head -n1)
+          args=(-f tag_name="$TAG")
+          if [ -n "$prev" ] && [ "$prev" != "v$base" ]; then
+            args+=(-f previous_tag_name="$prev")
+          fi
+          # Merged pull requests by category (.github/release.yml), new
+          # contributors and "Full Changelog: vX...vY".
+          generated=$(gh api "repos/${{ github.repository }}/releases/generate-notes" \
+            "${args[@]}" --jq .body)
+          printf '\n---\n\n%s\n' "$generated" >> notes.md
+          cat notes.md
 
       - name: Create the draft
         id: release
@@ -155,7 +180,9 @@ jobs:
         run: |
           version="${TAG#v}"
           base="${version%%-*}"
-          awk -v v="$base" '$0 == "## " v {on=1; next} /^## / {on=0} on' CHANGELOG.md > notes.md
+          # The app shows the notes as plain text, so pictures are left out.
+          awk -v v="$base" '$0 == "## " v {on=1; next} /^## / {on=0} on' CHANGELOG.md \
+            | grep -v '^[[:space:]]*!\[' | cat -s > notes.md
           gh release download "$TAG" --repo "${{ github.repository }}" -p latest.json -D updater
           jq --rawfile notes notes.md '.notes = ($notes | sub("^\\s+"; "") | sub("\\s+$"; ""))' \
             updater/latest.json > latest.json

@@ -1,0 +1,37 @@
+name: Issue labels
+
+# A bug report gets the label of the platform chosen in the form's
+# "Operating system" field (.github/ISSUE_TEMPLATE/bug_report.yml).
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  platform:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Label by operating system
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.issue.number }}
+          # Through the environment, never pasted into the script.
+          BODY: ${{ github.event.issue.body }}
+        run: |
+          # The answer is the first non-empty line after "### Operating system".
+          os=$(printf '%s\n' "$BODY" | tr -d '\r' \
+            | awk '/^### / {on = ($0 == "### Operating system"); next} on && NF {print; exit}')
+          echo "Operating system: ${os:-none}"
+          labels=()
+          case "$os" in
+            Windows*) labels+=(windows) ;;
+            macOS*) labels+=(macos) ;;
+            "Linux (Wayland)") labels+=(linux wayland) ;;
+            Linux*) labels+=(linux) ;;
+          esac
+          for label in "${labels[@]}"; do
+            gh issue edit "$NUMBER" --add-label "$label"
+          done

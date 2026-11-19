@@ -9,6 +9,7 @@
   <a href="https://github.com/cwecode/zwopp/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/cwecode/zwopp?color=FF6A3D"></a>
   <a href="https://github.com/cwecode/zwopp/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/cwecode/zwopp/total?color=FFC145"></a>
   <a href="https://github.com/cwecode/zwopp/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/cwecode/zwopp/ci.yml?branch=main&label=CI"></a>
+  <a href="#download"><img alt="Platforms: Windows, macOS, Linux" src="https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-3D8BFF"></a>
   <a href="#license"><img alt="License: MIT or Apache-2.0" src="https://img.shields.io/badge/license-MIT%20%2F%20Apache--2.0-263143"></a>
 </p>
 
