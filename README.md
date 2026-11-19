@@ -132,9 +132,9 @@ pixelating what nobody should see.
 Download the installer for your system from the [Releases](../../releases) page. The
 downloads are not signed, so the first start asks once:
 
-- **Windows** (`…_x64-setup.exe` or `.msi`): SmartScreen shows "Windows protected your PC" →
+- **Windows** (`Zwopp-windows-x64-setup.exe` or the `.msi`): SmartScreen shows "Windows protected your PC" →
   *More info* → *Run anyway*.
-- **macOS** (`…_aarch64.dmg` for Apple silicon, `…_x64.dmg` for Intel): right-click the app →
+- **macOS** (`Zwopp-macos-apple-silicon.dmg` or `Zwopp-macos-intel.dmg`): right-click the app →
   *Open*, or *System Settings → Privacy & Security → Open Anyway*.
 - **Linux** (AppImage, `.deb` or `.rpm`): no extra steps. Needs Ubuntu 24.04, Debian 13 or a
   similarly recent distribution (PipeWire ≥ 1.0).
@@ -189,8 +189,8 @@ crates/cli/            zwopp-cli: command line and MCP server (run by the app's 
 docs/                  plan, architecture decisions (adr/), feature spec (spec/)
 ```
 
-All functionality lives in `zwopp-core`; the desktop app is a thin layer on top.
-That keeps the planned CLI, HTTP API and MCP server (v2) on the same code path.
+All functionality lives in `zwopp-core`; the desktop app, the command line and the MCP
+server are thin layers on top and share the same code path.
 
 ## Development
 

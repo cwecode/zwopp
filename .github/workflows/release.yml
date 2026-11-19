@@ -53,9 +53,11 @@ jobs:
 
           | | |
           |---|---|
-          | Windows | `Zwopp_*_x64-setup.exe` (or the `.msi`) |
-          | macOS | `Zwopp_*_aarch64.dmg` (Apple silicon) or `Zwopp_*_x64.dmg` (Intel) |
-          | Linux | `.AppImage`, `.deb` or `.rpm` (Ubuntu 24.04, Debian 13 or newer) |
+          | Windows 10/11 | `Zwopp-windows-x64-setup.exe` (or the `.msi`) |
+          | macOS | `Zwopp-macos-apple-silicon.dmg` (M1 or newer) or `Zwopp-macos-intel.dmg` |
+          | Linux | `Zwopp-linux-x86_64.AppImage`, `Zwopp-linux-amd64.deb` or `Zwopp-linux-x86_64.rpm` (Ubuntu 24.04, Debian 13 or newer) |
+
+          The same files with the version in their name (`Zwopp_<version>_…`) are there for the updater.
 
           The downloads are not signed, so the first start asks once:
 
