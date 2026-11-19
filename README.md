@@ -20,6 +20,20 @@ The first start asks once, since the downloads are not signed: see [Install](#in
 After that, Zwopp offers new versions itself. All files and checksums are on the
 [Releases](https://github.com/cwecode/zwopp/releases/latest) page.
 
+### Screenshots for your AI agent
+
+Zwopp is also an MCP server: Claude Code, Cursor and other agents take screenshots, find
+them in your library and look at them – "take a screenshot of the login dialog and attach
+it to the issue". *Settings › AI agents and command line* shows the one command to connect
+it, with the path of your installation:
+
+```bash
+claude mcp add zwopp -- "<path to zwopp.exe>" mcp
+```
+
+Scripts use the same executable: `zwopp capture --window Firefox --out shot.png`,
+`zwopp list --json`, `zwopp export <id> shot.webp` ([more](docs/user-guide.md#command-line-and-ai-agents)).
+
 ![A click sequence recorded as a GIF with Zwopp](docs/media/demo.gif)
 
 **Capture modes:** a bar at the bottom of the screen switches between a screenshot, a
@@ -169,6 +183,7 @@ npm run dev
 ```
 apps/desktop/          Tauri app: React UI (src/) and Rust shell (src-tauri/)
 crates/core/           zwopp-core: capture, library, export (no UI)
+crates/cli/            zwopp-cli: command line and MCP server (run by the app's executable)
 docs/                  plan, architecture decisions (adr/), feature spec (spec/)
 ```
 

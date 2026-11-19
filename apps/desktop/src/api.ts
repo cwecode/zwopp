@@ -101,6 +101,9 @@ export const restart = () => invoke<void>("restart");
 export const getAutostart = () => invoke<boolean | null>("autostart");
 export const setAutostart = (enabled: boolean) => invoke<void>("set_autostart", { enabled });
 
+/** zwopp.exe (or the app on macOS/Linux), for the command line and MCP setup. */
+export const executablePath = () => invoke<string>("executable_path");
+
 /** What a problem report can contain (`report::ReportInfo`). */
 export interface ReportInfo {
   version: string;

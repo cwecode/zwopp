@@ -52,6 +52,28 @@ const LOG_FILE_SIZE: u128 = 512 * 1024;
 /// The argument the system passes when it starts Zwopp at login: it then
 /// starts in the tray, without opening the window.
 pub const AUTOSTART_ARG: &str = "--autostart";
+/// Opens the screenshot whose id follows in the editor.
+const OPEN_ARG: &str = "--open";
+
+/// Shows the main window; with `--open <id>` (from `zwopp open` or an agent)
+/// that screenshot in the editor.
+fn open_from_args(app: &AppHandle, args: &[String]) {
+    let item = args
+        .iter()
+        .position(|arg| arg == OPEN_ARG)
+        .and_then(|i| args.get(i + 1))
+        .and_then(|id| id.parse().ok())
+        .and_then(|id| app.state::<AppState>().library.get(id).ok());
+    match item {
+        Some(item) => main_window::show_view(
+            app,
+            main_window::View::Editor {
+                item: Box::new(item),
+            },
+        ),
+        None => main_window::show(app),
+    }
+}
 
 /// "Zwopp", or "Zwopp Dev" for a development build.
 pub fn app_name(app: &AppHandle) -> String {
@@ -78,8 +100,8 @@ fn context() -> tauri::Context {
 pub fn run() {
     tauri::Builder::default()
         // First, so a second start only brings the running Zwopp forward.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            main_window::show(app)
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            open_from_args(app, &args)
         }))
         // Warnings and errors go to a small log file, which "Report a problem"
         // offers to attach (report.rs).
@@ -169,8 +191,9 @@ pub fn run() {
             if let Err(e) = capture::prepare_overlays(app.handle(), &monitors) {
                 log::warn!("could not prepare the capture overlays: {e}");
             }
-            if !std::env::args().any(|arg| arg == AUTOSTART_ARG) {
-                main_window::show(app.handle());
+            let args: Vec<String> = std::env::args().collect();
+            if !args.iter().any(|arg| arg == AUTOSTART_ARG) {
+                open_from_args(app.handle(), &args);
             }
             Ok(())
         })
@@ -217,6 +240,7 @@ pub fn run() {
             commands::start_recording,
             commands::stop_recording,
             commands::cancel_recording,
+            commands::executable_path,
             commands::report_info,
             commands::open_issue,
             commands::open_log_folder,

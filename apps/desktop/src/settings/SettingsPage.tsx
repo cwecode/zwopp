@@ -12,6 +12,12 @@ import { updateEditorSettings, updateSettings, useSettings } from "./store";
 const DEFAULT_HOTKEYS = ["CommandOrControl+Shift+X", "CommandOrControl+Alt+X", "CommandOrControl+Shift+2"];
 const LANGUAGES: Language[] = ["de", "en"];
 
+/** Registers Zwopp's MCP server with Claude Code (ADR 0012). */
+const mcpCommand = (exe: string) => `claude mcp add zwopp -- "${exe}" mcp`;
+/** The same for agents configured with JSON (Claude Desktop, Cursor, …). */
+const mcpJson = (exe: string) =>
+  JSON.stringify({ mcpServers: { zwopp: { command: exe, args: ["mcp"] } } });
+
 export function SettingsPage({ onClose, onReport }: { onClose(): void; onReport(): void }) {
   const t = useT();
   const settings = useSettings();
@@ -26,13 +32,20 @@ export function SettingsPage({ onClose, onReport }: { onClose(): void; onReport(
   const [version, setVersion] = useState<string>();
   const [updatesEnabled, setUpdatesEnabled] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [exe, setExe] = useState<string>();
 
   const report = (e: unknown) => setMessage(String(e));
+  const copy = (text: string) =>
+    navigator.clipboard
+      .writeText(text)
+      .then(() => setMessage(t.settings.copied))
+      .catch(report);
   useEffect(() => {
     api.getSettings().then(setInfo).catch(report);
     // The system keeps this, not settings.json: it can also be turned off there.
     api.getAutostart().then(setAutostart).catch(report);
     getVersion().then(setVersion).catch(report);
+    api.executablePath().then(setExe).catch(report);
     api
       .updateStatus()
       .then((status) => setUpdatesEnabled(status.enabled))
@@ -243,6 +256,37 @@ export function SettingsPage({ onClose, onReport }: { onClose(): void; onReport(
               </label>
             </div>
           </div>
+        </section>
+
+        <section>
+          <h2>{t.settings.agents}</h2>
+          <p className="hint">{t.settings.agentsHint}</p>
+          {exe && (
+            <>
+              <div className="setting">
+                <span>{t.settings.claudeCode}</span>
+                <div className="setting-value">
+                  <code className="path">{mcpCommand(exe)}</code>
+                  <button onClick={() => copy(mcpCommand(exe))}>{t.settings.copy}</button>
+                </div>
+              </div>
+              <div className="setting">
+                <span>{t.settings.otherAgents}</span>
+                <div className="setting-value">
+                  <code className="path">{mcpJson(exe)}</code>
+                  <button onClick={() => copy(mcpJson(exe))}>{t.settings.copy}</button>
+                </div>
+                <p className="hint">{t.settings.otherAgentsHint}</p>
+              </div>
+              <div className="setting">
+                <span>{t.settings.commandLine}</span>
+                <div className="setting-value">
+                  <code className="path">{`"${exe}" capture --window Firefox --out shot.png`}</code>
+                </div>
+                <p className="hint">{t.settings.commandLineHint}</p>
+              </div>
+            </>
+          )}
         </section>
 
         <section>

@@ -3,6 +3,18 @@
 All notable changes to Zwopp. The release workflow takes the notes of a version
 from its section here, so each release starts with a `## <version>` heading.
 
+## Unreleased
+
+### Command line and AI agents
+
+- `zwopp capture` takes a screenshot without the overlay – a monitor, a window by its
+  title or application, the focused window or a rectangle – and saves it to the library;
+  `zwopp list`, `show`, `export`, `windows`, `monitors` and `open` go with it.
+- `zwopp mcp` is an MCP server: AI agents such as Claude Code take screenshots, find and
+  look at them in your library, export or tag them, and open one in the editor for you.
+  *Settings › AI agents and command line* shows how to connect it.
+- The library shows screenshots added this way when its window comes back into view.
+
 ## 1.3.1
 
 The first update that arrives through Zwopp itself.

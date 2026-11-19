@@ -90,6 +90,15 @@ pub async fn start_recording(
     recording::start(&app, rect, mode).await
 }
 
+/// The app's executable, for the command line and MCP setup in the settings.
+#[tauri::command]
+pub fn executable_path() -> CmdResult<String> {
+    Ok(std::env::current_exe()
+        .map_err(err)?
+        .to_string_lossy()
+        .into_owned())
+}
+
 /// What a problem report would contain (shown before anything is opened).
 #[tauri::command]
 pub fn report_info(app: AppHandle) -> report::ReportInfo {

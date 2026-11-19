@@ -96,6 +96,7 @@ see [document-format.md](document-format.md). Changes are saved automatically.
 |---|---|
 | Copy annotated image to the clipboard | ✅ (1) |
 | Export to file (PNG / JPG / WebP): save dialog in the library preview and the editor (Ctrl+Shift+S), format by file extension, named after the title; JPG puts transparency on white, WebP is lossless | ✅ (2) |
-| CLI (`zwopp capture …`) | ⬜ (v2) |
+| CLI: `zwopp capture` (monitor, window by title or app, focused window, rectangle), `list`, `show`, `export`, `windows`, `monitors`, `open`; `--json` for scripts; same executable as the app (ADR 0012) | ✅ (4) |
+| MCP server (`zwopp mcp`): agents take, list, look at, export and tag screenshots, list windows and monitors, open one in the editor; setup in the settings | ✅ (4) |
+| Annotate from the command line (renderer outside the webview) | ⬜ |
 | Local HTTP API (loopback, token, OpenAPI) | ⬜ (v2) |
-| MCP server | ⬜ (v2) |

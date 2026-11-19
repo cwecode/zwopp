@@ -290,6 +290,81 @@ pub fn windows(exclude_pid: u32) -> Vec<WindowInfo> {
         .collect()
 }
 
+/// A window that can be captured without the overlay (command line, agents).
+#[derive(Debug, Clone, Serialize)]
+pub struct WindowEntry {
+    /// The OS's id for the window, for [`capture_window`].
+    pub id: u32,
+    pub title: String,
+    /// The application, e.g. "Firefox", if the OS tells.
+    pub app: Option<String>,
+    /// In desktop pixels.
+    pub rect: DesktopRect,
+    /// The window that has the keyboard focus.
+    pub focused: bool,
+}
+
+/// Visible, titled windows, topmost first; minimized and tiny ones are left out.
+pub fn list_windows() -> Result<Vec<WindowEntry>> {
+    let windows = xcap::Window::all()?;
+    Ok(windows
+        .iter()
+        .filter_map(|window| {
+            if window.is_minimized().ok()? {
+                return None;
+            }
+            let title = window.title().ok()?.trim().to_owned();
+            let rect = DesktopRect {
+                x: window.x().ok()?,
+                y: window.y().ok()?,
+                width: window.width().ok()?,
+                height: window.height().ok()?,
+            };
+            let id = window.id().ok()?;
+            (!title.is_empty() && rect.width >= 8 && rect.height >= 8).then(|| WindowEntry {
+                id,
+                app: window
+                    .app_name()
+                    .ok()
+                    .and_then(|name| crate::library::app_label(&name)),
+                focused: window.is_focused().unwrap_or(false),
+                title,
+                rect,
+            })
+        })
+        .collect())
+}
+
+/// Captures window `id` (see [`list_windows`]) as it is on screen.
+pub fn capture_window(id: u32) -> Result<RgbaImage> {
+    let window = xcap::Window::all()?
+        .into_iter()
+        .find(|w| w.id().is_ok_and(|i| i == id))
+        .ok_or(Error::EmptyRegion)?;
+    Ok(window.capture_image()?)
+}
+
+/// Captures monitor `index` (in the order of [`monitors`]).
+pub fn capture_monitor(index: usize) -> Result<RgbaImage> {
+    let monitors = Monitor::all()?;
+    let monitor = monitors.get(index).ok_or(Error::EmptyRegion)?;
+    Ok(monitor.capture_image()?)
+}
+
+/// Captures `rect` (desktop pixels), also across monitors.
+pub fn capture_rect(rect: DesktopRect) -> Result<RgbaImage> {
+    let frames = capture_all()?;
+    let placed: Vec<PlacedFrame> = frames
+        .iter()
+        .map(|frame| PlacedFrame {
+            image: &frame.image,
+            x: frame.monitor.x,
+            y: frame.monitor.y,
+        })
+        .collect();
+    compose(&placed, rect)
+}
+
 /// The window a selection was taken from: the topmost one under its center.
 pub fn window_under(windows: &[WindowInfo], selection: DesktopRect) -> Option<&WindowInfo> {
     let x = selection.x + selection.width as i32 / 2;

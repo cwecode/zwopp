@@ -111,7 +111,14 @@ export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): voi
       // An application's icon is saved shortly after its first capture.
       listen("library:icons", () => void loadOverview()),
     ]);
-    return () => void unlisten.then((fns) => fns.forEach((fn) => fn()));
+    // The command line and agents (`zwopp capture`, MCP) add screenshots
+    // without the app; they show when the window comes back into view.
+    const onFocus = () => refresh();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      void unlisten.then((fns) => fns.forEach((fn) => fn()));
+    };
   }, []);
 
   useEffect(() => {

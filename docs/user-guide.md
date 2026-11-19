@@ -182,6 +182,30 @@ Open them with ⚙ in the library or **Settings** in the tray menu.
 - **Tool styles:** reset every tool to its default style.
 - **Quick styles:** rename, delete, export, import.
 
+## Command line and AI agents
+
+The Zwopp executable also takes commands. *Settings › AI agents and command line* shows
+its path on your system (on Windows `zwopp.exe` in the installation folder).
+
+| Command | Does |
+|---|---|
+| `zwopp capture` | Takes a screenshot without the overlay and saves it to the library. `--screen N` a monitor (default: the primary one), `--window TEXT` the topmost window whose title or application contains TEXT, `--focused` the active window, `--region X,Y,W,H` a rectangle; `--title`, `--tag` (repeatable), `--out file.png` also saves a copy |
+| `zwopp list` | The newest screenshots; `--search`, `--app`, `--favorites`, `-n 50` |
+| `zwopp show ID` | One screenshot's details |
+| `zwopp export ID file.png` | Saves it as PNG, JPG, WebP or GIF (by the extension) |
+| `zwopp windows`, `zwopp monitors` | What `capture` can take |
+| `zwopp open ID` | Opens it in the editor |
+| `zwopp mcp` | The MCP server for AI agents (below) |
+
+`--json` gives output for scripts; `zwopp --help` and `zwopp capture --help` explain more.
+
+**AI agents (MCP):** Connect Zwopp to Claude Code with the command from the settings,
+`claude mcp add zwopp -- "<path to zwopp.exe>" mcp`; other clients (Claude Desktop,
+Cursor …) take the JSON shown there. The agent can then take screenshots of the screen,
+a window or a region, search your library, look at a screenshot, export or tag it, and
+open one in the editor for you to annotate. Your agent asks before it uses a tool; every
+screenshot it takes lands in your library like your own, where you can delete it.
+
 ## Where Zwopp keeps its files
 
 | | Windows | macOS | Linux |
