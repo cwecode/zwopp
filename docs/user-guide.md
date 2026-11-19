@@ -27,11 +27,12 @@ The downloads are not signed, so your system asks once before the first start:
 
 To check a download, compare it with `SHA256SUMS.txt` from the same release.
 
-**Updates:** Zwopp looks for a new version now and then. When there is one, the library
-shows "Zwopp x.y is available" with **Update now**, and the tray menu has an entry for it.
-Nothing is installed until you click; then the update is downloaded, checked against the
-project's signature and installed, and Zwopp starts again. **Later** hides the hint until
-the next start. *Settings › General › Updates* looks for an update right away.
+**Updates:** Zwopp looks for a new version now and then. When there is one, a small card in
+the bottom right corner of the library offers it with **Install and restart**, a dot marks
+the settings button, and the tray menu has an entry for it. Nothing is installed until you
+click; then the update is downloaded, checked against the project's signature and
+installed, and Zwopp starts again. ✕ hides the card until the next start. In *Settings ›
+General › Updates*, **Check for updates** becomes **Install Zwopp x.y** when it finds one.
 
 Zwopp runs in the system tray (menu bar on macOS). Closing the window keeps it
 running; quit from the tray menu. To have it ready after every login, turn on

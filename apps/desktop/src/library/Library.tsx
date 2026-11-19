@@ -22,7 +22,8 @@ import { updateSettings, useSettings } from "../settings/store";
 import { useSystemDark } from "../settings/theme";
 import { Popover } from "../editor/Popover";
 import { AppIcon } from "./AppIcon";
-import { UpdateBanner } from "./UpdateBanner";
+import { useUpdate } from "../update/store";
+import { UpdateToast } from "../update/UpdateToast";
 import { LibraryNav } from "./LibraryNav";
 import { ALL, queryFor, recentSince, stillListed, type NavSelection } from "./nav";
 import { useLibraryPages } from "./useLibraryPages";
@@ -57,6 +58,7 @@ const parseTags = (text: string) =>
 
 export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): void; onSettings(): void }) {
   const t = useT();
+  const updateOffered = useUpdate().available !== null;
   const [search, setSearch] = useState("");
   const [nav, setNav] = useState<NavSelection>(ALL);
   // Starts as what the debounce below produces, so opening loads only once.
@@ -299,12 +301,17 @@ export function Library({ onOpen, onSettings }: { onOpen(item: LibraryItem): voi
         >
           <span className="emoji-current">{dark ? "☀️" : "🌙"}</span>
         </button>
-        <button className="tool" onClick={onSettings} title={t.library.settings} aria-label={t.library.settings}>
-          ⚙
+        <button
+          className="tool has-badge"
+          onClick={onSettings}
+          title={updateOffered ? t.update.badge : t.library.settings}
+          aria-label={updateOffered ? t.update.badge : t.library.settings}
+        >
+          ⚙{updateOffered && <span className="badge-dot" aria-hidden="true" />}
         </button>
       </header>
 
-      <UpdateBanner />
+      <UpdateToast />
 
       {message && (
         <div className="notice" role="status">

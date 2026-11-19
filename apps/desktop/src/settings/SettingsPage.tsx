@@ -8,6 +8,7 @@ import { StyleSwatch } from "../editor/StyleIcons";
 import { readGuide } from "../editor/guide";
 import { HotkeyPicker } from "./HotkeyPicker";
 import { updateEditorSettings, updateSettings, useSettings } from "./store";
+import { checkForUpdate, installUpdate, useUpdate } from "../update/store";
 
 export const LANGUAGES: Language[] = ["de", "en"];
 
@@ -28,8 +29,7 @@ export function SettingsPage({ onClose, onReport }: { onClose(): void; onReport(
   /** Undefined while loading, null in a development build. */
   const [autostart, setAutostart] = useState<boolean | null>();
   const [version, setVersion] = useState<string>();
-  const [updatesEnabled, setUpdatesEnabled] = useState(false);
-  const [checking, setChecking] = useState(false);
+  const update = useUpdate();
   const [agents, setAgents] = useState<api.AgentSetup>();
 
   const report = (e: unknown) => setMessage(String(e));
@@ -65,10 +65,6 @@ export function SettingsPage({ onClose, onReport }: { onClose(): void; onReport(
     api.getAutostart().then(setAutostart).catch(report);
     getVersion().then(setVersion).catch(report);
     api.agentSetup().then(setAgents).catch(report);
-    api
-      .updateStatus()
-      .then((status) => setUpdatesEnabled(status.enabled))
-      .catch(report);
   }, []);
 
   const change = (patch: Partial<api.Settings>) => updateSettings(patch).then(setInfo).catch(report);
@@ -157,23 +153,29 @@ export function SettingsPage({ onClose, onReport }: { onClose(): void; onReport(
             <span>{t.settings.updates}</span>
             <div className="setting-value">
               {version && <span>{t.settings.currentVersion(version)}</span>}
-              <button
-                disabled={!updatesEnabled || checking}
-                onClick={() => {
-                  setChecking(true);
-                  api
-                    .checkUpdate()
-                    .then((found) =>
-                      setMessage(found ? t.settings.updateFound(found.version) : t.settings.upToDate),
-                    )
-                    .catch(report)
-                    .finally(() => setChecking(false));
-                }}
-              >
-                {checking ? t.settings.checking : t.settings.checkUpdates}
-              </button>
+              {update.installing ? (
+                <button className="primary" disabled>
+                  {update.percent === undefined ? t.update.downloading : t.update.downloadingPercent(update.percent)}
+                </button>
+              ) : update.available ? (
+                <button className="primary" onClick={installUpdate}>
+                  {t.update.installVersion(update.available.version)}
+                </button>
+              ) : (
+                <button disabled={!update.enabled || update.checking} onClick={() => void checkForUpdate()}>
+                  {update.checking ? t.settings.checking : t.settings.checkUpdates}
+                </button>
+              )}
+              {update.upToDate && !update.available && <span className="hint">✓ {t.settings.upToDate}</span>}
             </div>
-            <p className="hint">{updatesEnabled ? t.settings.updatesHint : t.settings.updatesDev}</p>
+            {update.error && <p className="hint error">{t.update.failed(update.error)}</p>}
+            {update.available?.notes && !update.installing && (
+              <details className="update-notes hint">
+                <summary>{t.update.whatsNew}</summary>
+                <pre>{update.available.notes}</pre>
+              </details>
+            )}
+            <p className="hint">{update.enabled ? t.settings.updatesHint : t.settings.updatesDev}</p>
           </div>
           <div className="setting">
             <span>{t.report.title}</span>

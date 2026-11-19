@@ -206,15 +206,97 @@ kbd {
   overflow: auto;
 }
 
-/* A newer version on offer, above the library. */
-.update-banner {
+/* A newer version on offer: a small card in the bottom right corner of the library. */
+.update-toast {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 50;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  font-size: 13px;
+  animation: update-toast-in 0.2s ease-out;
+}
+
+.update-toast p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.update-toast-head {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  gap: 8px;
+}
+
+.update-toast-close {
+  border: none;
+  background: none;
+  padding: 2px 6px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.update-toast-close:hover {
+  color: var(--text);
+}
+
+.update-toast-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.update-toast .update-notes {
+  margin-top: 6px;
+}
+
+.update-progress {
+  height: 4px;
+  margin-top: 8px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.update-progress > div {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s;
+}
+
+@keyframes update-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .update-toast {
+    animation: none;
+  }
+}
+
+/* A dot on the settings button while an update is on offer. */
+.has-badge {
+  position: relative;
+}
+
+.badge-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--surface);
 }
 
 .update-dot {
@@ -1557,6 +1639,10 @@ html.transparent body {
   margin: 0;
   font-size: 12px;
   color: var(--muted);
+}
+
+.settings .hint.error {
+  color: var(--accent);
 }
 
 .settings kbd {

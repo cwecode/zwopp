@@ -116,8 +116,8 @@ pixelating what nobody should see.
   in the editor
 - Runs in the system tray; closing the window keeps it running and frees its memory
   after two minutes
-- **Updates on request:** Zwopp offers a new version above the library and in the tray
-  menu and installs it after one click, never by itself (from 1.3 on)
+- **Updates on request:** Zwopp offers a new version in a small card in the corner of the
+  library, in the settings and in the tray menu and installs it after one click, never by itself (from 1.3 on)
 - **Report a problem** (tray menu, settings): opens a GitHub issue filled in with version,
   system and the last log lines; nothing is sent from Zwopp
 

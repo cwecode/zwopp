@@ -3,6 +3,14 @@
 All notable changes to Zwopp. The release workflow takes the notes of a version
 from its section here, so each release starts with a `## <version>` heading.
 
+## Unreleased
+
+### General
+
+- A new version is offered in a small card in the corner of the library instead of a
+  banner, and the settings button shows a dot; in the settings, *Check for updates*
+  turns into *Install Zwopp x.y* when it finds one.
+
 ## 1.4.0
 
 AI agents and scripts take and find screenshots, the whole library can be exported, a
