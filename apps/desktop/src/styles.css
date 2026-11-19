@@ -129,7 +129,7 @@ kbd {
   cursor: default;
 }
 
-.app-nav > button.primary {
+.app-nav .split-button button {
   white-space: nowrap;
 }
 

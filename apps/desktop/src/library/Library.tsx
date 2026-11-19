@@ -9,7 +9,6 @@ import {
   exportItem,
   fileUrl,
   libraryOverview,
-  startCapture,
   thumbUrl,
   updateItem,
   type ItemUpdate,
@@ -20,7 +19,6 @@ import {
 import { formatAccelerator, useT } from "../i18n";
 import { updateSettings, useSettings } from "../settings/store";
 import { useSystemDark } from "../settings/theme";
-import { Popover } from "../editor/Popover";
 import { AppIcon } from "./AppIcon";
 import { useUpdate } from "../update/store";
 import { UpdateToast } from "../update/UpdateToast";
@@ -36,20 +34,6 @@ const PADDING = 16;
 const ROW_HEIGHT = 196;
 /** Rows above and below the view whose data is fetched ahead of scrolling. */
 const PREFETCH_ROWS = 6;
-
-/** Capture delays offered next to "New screenshot", in seconds (0 = now). */
-const DELAYS = [0, 3, 5, 10];
-const DELAY_KEY = "zwopp.captureDelay";
-
-/** The delay picked last time; a per-user convenience, so storage may fail. */
-function storedDelay(): number {
-  try {
-    const value = Number(localStorage.getItem(DELAY_KEY));
-    return DELAYS.includes(value) ? value : 0;
-  } catch {
-    return 0;
-  }
-}
 
 const parseTags = (text: string) =>
   text
@@ -81,7 +65,6 @@ export function Library({
   const [message, setMessage] = useState<string>();
   const [accelerator, setAccelerator] = useState<string | null>(null);
   const [width, setWidth] = useState(0);
-  const [delay, setDelay] = useState(storedDelay);
   const scroller = useRef<HTMLDivElement>(null);
 
   const report = (e: unknown) => setMessage(String(e));
@@ -271,45 +254,9 @@ export function Library({
   return (
     <div className="library">
       <header className="toolbar">
-        <h1>Zwopp</h1>
-        <AppNav at="library" nav={appNav} capture={false} />
+        <AppNav at="library" nav={appNav} />
         {pages.count !== null && <span className="meta">{t.library.count(count)}</span>}
         <span className="spacer" />
-        <div className="split-button">
-          <button
-            className="primary"
-            onClick={() => startCapture(delay).catch(report)}
-            title={accelerator ? t.library.newScreenshotTitle(formatAccelerator(t, accelerator)) : undefined}
-          >
-            {t.library.newScreenshot}
-            {delay > 0 && <span className="delay-badge">{t.library.delaySeconds(delay)}</span>}
-          </button>
-          <Popover className="primary" label="▾" title={t.library.delay} align="right">
-            {(close) => (
-              <div className="menu" role="menu" aria-label={t.library.delay}>
-                {DELAYS.map((s) => (
-                  <button
-                    key={s}
-                    role="menuitemradio"
-                    aria-checked={delay === s}
-                    className={delay === s ? "active" : undefined}
-                    onClick={() => {
-                      setDelay(s);
-                      close();
-                      try {
-                        localStorage.setItem(DELAY_KEY, String(s));
-                      } catch {
-                        // Not remembered; still used now.
-                      }
-                    }}
-                  >
-                    {s ? t.library.delaySeconds(s) : t.library.delayNone}
-                  </button>
-                ))}
-              </div>
-            )}
-          </Popover>
-        </div>
         <button
           className="tool"
           onClick={() => updateSettings({ theme: dark ? "light" : "dark" }).catch(report)}

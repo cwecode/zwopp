@@ -5,6 +5,14 @@ from its section here, so each release starts with a `## <version>` heading. A p
 on a line of its own (`![…](docs/media/…)`) shows on the release page; the update
 offer in the app leaves it out.
 
+## Unreleased
+
+### Navigation
+
+- **Library**, **Editor** and **Screenshot** stay at the same place when you switch
+  views, instead of moving: the bar is the first thing at the top of every view, and
+  **Screenshot** (with its delay ▾) sits right next to it everywhere, also in the library.
+
 ## 1.4.1
 
 Library, editor and a new screenshot are one click away from everywhere, new versions are

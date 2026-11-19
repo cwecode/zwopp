@@ -63,7 +63,6 @@ export const en: Messages = {
     },
     takenFrom: (app: string) => `Taken in ${app}`,
     count: (n: number) => `${n.toLocaleString("en-US")} ${n === 1 ? "screenshot" : "screenshots"}`,
-    newScreenshot: "New screenshot",
     newScreenshotTitle: (shortcut: string) => `New screenshot (${shortcut}, anywhere)`,
     delay: "Delay",
     delayNone: "Now",

@@ -47,7 +47,7 @@ settings.
 ## Taking a screenshot
 
 Start a capture with the hotkey (**Ctrl+Shift+X** by default; the library toolbar shows the
-active one), the tray menu or **New screenshot** in the library.
+active one), the tray menu or **Screenshot** at the top of the window.
 
 The screen freezes, so menus and tooltips stay as they were. Then:
 
@@ -74,17 +74,17 @@ The mode stays for the next capture. On the right of the bar, **Library** and **
 (the newest screenshot) leave the capture for the app: one hotkey gets you everywhere.
 
 A magnifier at the cursor helps to hit the exact pixel. For menus that close when you
-press a key, use a delay: **Take screenshot with delay** in the tray menu or the delay
-next to **New screenshot**.
+press a key, use a delay: **Take screenshot with delay** in the tray menu or the menu
+▾ next to **Screenshot**.
 
 Every screenshot is saved to the library, copied to the clipboard and opened in the
 editor. The settings turn copying and opening off.
 
 ## The library
 
-The bar at the top of the window has **Library** and **Editor** in every view – the
-library, the editor, the settings and *Report a problem* – and, outside the library,
-**Screenshot** for a new capture. **Editor** opens the screenshot you edited last, or the
+The bar at the top of the window has **Library**, **Editor** and **Screenshot** (a new
+capture) in every view – the library, the editor, the settings and *Report a problem* –
+always at the same place. **Editor** opens the screenshot you edited last, or the
 newest one.
 
 - The sidebar on the left shows all screenshots, the **favorites**, the **last 7 days**,

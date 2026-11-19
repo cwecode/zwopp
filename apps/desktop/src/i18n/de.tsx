@@ -66,7 +66,6 @@ export const de = {
     },
     takenFrom: (app: string) => `Aufgenommen in ${app}`,
     count: (n: number) => `${n.toLocaleString("de-DE")} ${n === 1 ? "Screenshot" : "Screenshots"}`,
-    newScreenshot: "Neuer Screenshot",
     newScreenshotTitle: (shortcut: string) => `Neuer Screenshot (${shortcut}, überall)`,
     delay: "Verzögerung",
     delayNone: "Sofort",
