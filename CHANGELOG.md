@@ -5,7 +5,9 @@ from its section here, so each release starts with a `## <version>` heading. A p
 on a line of its own (`![…](docs/media/…)`) shows on the release page; the update
 offer in the app leaves it out.
 
-## Unreleased
+## 1.4.1
+
+New versions are offered more quietly.
 
 ### General
 
