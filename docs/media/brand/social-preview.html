@@ -1,0 +1,58 @@
+<!doctype html>
+<!--
+  Source of social-preview.png (1280 × 640, GitHub › Settings › Social preview).
+  Uses the real screenshots from docs/media. Render it again with:
+  node docs/media/brand/render-social-preview.mjs
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800&display=block" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1280px; height: 640px; overflow: hidden; }
+  body {
+    font-family: Inter, sans-serif;
+    background: linear-gradient(135deg, #FFFBF8 0%, #FFF6EF 45%, #F5F8FD 100%);
+    position: relative;
+    color: #263143;
+  }
+  .blob { position: absolute; border-radius: 50%; }
+  .b1 { width: 640px; height: 640px; left: 170px; top: -420px; background: #FFE6D6; opacity: .7; }
+  .b2 { width: 760px; height: 760px; right: -300px; bottom: -520px; background: #FFEFD2; opacity: .8; }
+
+  .left { position: absolute; left: 76px; top: 76px; width: 470px; }
+  .brand { display: flex; align-items: center; gap: 22px; }
+  .brand img { width: 112px; height: 112px; }
+  .brand span { font-weight: 800; font-size: 96px; letter-spacing: -.05em; line-height: 1; }
+  .rule { width: 64px; height: 7px; border-radius: 4px; background: #FF6A3D; margin: 22px 0 0 4px; }
+  h1 { font-weight: 800; font-size: 50px; line-height: 1.12; letter-spacing: -.03em; margin-top: 30px; }
+  .platforms { position: absolute; left: 78px; bottom: 74px; font-weight: 600; font-size: 22px; color: #5B6678; }
+
+  .window {
+    position: absolute; border-radius: 14px; overflow: hidden;
+    border: 1px solid rgba(17, 24, 39, .18);
+    box-shadow: 0 30px 70px rgba(38, 49, 67, .28), 0 8px 20px rgba(38, 49, 67, .14);
+    background: #1b1b1b;
+  }
+  .window img { display: block; width: 100%; }
+  .library { width: 600px; right: -40px; top: 46px; opacity: .96; }
+  .editor  { width: 640px; right: 70px; top: 232px; }
+</style>
+</head>
+<body>
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+
+  <div class="window library"><img src="../library.jpg" alt=""></div>
+  <div class="window editor"><img src="../annotated.png" alt=""></div>
+
+  <div class="left">
+    <div class="brand"><img src="icon.svg" alt=""><span>Zwopp</span></div>
+    <div class="rule"></div>
+    <h1>Explain every screenshot clearly.</h1>
+  </div>
+  <div class="platforms">Windows · macOS · Linux · Open Source</div>
+</body>
+</html>
