@@ -2,7 +2,9 @@ name: Release
 
 # A version tag (v1.0.0, or v1.0.0-rc.1 for a test run) builds unsigned
 # installers for every OS and attaches them, with SHA-256 checksums, to a
-# draft GitHub release. Publishing the draft is a manual step.
+# draft GitHub release. Once every build and the checksums are there, the
+# release is published; a failed build leaves the draft unpublished. A test
+# run (a tag with "-") stays a draft.
 on:
   push:
     tags: ["v*"]
@@ -169,7 +171,7 @@ jobs:
 
   checksums:
     name: checksums
-    needs: build
+    needs: [create, build]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -208,3 +210,11 @@ jobs:
           sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt
           gh release upload "$TAG" SHA256SUMS.txt --repo "${{ github.repository }}" --clobber
+
+      # Only now is everything there: the download links in the README and the
+      # update offer in installed apps go to the new version from here on.
+      - name: Publish
+        if: ${{ !contains(github.ref_name, '-') }}
+        run: |
+          gh api -X PATCH "repos/${{ github.repository }}/releases/${{ needs.create.outputs.release-id }}" \
+            -F draft=false -f make_latest=true --jq '.html_url'
