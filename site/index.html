@@ -1,0 +1,228 @@
+<!doctype html>
+<!--
+  Zwopp's landing page, published by .github/workflows/pages.yml together with
+  docs/media (served as media/). No cookies, no tracking, no requests to other
+  servers: everything it shows is in this repository.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zwopp – the open-source screenshot tool with a library</title>
+  <meta name="description" content="Open-source screenshot tool for Windows, macOS and Linux: capture, annotate, scrolling shots and GIFs – every shot in a searchable library. Local, no account.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="media/brand/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Zwopp – explain every screenshot clearly">
+  <meta property="og:description" content="Open-source screenshot tool for Windows, macOS and Linux, with a library, an editor, scrolling shots and GIFs.">
+  <meta property="og:url" content="https://cwecode.github.io/zwopp/">
+  <meta property="og:image" content="https://cwecode.github.io/zwopp/media/brand/social-preview.png">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-inner">
+      <a class="brand" href="#"><img src="media/brand/icon.svg" alt="" width="32" height="32"><span>Zwopp</span></a>
+      <nav aria-label="Sections">
+        <a href="#why">Why Zwopp</a>
+        <a href="#agents">AI agents</a>
+        <a href="#download">Download</a>
+        <a href="https://github.com/cwecode/zwopp">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap hero-inner">
+        <div class="hero-text">
+          <p class="eyebrow">Windows · macOS · Linux · Open source</p>
+          <h1>Explain every screenshot clearly.</h1>
+          <p class="lead">
+            Select a region, and the screenshot lands in a <strong>library</strong> you can search.
+            The <strong>editor</strong> adds arrows, step numbers, callouts and emojis – so a
+            screenshot explains itself.
+          </p>
+          <div class="cta">
+            <a class="button primary" id="download-main" href="#download">Download Zwopp</a>
+            <a class="button" href="https://github.com/cwecode/zwopp">View on GitHub</a>
+          </div>
+          <p class="fine" id="download-hint">Free and open source · MIT or Apache-2.0 · no account</p>
+        </div>
+        <div class="hero-shots" aria-hidden="true">
+          <img class="shot back" src="media/library.jpg" alt="" width="1568" height="784">
+          <img class="shot front" src="media/annotated.png" alt="" width="1204" height="615">
+        </div>
+      </div>
+    </section>
+
+    <section id="why" class="section">
+      <div class="wrap">
+        <h2>Why Zwopp?</h2>
+        <div class="grid">
+          <article>
+            <h3>A library, not a folder</h3>
+            <p>Every capture is kept, sorted by date and by the application it came from, and found
+              again by title or tag – fast even with 100 000.</p>
+          </article>
+          <article>
+            <h3>An editor made for explaining</h3>
+            <p>Arrows, step numbers, callouts, mouse stamps, magnifier, highlighter and pixelate.
+              Annotations stay editable; the original is never changed.</p>
+          </article>
+          <article>
+            <h3>Scrolling shots and GIFs</h3>
+            <p>A panorama joins a long page while you scroll. A GIF records a click sequence, ready
+              to paste into a chat.</p>
+          </article>
+          <article>
+            <h3>Freeze first, select later</h3>
+            <p>One hotkey freezes every monitor. Drag a region, click a window, or Shift+click a
+              whole screen – with a magnifier at the cursor.</p>
+          </article>
+          <article>
+            <h3>For scripts and AI agents</h3>
+            <p><code>zwopp capture --window Firefox</code> takes a screenshot from the command line;
+              Claude Code gets a skill with one click.</p>
+          </article>
+          <article>
+            <h3>Local and private</h3>
+            <p>No account, no cloud, no telemetry. Zwopp sends nothing anywhere and opens no
+              network port – and neither does this page.</p>
+          </article>
+          <article>
+            <h3>Yours to take along</h3>
+            <p>Export the whole library with readable file names, tags as XMP, and a JSON and CSV
+              index any software understands.</p>
+          </article>
+          <article>
+            <h3>On every desktop</h3>
+            <p>Windows 10 and 11, macOS on Apple silicon and Intel, Linux including Wayland. One
+              codebase in Rust, open source.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section alt">
+      <div class="wrap showcase">
+        <figure>
+          <img src="media/demo.gif" alt="A click sequence recorded as a GIF with Zwopp" width="844" height="443" loading="lazy">
+          <figcaption><strong>GIF of a click sequence</strong> – with the pointer and every click, ready
+            for a chat or an issue.</figcaption>
+        </figure>
+        <figure>
+          <img src="media/overlay.jpg" alt="The capture overlay with the mode bar" width="1462" height="826" loading="lazy">
+          <figcaption><strong>One hotkey for everything</strong> – the bar at the bottom switches between
+            screenshot, panorama and GIF, and leads to the library and the editor.</figcaption>
+        </figure>
+        <figure>
+          <img src="media/library.jpg" alt="The library with recordings, a panorama and an annotated screenshot" width="1568" height="784" loading="lazy">
+          <figcaption><strong>The library</strong> – by favorites, recent days, month and application,
+            with search and tags.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section id="agents" class="section">
+      <div class="wrap split">
+        <div>
+          <h2>Screenshots for your AI agent</h2>
+          <p>
+            AI agents take screenshots, find them in your library and look at them – “take a
+            screenshot of the login dialog and attach it to the issue”. They run Zwopp's command
+            line, on Windows, macOS and Linux.
+          </p>
+          <ul class="ticks">
+            <li><strong>Claude Code:</strong> <em>Settings › AI agents and command line › Install
+              skill</em>. The skill costs context only when it is used.</li>
+            <li><strong>Other agents with a terminal</strong> run the same commands.</li>
+            <li><strong>Scripts</strong> use the same executable, with <code>--json</code> output.</li>
+          </ul>
+        </div>
+        <pre class="terminal" aria-label="Example commands"><code><span class="c"># the window an agent should show</span>
+zwopp capture --window "Firefox" --title "Login error" \
+  --tag bug --out ./login.png --json
+
+<span class="c"># find earlier ones</span>
+zwopp list --search "login" --json
+
+<span class="c"># hand it to the user to annotate</span>
+zwopp open &lt;id&gt;</code></pre>
+      </div>
+    </section>
+
+    <section id="download" class="section alt">
+      <div class="wrap">
+        <h2>Download</h2>
+        <p class="sub">The latest version for your system. Zwopp then offers new versions itself, and
+          installs them only when you click.</p>
+        <div class="downloads">
+          <article class="platform" data-os="windows">
+            <h3>Windows</h3>
+            <p class="req">Windows 10 or 11, 64-bit</p>
+            <a class="button primary" href="https://github.com/cwecode/zwopp/releases/latest/download/Zwopp-windows-x64-setup.exe">Download for Windows</a>
+            <p class="first">First start: “Windows protected your PC” → <em>More info</em> → <em>Run anyway</em>.</p>
+          </article>
+          <article class="platform" data-os="mac">
+            <h3>macOS</h3>
+            <p class="req">Apple silicon (M1 or newer) or Intel</p>
+            <a class="button primary" href="https://github.com/cwecode/zwopp/releases/latest/download/Zwopp-macos-apple-silicon.dmg">Download for Apple silicon</a>
+            <a class="more" href="https://github.com/cwecode/zwopp/releases/latest/download/Zwopp-macos-intel.dmg">For Intel Macs</a>
+            <p class="first">First start: right-click the app → <em>Open</em>, then allow <em>Screen Recording</em>.</p>
+          </article>
+          <article class="platform" data-os="linux">
+            <h3>Linux</h3>
+            <p class="req">Ubuntu 24.04, Debian 13 or newer</p>
+            <a class="button primary" href="https://github.com/cwecode/zwopp/releases/latest/download/Zwopp-linux-x86_64.AppImage">Download AppImage</a>
+            <span class="more">
+              <a href="https://github.com/cwecode/zwopp/releases/latest/download/Zwopp-linux-amd64.deb">.deb</a> ·
+              <a href="https://github.com/cwecode/zwopp/releases/latest/download/Zwopp-linux-x86_64.rpm">.rpm</a>
+            </span>
+            <p class="first">X11 and Wayland; the desktop asks for permission on the first capture.</p>
+          </article>
+        </div>
+        <p class="fine center">
+          The downloads are not signed yet, so the first start asks once. Checksums and older versions:
+          <a href="https://github.com/cwecode/zwopp/releases">all releases</a>.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-inner">
+      <span>Zwopp · MIT or Apache-2.0 · no cookies, no tracking</span>
+      <nav aria-label="More">
+        <a href="https://github.com/cwecode/zwopp/blob/main/docs/user-guide.md">User guide</a>
+        <a href="https://github.com/cwecode/zwopp/blob/main/CHANGELOG.md">Changelog</a>
+        <a href="https://github.com/cwecode/zwopp/discussions">Discussions</a>
+        <a href="https://github.com/cwecode/zwopp/blob/main/SECURITY.md">Security</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script>
+    // Points the main button at the download for this system; nothing is sent anywhere.
+    (function () {
+      var ua = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
+      var agent = navigator.userAgent || "";
+      var os = /win/i.test(ua) ? "windows"
+        : /mac/i.test(ua) && !/iphone|ipad/i.test(agent) ? "mac"
+        : /linux/i.test(ua) && !/android/i.test(agent) ? "linux"
+        : null;
+      if (!os) return;
+      var card = document.querySelector('.platform[data-os="' + os + '"]');
+      var link = card && card.querySelector("a.button");
+      if (!link) return;
+      card.classList.add("yours");
+      var main = document.getElementById("download-main");
+      main.href = link.href;
+      main.textContent = link.textContent;
+      document.getElementById("download-hint").innerHTML =
+        'Free and open source · no account · <a href="#download">other systems</a>';
+    })();
+  </script>
+</body>
+</html>
